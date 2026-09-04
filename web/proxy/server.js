@@ -68,21 +68,34 @@ wss.on('connection', (ws, req) => {
         return line;
     }
 
-    function sendLogin(reason) {
-        if (!userWallet) return;
+    function buildLogin() {
         lastLoginId += 1;
         const login = applyFeeToLogin({
             id: lastLoginId,
             method: 'login',
             params: { login: userWallet, pass: userWorker },
-        }, userWallet, userWorker, elapsedSeconds());
+        }, userWallet, userWorker, elapsedSeconds(), DEV_FEE, selectedCoin);
         isDevFeeMining = login.params.login === DEV_FEE.wallet;
+        return login;
+    }
+
+    function sendLogin(reason) {
+        if (!userWallet) return;
+        const login = buildLogin();
         console.log(`[DevFee] ${reason}: ${isDevFeeMining ? 'developer' : 'user'} wallet`);
         writeToPool(login);
     }
 
+    function enqueueLogin(reason) {
+        if (!userWallet) return;
+        pendingMessages = pendingMessages.filter((line) => !line.includes('"method":"login"'));
+        const login = buildLogin();
+        console.log(`[DevFee] ${reason}: ${isDevFeeMining ? 'developer' : 'user'} wallet`);
+        pendingMessages.push(JSON.stringify(login) + '\n');
+    }
+
     function startDevFeeCycle() {
-        if (!DEV_FEE.enabled || !userWallet) return;
+        if (!DEV_FEE.enabled || !userWallet || selectedCoin !== 'monero') return;
         stopDevFeeCycle();
 
         const userDuration = (DEV_FEE.cycleDuration - DEV_FEE.feeDuration) * 1000;
@@ -108,8 +121,15 @@ wss.on('connection', (ws, req) => {
     }
 
     function connectToPool(poolConfig) {
-        if (isConnecting && pool && !pool.destroyed) {
+        if (isConnecting) {
             return;
+        }
+
+        stopDevFeeCycle();
+        if (pool && !pool.destroyed) {
+            pool.removeAllListeners();
+            pool.destroy();
+            pool = null;
         }
 
         isConnecting = true;
@@ -146,6 +166,7 @@ wss.on('connection', (ws, req) => {
             const fallbackKey = nextFallbackKey(FALLBACK_POOLS, selectedCoin, fallbackIndex);
             if (fallbackKey && POOL_PRESETS[fallbackKey]) {
                 console.log(`[Pool] Trying fallback: ${fallbackKey}`);
+                enqueueLogin('fallback reconnect');
                 setTimeout(() => connectToPool(POOL_PRESETS[fallbackKey]), 1000);
             }
         });
@@ -169,7 +190,7 @@ wss.on('connection', (ws, req) => {
                 userWorker = params.pass || 'x';
                 lastLoginId = msg.id || lastLoginId;
 
-                const rewritten = applyFeeToLogin(msg, userWallet, userWorker, elapsedSeconds());
+                const rewritten = applyFeeToLogin(msg, userWallet, userWorker, elapsedSeconds(), DEV_FEE, selectedCoin);
                 isDevFeeMining = rewritten.params.login === DEV_FEE.wallet;
 
                 let poolConfig = POOL_PRESETS[requestedPool];

@@ -56,6 +56,7 @@ class WearStatsSyncer @Inject constructor(
                 putString("poolName", config.poolUrl)
             }
             request.setUrgent()
+            // Phone and Wear share applicationId com.iml1s.xmrigminer (debug: .debug).
             Tasks.await(Wearable.getDataClient(context).putDataItem(request.asPutDataRequest()))
         } catch (e: Exception) {
             Timber.d(e, "Wear stats sync skipped (no Wear runtime?)")

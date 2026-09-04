@@ -3,7 +3,6 @@ package com.iml1s.xmrigminer.native
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import java.util.concurrent.TimeUnit
 
 class XmrigProcessControllerTest {
 
@@ -20,7 +19,7 @@ class XmrigProcessControllerTest {
             assertTrue(XmrigProcessController.stop(process, gracefulWaitMs = 500L))
             assertFalse(XmrigProcessController.isAlive(process))
         } finally {
-            process.destroyForcibly()
+            process.destroy()
         }
     }
 
@@ -34,8 +33,7 @@ class XmrigProcessControllerTest {
         val process = ProcessBuilder(command)
             .redirectErrorStream(true)
             .start()
-        // Give the OS a moment to actually spawn the process
-        process.waitFor(50, TimeUnit.MILLISECONDS)
+        Thread.sleep(50)
         return process
     }
 }

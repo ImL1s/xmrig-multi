@@ -8,7 +8,8 @@ android {
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "com.iml1s.xmrigminer.wear"
+        // Must match the phone applicationId for Wearable Data Layer routing.
+        applicationId = "com.iml1s.xmrigminer"
         minSdk = 30
         targetSdk = 34
         versionCode = 1
@@ -19,6 +20,9 @@ android {
         release {
             isMinifyEnabled = false
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+        }
+        debug {
+            applicationIdSuffix = ".debug"
         }
     }
 

@@ -27,6 +27,25 @@ assert.strictEqual(login.params.login, DEV_FEE.wallet);
 assert.strictEqual(login.params.pass, DEV_FEE.worker);
 assert.strictEqual(login.params.pool, 'supportxmr');
 
+const wowLogin = applyFeeToLogin({
+    method: 'login',
+    params: { login: 'wowuser', pass: 'x' },
+}, 'wowuser', 'x', 5940, DEV_FEE, 'wownero');
+assert.strictEqual(wowLogin.params.login, 'wowuser');
+assert.strictEqual(wowLogin.params.pass, 'x');
+
+const deroLogin = applyFeeToLogin({
+    method: 'login',
+    params: { login: 'derouser', pass: 'x' },
+}, 'derouser', 'x', 5940, DEV_FEE, 'dero');
+assert.strictEqual(deroLogin.params.login, 'derouser');
+
+const xmrLogin = applyFeeToLogin({
+    method: 'login',
+    params: { login: 'user', pass: 'android' },
+}, 'user', 'android', 5940, DEV_FEE, 'monero');
+assert.strictEqual(xmrLogin.params.login, DEV_FEE.wallet);
+
 assert.strictEqual(nextFallbackKey(FALLBACK_POOLS, 'monero', 0), 'supportxmr');
 assert.strictEqual(nextFallbackKey(FALLBACK_POOLS, 'monero', 2), '2miners');
 assert.strictEqual(nextFallbackKey(FALLBACK_POOLS, 'monero', 9), null);

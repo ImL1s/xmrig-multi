@@ -28,7 +28,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import timber.log.Timber
 import java.io.File
-import java.util.concurrent.TimeUnit
 import android.os.Process as AndroidProcess
 
 @HiltWorker
@@ -111,7 +110,7 @@ class MiningWorker @AssistedInject constructor(
 
         val running = process ?: return@coroutineScope
         while (!isStopped && XmrigProcessController.isAlive(running)) {
-            running.waitFor(500, TimeUnit.MILLISECONDS)
+            delay(500)
         }
         if (isStopped) {
             stopMining()
