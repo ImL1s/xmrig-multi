@@ -14,6 +14,7 @@ settings:
     CURRENT_PROJECT_VERSION: "1"
     CODE_SIGN_STYLE: Automatic
     DEVELOPMENT_TEAM: ""
+    GENERATE_INFOPLIST_FILE: YES
 
 targets:
   XMRigWatch:
@@ -28,19 +29,50 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: com.iml1s.xmrigminer.watchkitapp
         SDKROOT: watchos
         TARGETED_DEVICE_FAMILY: "4"
-        INFOPLIST_KEY_WKWatchOnly: YES
         INFOPLIST_KEY_CFBundleDisplayName: XMRig
-        INFOPLIST_KEY_WKCompanionAppBundleIdentifier: com.iml1s.xmrigminer
     info:
       properties:
-        WKWatchOnly: true
         CFBundleDisplayName: XMRig
+        WKApplication: true
         WKCompanionAppBundleIdentifier: com.iml1s.xmrigminer
+    dependencies:
+      - target: XMRigWatchWidgets
+        embed: true
+        codeSign: true
+      - sdk: WatchConnectivity.framework
+
+  XMRigWatchWidgets:
+    type: app-extension
+    platform: watchOS
+    sources:
+      - path: XMRigWatchWidgets
+        excludes:
+          - "**/.DS_Store"
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.iml1s.xmrigminer.watchkitapp.widgets
+        SDKROOT: watchos
+        TARGETED_DEVICE_FAMILY: "4"
+        SKIP_INSTALL: YES
+        LD_RUNPATH_SEARCH_PATHS:
+          - "$(inherited)"
+          - "@executable_path/Frameworks"
+          - "@executable_path/../../Frameworks"
+        INFOPLIST_KEY_CFBundleDisplayName: Mining Stats
+    info:
+      properties:
+        CFBundleDisplayName: Mining Stats
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+    dependencies:
+      - sdk: SwiftUI.framework
+      - sdk: WidgetKit.framework
 
 schemes:
   XMRigWatch:
     build:
       targets:
         XMRigWatch: all
+        XMRigWatchWidgets: all
     run:
       config: Debug

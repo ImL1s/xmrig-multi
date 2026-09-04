@@ -1,5 +1,8 @@
 package com.iml1s.xmrigminer.data.model
 
+import com.iml1s.xmrigminer.data.repository.ConfigRepositoryDefaults
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.boolean
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
@@ -127,7 +130,7 @@ class MiningConfigTest {
             workerName = "my\"rig",
             threads = 4
         )
-        val parsed = kotlinx.serialization.json.Json.parseToJsonElement(config.toJson())
+        val parsed = Json.parseToJsonElement(config.toJson())
             .jsonObject["pools"]!!.jsonArray[0].jsonObject
         assertEquals("my\"rig", parsed["pass"]!!.jsonPrimitive.content)
     }
@@ -136,5 +139,18 @@ class MiningConfigTest {
     fun `default tls is off so plaintext pool ports work`() {
         val config = MiningConfig()
         assertFalse(config.useTls)
+    }
+
+    @Test
+    fun `fresh-install MoneroOcean port is written without TLS`() {
+        val config = MiningConfig(
+            poolUrl = ConfigRepositoryDefaults.POOL_URL,
+            walletAddress = "wallet",
+            useTls = ConfigRepositoryDefaults.USE_TLS
+        )
+        val pool = Json.parseToJsonElement(config.toJson())
+            .jsonObject["pools"]!!.jsonArray[0].jsonObject
+        assertEquals("gulf.moneroocean.stream:10128", pool["url"]!!.jsonPrimitive.content)
+        assertFalse(pool["tls"]!!.jsonPrimitive.boolean)
     }
 }

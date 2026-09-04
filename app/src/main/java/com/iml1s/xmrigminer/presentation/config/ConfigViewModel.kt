@@ -131,13 +131,15 @@ class ConfigViewModel @Inject constructor(
 
     private fun handleTlsToggled(enabled: Boolean) {
         val state = _uiState.value as? ConfigUiState.Success ?: return
-        val newConfig = currentConfig.copy(useTls = enabled)
-
-        // Update pool URL if a pool is selected
-        state.selectedPool?.let { pool ->
-            val updatedConfig = newConfig.copy(poolUrl = pool.getUrl(enabled))
-            updateConfig(updatedConfig, state)
-        } ?: updateConfig(newConfig, state)
+        val pool = state.selectedPool ?: availablePools.find {
+            it.url == currentConfig.poolUrl || it.sslUrl == currentConfig.poolUrl
+        }
+        val newConfig = if (pool != null) {
+            currentConfig.copy(useTls = enabled, poolUrl = pool.getUrl(enabled))
+        } else {
+            currentConfig.copy(useTls = enabled)
+        }
+        updateConfig(newConfig, state.copy(selectedPool = pool ?: state.selectedPool))
     }
 
     private fun handleCustomPoolUrlChanged(url: String) {

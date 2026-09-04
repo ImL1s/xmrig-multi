@@ -10,4 +10,9 @@ xcodegen generate
 open XMRigWatch.xcodeproj
 ```
 
-Pair it with the iOS app (`com.iml1s.xmrigminer`) which speaks WatchConnectivity in `WatchSessionCoordinator.swift`.
+`xcodegen` produces two targets:
+
+- `XMRigWatch` — the watch app (`com.iml1s.xmrigminer.watchkitapp`)
+- `XMRigWatchWidgets` — WidgetKit complications (`com.iml1s.xmrigminer.watchkitapp.widgets`)
+
+The watch Info.plist sets `WKCompanionAppBundleIdentifier` to `com.iml1s.xmrigminer` (the iOS app). Do not set `WKWatchOnly`; this is a companion, not a standalone watch app. Pair it with the iOS app, which speaks WatchConnectivity in `WatchSessionCoordinator.swift`.

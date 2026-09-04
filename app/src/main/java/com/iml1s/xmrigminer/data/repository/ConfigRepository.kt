@@ -15,6 +15,11 @@ import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 import javax.inject.Singleton
 
+internal object ConfigRepositoryDefaults {
+    const val POOL_URL = "gulf.moneroocean.stream:10128"
+    const val USE_TLS = false
+}
+
 private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "mining_config")
 
 @Singleton
@@ -37,12 +42,12 @@ class ConfigRepository @Inject constructor(
     fun getConfig(): Flow<MiningConfig> = context.dataStore.data.map { prefs ->
         val defaultThreads = (Runtime.getRuntime().availableProcessors() - 1).coerceAtLeast(1)
         MiningConfig(
-            poolUrl = prefs[Keys.POOL_URL] ?: "gulf.moneroocean.stream:10128",
+            poolUrl = prefs[Keys.POOL_URL] ?: ConfigRepositoryDefaults.POOL_URL,
             walletAddress = prefs[Keys.WALLET_ADDRESS] ?: "",
             workerName = prefs[Keys.WORKER_NAME] ?: "android",
             threads = prefs[Keys.THREADS] ?: defaultThreads,
             maxCpuUsage = prefs[Keys.MAX_CPU_USAGE] ?: 75,
-            useTls = prefs[Keys.USE_TLS] ?: false,
+            useTls = prefs[Keys.USE_TLS] ?: ConfigRepositoryDefaults.USE_TLS,
             autoReconnect = prefs[Keys.AUTO_RECONNECT] ?: true,
             donateLevel = prefs[Keys.DONATE_LEVEL] ?: 1,
             customArgs = prefs[Keys.CUSTOM_ARGS] ?: "",
