@@ -45,6 +45,7 @@ class WearStatsSyncer @Inject constructor(
 
     fun publishNow() {
         scope.launch {
+            statsRepository.tickUptime()
             val stats = statsRepository.stats.first()
             val running = miningController.isRunning().first()
             val config = configRepository.getConfig().first()
