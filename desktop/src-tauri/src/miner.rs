@@ -173,7 +173,6 @@ fn parse_stdout<R: Read>(stdout: R, stats: Arc<Mutex<MiningStats>>, running: Arc
         }
         apply_log_line(&line, &stats);
     }
-    clear_session(&running, &stats);
 }
 
 fn reap_when_exited(

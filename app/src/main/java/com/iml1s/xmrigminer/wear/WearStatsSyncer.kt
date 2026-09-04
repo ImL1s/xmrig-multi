@@ -64,8 +64,6 @@ class WearStatsSyncer @Inject constructor(
         val now = System.currentTimeMillis()
         var toSend: Snapshot? = null
         var urgent = false
-        var waitMs = 0L
-        var startFlush = false
         synchronized(pushLock) {
             pending = snapshot
             val runningChanged = lastPublishedRunning != snapshot.running
@@ -77,25 +75,33 @@ class WearStatsSyncer @Inject constructor(
                 urgent = WearStatsPushPolicy.urgent(runningChanged, force)
                 lastPushAtMs = now
                 lastPublishedRunning = snapshot.running
-            } else {
-                waitMs = WearStatsPushPolicy.remainingMs(now, lastPushAtMs)
-                if (flushJob?.isActive != true) {
-                    startFlush = true
-                }
+            } else if (flushJob?.isActive != true) {
+                val waitMs = WearStatsPushPolicy.remainingMs(now, lastPushAtMs)
+                flushJob = scope.launch { flushPendingAfter(waitMs) }
             }
         }
-        if (startFlush) {
-            synchronized(pushLock) {
-                if (flushJob?.isActive != true) {
-                    flushJob = scope.launch {
-                        delay(waitMs)
-                        val queued = synchronized(pushLock) {
-                            pending.also { pending = null }
-                        } ?: return@launch
-                        pushStats(queued, force = false)
-                    }
-                }
+        toSend?.let { deliver(it, urgent) }
+    }
+
+    private suspend fun flushPendingAfter(waitMs: Long) {
+        delay(waitMs)
+        var toSend: Snapshot? = null
+        var urgent = false
+        synchronized(pushLock) {
+            flushJob = null
+            val snapshot = pending ?: return
+            val now = System.currentTimeMillis()
+            val runningChanged = lastPublishedRunning != snapshot.running
+            if (!WearStatsPushPolicy.shouldPush(now, lastPushAtMs, runningChanged, force = false)) {
+                val retryMs = WearStatsPushPolicy.remainingMs(now, lastPushAtMs)
+                flushJob = scope.launch { flushPendingAfter(retryMs) }
+                return
             }
+            toSend = snapshot
+            pending = null
+            urgent = WearStatsPushPolicy.urgent(runningChanged, force = false)
+            lastPushAtMs = now
+            lastPublishedRunning = snapshot.running
         }
         toSend?.let { deliver(it, urgent) }
     }
