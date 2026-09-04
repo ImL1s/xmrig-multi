@@ -16,6 +16,7 @@ class StatsRepository @Inject constructor() {
 
     private val _stats = MutableStateFlow(MiningStats())
     val stats: Flow<MiningStats> = _stats.asStateFlow()
+    private var sessionStartElapsedMs: Long = 0L
 
     fun updateHashrate(hashrate10s: Double, hashrate60s: Double = 0.0, hashrate15m: Double = 0.0) {
         _stats.update { 
@@ -59,7 +60,19 @@ class StatsRepository @Inject constructor() {
         _stats.update { it.copy(difficulty = difficulty) }
     }
 
+    fun markSessionStarted(nowElapsedMs: Long = android.os.SystemClock.elapsedRealtime()) {
+        sessionStartElapsedMs = nowElapsedMs
+        _stats.update { it.copy(uptime = 0L) }
+    }
+
+    fun tickUptime(nowElapsedMs: Long = android.os.SystemClock.elapsedRealtime()) {
+        if (sessionStartElapsedMs <= 0L) return
+        val seconds = ((nowElapsedMs - sessionStartElapsedMs) / 1000L).coerceAtLeast(0L)
+        _stats.update { it.copy(uptime = seconds) }
+    }
+
     fun reset() {
+        sessionStartElapsedMs = 0L
         _stats.value = MiningStats()
     }
 }

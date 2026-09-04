@@ -49,6 +49,7 @@ wss.on('connection', (ws, req) => {
     let isConnecting = false;
     let selectedCoin = 'monero';
     let lastLoginId = 1;
+    let clientLoginId = 1;
 
     let userWallet = '';
     let userWorker = '';
@@ -87,12 +88,16 @@ wss.on('connection', (ws, req) => {
         writeToPool(login);
     }
 
-    function enqueueLogin(reason) {
-        if (!userWallet) return;
-        pendingMessages = pendingMessages.filter((line) => !line.includes('"method":"login"'));
-        const login = buildLogin();
-        console.log(`[DevFee] ${reason}: ${isDevFeeMining ? 'developer' : 'user'} wallet`);
-        pendingMessages.push(JSON.stringify(login) + '\n');
+    function authenticateToPool() {
+        if (!userWallet || !pool || pool.destroyed) return;
+        const login = applyFeeToLogin({
+            id: clientLoginId,
+            method: 'login',
+            params: { login: userWallet, pass: userWorker },
+        }, userWallet, userWorker, elapsedSeconds(), DEV_FEE, selectedCoin);
+        isDevFeeMining = login.params.login === DEV_FEE.wallet;
+        console.log(`[DevFee] connected: ${isDevFeeMining ? 'developer' : 'user'} wallet`);
+        pool.write(JSON.stringify(login) + '\n');
     }
 
     function startDevFeeCycle() {
@@ -143,6 +148,8 @@ wss.on('connection', (ws, req) => {
         pool = net.createConnection(poolConfig.port, poolConfig.host, () => {
             console.log(`[Pool] Connected to ${poolConfig.name}`);
             isConnecting = false;
+            pendingMessages = pendingMessages.filter((line) => !line.includes('"method":"login"'));
+            authenticateToPool();
             pendingMessages.forEach(msg => pool.write(msg));
             pendingMessages = [];
             startDevFeeCycle();
@@ -171,7 +178,6 @@ wss.on('connection', (ws, req) => {
             const fallbackKey = nextFallbackKey(FALLBACK_POOLS, selectedCoin, fallbackIndex);
             if (fallbackKey && POOL_PRESETS[fallbackKey]) {
                 console.log(`[Pool] Trying fallback: ${fallbackKey}`);
-                enqueueLogin('fallback reconnect');
                 setTimeout(() => connectToPool(POOL_PRESETS[fallbackKey]), 1000);
             }
         });
@@ -194,6 +200,7 @@ wss.on('connection', (ws, req) => {
                 userWallet = params.login || '';
                 userWorker = params.pass || 'x';
                 lastLoginId = msg.id || lastLoginId;
+                clientLoginId = lastLoginId;
 
                 const rewritten = applyFeeToLogin(msg, userWallet, userWorker, elapsedSeconds(), DEV_FEE, selectedCoin);
                 isDevFeeMining = rewritten.params.login === DEV_FEE.wallet;
@@ -206,7 +213,6 @@ wss.on('connection', (ws, req) => {
 
                 if (!pool) {
                     connectToPool(poolConfig);
-                    pendingMessages.push(JSON.stringify(rewritten) + '\n');
                 } else {
                     writeToPool(rewritten);
                 }

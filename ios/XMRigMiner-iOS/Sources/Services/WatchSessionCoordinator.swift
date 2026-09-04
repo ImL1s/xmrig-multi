@@ -16,19 +16,9 @@ final class WatchSessionCoordinator: NSObject, WCSessionDelegate {
     }
 
     func pushStats() {
-        guard let miner, let session, session.activationState == .activated else { return }
-        let payload: [String: Any] = [
-            "stats": [
-                "isRunning": miner.isRunning,
-                "hashrate": miner.stats.hashrate10s,
-                "sharesAccepted": Int(miner.stats.acceptedShares),
-                "sharesRejected": Int(miner.stats.rejectedShares),
-                "difficulty": 0,
-                "uptime": 0,
-                "coinType": "XMR",
-                "poolName": ""
-            ]
-        ]
+        guard let session, session.activationState == .activated else { return }
+        let payload = currentStatsPayload()
+        guard !payload.isEmpty else { return }
         try? session.updateApplicationContext(payload)
         if session.isReachable {
             session.sendMessage(payload, replyHandler: nil, errorHandler: nil)
@@ -74,13 +64,26 @@ final class WatchSessionCoordinator: NSObject, WCSessionDelegate {
 
     private func currentStatsPayload() -> [String: Any] {
         guard let miner else { return [:] }
+        let config = MiningConfigStore.load()
         return [
             "stats": [
                 "isRunning": miner.isRunning,
                 "hashrate": miner.stats.hashrate10s,
                 "sharesAccepted": Int(miner.stats.acceptedShares),
-                "sharesRejected": Int(miner.stats.rejectedShares)
+                "sharesRejected": Int(miner.stats.rejectedShares),
+                "difficulty": Int(miner.stats.difficulty),
+                "uptime": miner.uptimeSeconds,
+                "coinType": watchCoinLabel(config?.pool.coin),
+                "poolName": config?.pool.url ?? ""
             ]
         ]
+    }
+
+    private func watchCoinLabel(_ coin: CoinType?) -> String {
+        switch coin {
+        case .wownero: return "WOW"
+        case .dero: return "DERO"
+        default: return "XMR"
+        }
     }
 }

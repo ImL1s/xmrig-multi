@@ -89,6 +89,18 @@ class StatsRepositoryTest {
         assertEquals(0, stats.acceptedShares)
         assertEquals(0, stats.rejectedShares)
         assertEquals(0f, stats.cpuUsage, 0.01f)
+        assertEquals(0L, stats.uptime)
+    }
+
+    @Test
+    fun `uptime tracks elapsed session time`() = runTest {
+        repository.markSessionStarted(1_000L)
+        repository.tickUptime(6_000L)
+        assertEquals(5L, repository.stats.first().uptime)
+
+        repository.reset()
+        repository.tickUptime(12_000L)
+        assertEquals(0L, repository.stats.first().uptime)
     }
 
     @Test

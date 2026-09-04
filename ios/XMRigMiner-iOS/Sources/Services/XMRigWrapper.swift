@@ -11,6 +11,7 @@ struct MiningStats: Equatable {
     var rejectedShares: UInt64 = 0
     var isMining: Bool = false
     var threads: Int = 0
+    var difficulty: UInt64 = 0
 }
 
 @MainActor
@@ -20,6 +21,7 @@ class XMRigWrapper: ObservableObject {
     @Published private(set) var isRunning = false
     @Published private(set) var version: String = "6.25.0"
     @Published private(set) var logs: [String] = []
+    private(set) var miningStartedAt: Date?
     
     private var statsTimer: Timer?
     private let bridge: XMRigBridge
@@ -46,6 +48,7 @@ class XMRigWrapper: ObservableObject {
     func start() {
         guard bridge.startMining() else { return }
         isRunning = true
+        miningStartedAt = Date()
         startStatsTimer()
         watchCoordinator.pushStats()
     }
@@ -53,8 +56,14 @@ class XMRigWrapper: ObservableObject {
     func stop() {
         bridge.stopMining()
         isRunning = false
+        miningStartedAt = nil
         stopStatsTimer()
         watchCoordinator.pushStats()
+    }
+
+    var uptimeSeconds: Int {
+        guard isRunning, let miningStartedAt else { return 0 }
+        return max(0, Int(Date().timeIntervalSince(miningStartedAt)))
     }
     
     func setThreads(_ count: Int) {
@@ -85,6 +94,21 @@ class XMRigWrapper: ObservableObject {
             logs.removeFirst()
         }
         bridge.updateStats(fromLogLine: line)
+        if let difficulty = parseDifficulty(line), difficulty != stats.difficulty {
+            var next = stats
+            next.difficulty = difficulty
+            stats = next
+            watchCoordinator.pushStats()
+        }
+    }
+
+    private func parseDifficulty(_ line: String) -> UInt64? {
+        guard let regex = try? NSRegularExpression(pattern: #"diff\s+(\d+)"#) else { return nil }
+        let range = NSRange(line.startIndex..., in: line)
+        guard let match = regex.firstMatch(in: line, range: range),
+              match.numberOfRanges >= 2,
+              let valueRange = Range(match.range(at: 1), in: line) else { return nil }
+        return UInt64(line[valueRange])
     }
     
     private func startStatsTimer() {
@@ -111,7 +135,8 @@ class XMRigWrapper: ObservableObject {
             acceptedShares: statsDict["accepted_shares"] as? UInt64 ?? 0,
             rejectedShares: statsDict["rejected_shares"] as? UInt64 ?? 0,
             isMining: statsDict["is_mining"] as? Bool ?? false,
-            threads: statsDict["threads"] as? Int ?? 0
+            threads: statsDict["threads"] as? Int ?? 0,
+            difficulty: stats.difficulty
         )
         
         if newStats != stats {
@@ -120,5 +145,10 @@ class XMRigWrapper: ObservableObject {
         }
         
         isRunning = newStats.isMining
+        if newStats.isMining, miningStartedAt == nil {
+            miningStartedAt = Date()
+        } else if !newStats.isMining {
+            miningStartedAt = nil
+        }
     }
 }

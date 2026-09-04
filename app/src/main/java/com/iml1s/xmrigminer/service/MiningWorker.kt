@@ -109,7 +109,9 @@ class MiningWorker @AssistedInject constructor(
         }
 
         val running = process ?: return@coroutineScope
+        statsRepository.markSessionStarted()
         while (!isStopped && XmrigProcessController.isAlive(running)) {
+            statsRepository.tickUptime()
             delay(500)
         }
         if (isStopped) {
