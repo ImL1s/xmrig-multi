@@ -17,6 +17,6 @@ This is the 1% developer fee, **not** the user's wallet. User mining uses the ad
 
 ## 3. Build
 
-- Static library: `libxmrig-ios-arm64.a` via `ios/XMRigCore/scripts/build-ios.sh`
+- Static library: tracked `ios/XMRigCore/output/libxmrig-ios-arm64.a` (optional rebuild: `./ios/XMRigCore/scripts/build-ios.sh` — see [docs/ios.md](../docs/ios.md))
 - Sideload only — Apple prohibits mining apps on the App Store
 - Full steps: [docs/ios.md](../docs/ios.md)

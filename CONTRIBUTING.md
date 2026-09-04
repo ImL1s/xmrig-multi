@@ -50,8 +50,8 @@ Enhancement suggestions are welcome! Please:
 git clone https://github.com/ImL1s/xmrig-android.git
 cd xmrig-android
 
-# Native XMRig (gitignored libxmrig.so) — see docs/building.md
-./scripts/build_xmrig.sh
+# Native XMRig is already in jniLibs for arm64 — see docs/building.md
+./scripts/build_xmrig.sh   # only when rebuilding XMRig / fee sources
 
 # Build
 ./gradlew :app:assembleDebug

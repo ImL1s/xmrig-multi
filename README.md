@@ -9,10 +9,10 @@ Cross-platform **Monero (XMR) / Wownero (WOW) / DERO** mining solution.
 
 | Platform | Status | Mining | Notes |
 |----------|--------|--------|-------|
-| 📱 **Android** | ⚠️ Needs XMRig binary | Native XMRig | Run `scripts/build_xmrig.sh` then `./gradlew :app:assembleDebug` |
+| 📱 **Android** | ✅ Tracked arm64 binary | Native XMRig | `./gradlew :app:assembleDebug` |
 | 🍎 **iOS** | ✅ Sideload | Native XMRig | App Store prohibited |
 | 🌐 **Web** | ✅ Demo | RandomX.js | Needs local WebSocket proxy |
-| 💻 **Desktop** | ⚠️ Needs XMRig binary | Native XMRig | Run `desktop/scripts/build-xmrig.sh` |
+| 💻 **Desktop** | ⚠️ Linux binary tracked | Native XMRig | macOS/Windows: `desktop/scripts/build-xmrig.sh` |
 | ⌚ **WearOS** | Companion | No | `./gradlew :wearos:assembleDebug` |
 | ⌚ **watchOS** | Companion | No | `cd watchos && xcodegen generate` |
 
@@ -24,17 +24,19 @@ Cross-platform **Monero (XMR) / Wownero (WOW) / DERO** mining solution.
 
 ### Android
 ```bash
-./scripts/build_xmrig.sh   # produces gitignored libxmrig.so
 ./gradlew :app:assembleDebug
 ./gradlew :app:installDebug
 ```
 
+A checkout already includes `app/src/main/jniLibs/arm64-v8a/libxmrig.so` and the `xmrig_arm64` assets fallback. Rebuild with `./scripts/build_xmrig.sh` only when you change XMRig or the fee sources.
+
 ### iOS (Sideload)
 ```bash
-cd ios/XMRigCore/scripts && ./build-ios.sh
 open ios/XMRigMiner-iOS.xcodeproj
 # Build with Xcode, install via Sideloadly or AltStore
 ```
+
+A checkout already includes `ios/XMRigCore/output/libxmrig-ios-arm64.a`. Do not run `build-ios.sh` first: it needs `ios-cmake` and a built `libuv.a` that a typical clone does not have. Rebuild steps are in [docs/ios.md](docs/ios.md).
 
 ### Web Miner
 ```bash
@@ -152,7 +154,7 @@ xmrig-android/
 ├── app/                    # Android app
 │   ├── src/main/java/      # Kotlin source
 │   ├── src/main/cpp/       # JNI bridge
-│   └── src/main/jniLibs/   # gitignored libxmrig.so (after build_xmrig.sh)
+│   └── src/main/jniLibs/   # tracked libxmrig.so (arm64)
 ├── ios/                    # iOS app
 │   └── XMRigMiner-iOS/     # SwiftUI project
 ├── web/                    # Web miner

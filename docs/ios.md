@@ -11,26 +11,9 @@ Native RandomX on stock iOS runs in interpreted mode (~3–5 H/s). JIT (~200–4
 - Apple Developer Account ($99/year for 1-year signing, or free for 7-day)
 - Physical iOS device (arm64) — **Simulator will not mine**
 
-## Build XMRig static library
+## Use the tracked static library (typical)
 
-From the repository root:
-
-```bash
-cd ios/XMRigCore/scripts
-chmod +x build-ios.sh
-./build-ios.sh
-```
-
-This:
-
-- Downloads XMRig **6.21.0**
-- Applies `xmrig_custom_source/` (1% developer fee)
-- Compiles for iOS arm64
-- Outputs `libxmrig-ios-arm64.a`
-
-Do not hand-edit a copy of XMRig donate headers; the script copies this repo's files.
-
-## Open the Xcode project
+A checkout already has `ios/XMRigCore/output/libxmrig-ios-arm64.a`. From the **repository root**:
 
 ```bash
 open ios/XMRigMiner-iOS.xcodeproj
@@ -51,6 +34,22 @@ open ios/XMRigMiner-iOS.xcodeproj
 
 The Start button requires a wallet saved in Settings. The app does not auto-start mining.
 
+## Optional: rebuild XMRig
+
+`ios/XMRigCore/scripts/build-ios.sh` is only for regenerating the static library (fee-source changes, XMRig upgrades). On a typical clone it **exits immediately** unless:
+
+1. `ios/XMRigCore/libs/ios-cmake/ios.toolchain.cmake` exists (the `ios-cmake` gitlink is not wired in `.gitmodules`)
+2. `ios/XMRigCore/libs/libuv-1.48.0/build-ios/libuv.a` exists
+
+If those files are present, run the script **from the repository root** (do not `cd` first, or `open` paths will break):
+
+```bash
+./ios/XMRigCore/scripts/build-ios.sh
+open ios/XMRigMiner-iOS.xcodeproj
+```
+
+The script downloads XMRig **6.21.0**, applies `xmrig_custom_source/`, and writes `libxmrig-ios-arm64.a`. Do not hand-edit donate headers; the script copies this repo's files.
+
 ## Sideloading (without a long-lived Xcode install)
 
 ### AltStore / SideStore
@@ -68,7 +67,7 @@ The Start button requires a wallet saved in Settings. The app does not auto-star
 
 **"No such module 'XMRigCore'"**
 
-- Run `ios/XMRigCore/scripts/build-ios.sh` first
+- Confirm `ios/XMRigCore/output/libxmrig-ios-arm64.a` is present
 - Check library search paths in Xcode
 
 **"Signing certificate not found"**

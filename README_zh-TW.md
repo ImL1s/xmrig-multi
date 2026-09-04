@@ -9,10 +9,10 @@
 
 | 平台 | 狀態 | 挖礦 | 說明 |
 |------|------|------|------|
-| **Android** | ⚠️ 需自行編譯 XMRig | 原生 XMRig | `scripts/build_xmrig.sh` 再 `./gradlew :app:assembleDebug` |
+| **Android** | ✅ 倉庫已含 arm64 二進位 | 原生 XMRig | `./gradlew :app:assembleDebug` |
 | **iOS** | ✅ Sideload | 原生 XMRig | App Store 禁止上架 |
 | **Web** | ✅ Demo | RandomX.js | 需要本機 WebSocket proxy |
-| **Desktop** | ⚠️ 需自行編譯 XMRig | 原生 XMRig | `desktop/scripts/build-xmrig.sh` |
+| **Desktop** | ⚠️ Linux 二進位已提交 | 原生 XMRig | macOS/Windows：`desktop/scripts/build-xmrig.sh` |
 | **WearOS** | 伴侶應用 | 否 | `./gradlew :wearos:assembleDebug` |
 | **watchOS** | 伴侶應用 | 否 | `cd watchos && xcodegen generate` |
 
@@ -27,21 +27,19 @@
 ```bash
 git clone https://github.com/ImL1s/xmrig-android.git
 cd xmrig-android
-./scripts/build_xmrig.sh   # 產出 gitignore 的 libxmrig.so
 ./gradlew :app:assembleDebug
 ./gradlew :app:installDebug
 ```
 
-二進位在 `app/src/main/jniLibs/arm64-v8a/libxmrig.so`（優先），`app/src/main/assets/xmrig_arm64` 僅備援。沒編過二進位時 APK 仍能裝，但無法挖礦。
+Checkout 已含 `app/src/main/jniLibs/arm64-v8a/libxmrig.so` 與 `xmrig_arm64` 備援。只有改 XMRig / 費用原始碼時才需要 `./scripts/build_xmrig.sh`。
 
 ### iOS（Sideload）
 
 ```bash
-cd ios/XMRigCore/scripts && ./build-ios.sh
 open ios/XMRigMiner-iOS.xcodeproj
 ```
 
-詳見 [docs/ios.md](docs/ios.md)。
+Checkout 已含 `ios/XMRigCore/output/libxmrig-ios-arm64.a`。不要先跑 `build-ios.sh`（缺 `ios-cmake` 與 `libuv.a` 會立刻失敗）。重建步驟見 [docs/ios.md](docs/ios.md)。
 
 ### Web
 
@@ -105,7 +103,7 @@ iOS 17.4+ 預設為解譯模式。JIT 作法見 [docs/platforms.md](docs/platfor
 xmrig-android/
 ├── docs/                   # 編譯、平台、費用說明
 ├── app/                    # Android
-│   └── src/main/jniLibs/   # gitignore 的 libxmrig.so
+│   └── src/main/jniLibs/   # 已提交的 libxmrig.so
 ├── ios/                    # iOS
 ├── web/                    # 網頁礦機 + proxy
 ├── desktop/                # Tauri

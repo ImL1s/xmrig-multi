@@ -6,12 +6,12 @@ Cross-platform Monero/Wownero/DERO mining application.
 
 | Platform | Type | Status | Mining | Notes |
 |----------|------|--------|--------|-------|
-| **Android** | Mobile | ⚠️ Binary required | ✅ Native XMRig | `scripts/build_xmrig.sh` then `:app:assembleDebug` |
+| **Android** | Mobile | ✅ Tracked arm64 binary | ✅ Native XMRig | `:app:assembleDebug` |
 | **iOS** | Mobile | ✅ Sideload | ⚠️ Limited | JIT blocked (3-5 H/s), see below |
 | **Web** | Browser | ✅ Demo | ✅ RandomX.js | WebSocket proxy required |
-| **macOS** | Desktop | ⚠️ Binary required | ✅ Native XMRig | `desktop/scripts/build-xmrig.sh` |
-| **Windows** | Desktop | ⚠️ Binary required | ✅ Native XMRig | `desktop/scripts/build-xmrig.sh` |
-| **Linux** | Desktop | ⚠️ Binary required | ✅ Native XMRig | `desktop/scripts/build-xmrig.sh` |
+| **macOS** | Desktop | ⚠️ Build required | ✅ Native XMRig | `desktop/scripts/build-xmrig.sh` |
+| **Windows** | Desktop | ⚠️ Build required | ✅ Native XMRig | `desktop/scripts/build-xmrig.sh` |
+| **Linux** | Desktop | ✅ Tracked binary | ✅ Native XMRig | `xmrig-x86_64-unknown-linux-gnu` |
 | **WearOS** | Watch | Companion | ❌ No | `./gradlew :wearos:assembleDebug` |
 | **watchOS** | Watch | Companion | ❌ No | `cd watchos && xcodegen generate` |
 
@@ -224,11 +224,11 @@ cd xmrig-android
 # Desktop
 cd desktop && npm install && npm run tauri:dev
 
-# Android (after scripts/build_xmrig.sh)
+# Android (after optional scripts/build_xmrig.sh)
 ./gradlew :app:assembleDebug
 
-# iOS
-cd ios && open XMRigMiner-iOS.xcodeproj
+# iOS (tracked libxmrig-ios-arm64.a)
+open ios/XMRigMiner-iOS.xcodeproj
 
 # WearOS
 ./gradlew :wearos:assembleDebug

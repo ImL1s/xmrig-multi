@@ -98,7 +98,7 @@ xmrig-android/
 │   │   ├── native/                # JNI bridge
 │   │   └── di/                    # Hilt DI modules
 │   ├── src/main/cpp/              # C++ native code
-│   └── src/main/jniLibs/          # gitignored libxmrig.so
+│   └── src/main/jniLibs/          # tracked libxmrig.so (arm64)
 ├── ios/                           # iOS app
 │   ├── XMRigMiner-iOS/            # SwiftUI app
 │   └── XMRigCore/                 # XMRig C++ build
