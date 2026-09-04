@@ -31,11 +31,7 @@
     volatile <fields>;
 }
 
-# Room
--keep class * extends androidx.room.RoomDatabase
--keep @androidx.room.Entity class *
--dontwarn androidx.room.paging.**
-
-# Compose
+# Coroutines
+-keepnames class kotlinx.coroutines.internal.MainDispatcherFactory {}
 -keep class androidx.compose.** { *; }
 -keep class kotlin.Metadata { *; }

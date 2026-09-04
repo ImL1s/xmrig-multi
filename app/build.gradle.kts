@@ -39,6 +39,18 @@ android {
         }
     }
 
+    signingConfigs {
+        create("release") {
+            val storeFilePath = System.getenv("SIGNING_STORE_FILE")
+            if (!storeFilePath.isNullOrBlank()) {
+                storeFile = file(storeFilePath)
+                storePassword = System.getenv("SIGNING_STORE_PASSWORD") ?: ""
+                keyAlias = System.getenv("SIGNING_KEY_ALIAS") ?: ""
+                keyPassword = System.getenv("SIGNING_KEY_PASSWORD") ?: ""
+            }
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = true
@@ -47,6 +59,10 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            val releaseSigning = signingConfigs.findByName("release")
+            if (releaseSigning?.storeFile?.exists() == true) {
+                signingConfig = releaseSigning
+            }
         }
         debug {
             isMinifyEnabled = false
@@ -113,9 +129,8 @@ dependencies {
     // DataStore
     implementation(libs.datastore.preferences)
 
-    // Room
-    implementation(libs.bundles.room)
-    ksp(libs.room.compiler)
+    // Wearable Data Layer (phone <-> watch)
+    implementation(libs.play.services.wearable)
 
     // WorkManager
     implementation(libs.work.runtime)
@@ -142,6 +157,3 @@ dependencies {
     androidTestImplementation(libs.compose.ui.test.junit4)
 }
 
-ksp {
-    arg("room.schemaLocation", "$projectDir/schemas")
-}

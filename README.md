@@ -9,12 +9,12 @@ Cross-platform **Monero (XMR) / Wownero (WOW) / DERO** mining solution.
 
 | Platform | Status | Mining | Notes |
 |----------|--------|--------|-------|
-| 📱 **Android** | ✅ Ready | Native XMRig | ARM64 native, best mobile performance |
-| 🍎 **iOS** | ✅ Ready | Native XMRig | Sideload only (Apple prohibits mining) |
-| 🌐 **Web** | ✅ Ready | RandomX.js | Any browser, no installation |
-| 💻 **Desktop** | ✅ Ready | Native XMRig | macOS / Windows / Linux |
-| ⌚ **WearOS** | ✅ Ready | Companion | Stats viewer & remote control |
-| ⌚ **watchOS** | ✅ Ready | Companion | Stats viewer only (Apple ban) |
+| 📱 **Android** | ⚠️ Needs XMRig binary | Native XMRig | Run `scripts/build_xmrig.sh` then `./gradlew :app:assembleDebug` |
+| 🍎 **iOS** | ✅ Sideload | Native XMRig | App Store prohibited |
+| 🌐 **Web** | ✅ Demo | RandomX.js | Needs local WebSocket proxy |
+| 💻 **Desktop** | ⚠️ Needs XMRig binary | Native XMRig | Run `desktop/scripts/build-xmrig.sh` |
+| ⌚ **WearOS** | Companion | No | `./gradlew :wearos:assembleDebug` |
+| ⌚ **watchOS** | Companion | No | `cd watchos && xcodegen generate` |
 
 [繁體中文](README_zh-TW.md) | [Platform Details](PLATFORMS.md) | [Dev Fee Info](DEV_FEE.md)
 
@@ -24,8 +24,9 @@ Cross-platform **Monero (XMR) / Wownero (WOW) / DERO** mining solution.
 
 ### Android
 ```bash
-./gradlew assembleDebug
-./gradlew installDebug
+./scripts/build_xmrig.sh   # produces gitignored libxmrig.so
+./gradlew :app:assembleDebug
+./gradlew :app:installDebug
 ```
 
 ### iOS (Sideload)

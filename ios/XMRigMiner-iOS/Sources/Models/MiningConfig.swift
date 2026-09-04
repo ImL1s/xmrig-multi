@@ -90,7 +90,7 @@ struct PoolConfig: Codable {
     var coin: CoinType
 
     init(url: String = "gulf.moneroocean.stream:10001",
-         user: String = "8AfUwcnoJiRDMXnDGj3zX6bMgfaj9pM1WFGr2pakLm3jSYXVLD5fcDMBzkmk4AeSqWYQTA5aerXJ43W65AT82RMqG6NDBnC",
+         user: String = "",
          pass: String = "x",
          tls: Bool = false,
          coin: CoinType = .monero) {

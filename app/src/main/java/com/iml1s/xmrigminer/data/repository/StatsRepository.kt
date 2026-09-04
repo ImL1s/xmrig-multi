@@ -9,8 +9,7 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * 簡化版 Stats Repository
- * 後續可以接入 Room Database 持久化
+ * In-memory mining stats. Historical persistence is intentionally out of scope.
  */
 @Singleton
 class StatsRepository @Inject constructor() {

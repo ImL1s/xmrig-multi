@@ -7,10 +7,10 @@ This document provides comprehensive development guidelines for the XMRig cross-
 ### Android
 ```bash
 # Debug APK build
-./gradlew assembleDebug
+./gradlew :app:assembleDebug
 
 # Release APK build
-./gradlew assembleRelease
+./gradlew :app:assembleRelease
 
 # Unit tests
 ./gradlew testDebugUnitTest
@@ -70,7 +70,7 @@ npm run tauri:build
 ### WearOS
 ```bash
 # Build debug APK
-cd wearos && ./gradlew assembleDebug
+./gradlew :wearos:assembleDebug
 ```
 
 ### watchOS

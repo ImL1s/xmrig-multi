@@ -16,7 +16,7 @@
       "tls": true
     }
   ],
-  "donate-level": 0,
+  "donate-level": 1,
   "log-file": null,
   "print-time": 60,
   "health-print-time": 60,

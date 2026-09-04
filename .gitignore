@@ -58,6 +58,7 @@ render.experimental.xml
 # Keystore files
 *.jks
 *.keystore
+app/release.keystore
 
 # External native build folder generated in Android Studio 2.2 and later
 .externalNativeBuild
@@ -134,4 +135,12 @@ dist/
 
 # IDE settings
 .vscode/
+
+# XMRig binaries (produced by scripts/build_xmrig.sh / desktop/scripts/build-xmrig.sh)
+app/src/main/jniLibs/**/libxmrig.so
+app/src/main/assets/xmrig_arm64
+app/src/main/assets/xmrig
+desktop/src-tauri/binaries/xmrig
+desktop/src-tauri/binaries/xmrig.exe
+
 

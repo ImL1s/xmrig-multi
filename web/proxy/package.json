@@ -3,9 +3,10 @@
     "version": "1.0.0",
     "description": "WebSocket to Stratum proxy for XMRig Web Miner",
     "main": "server.js",
-    "scripts": {
-        "start": "node server.js"
-    },
+  "scripts": {
+    "start": "node server.js",
+    "test": "node test-dev-fee.js"
+  },
     "dependencies": {
         "ws": "^8.14.2"
     }

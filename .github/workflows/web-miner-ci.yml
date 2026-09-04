@@ -67,3 +67,6 @@ jobs:
 
       - name: Check Proxy Syntax
         run: node --check server.js
+
+      - name: Run Proxy Fee Tests
+        run: npm test

@@ -97,8 +97,22 @@ class MiningConfigTest {
     }
 
     @Test
-    fun `default donate level is 1`() {
+    fun `default wallet is empty so first launch cannot mine to the fee address`() {
         val config = MiningConfig()
-        assertEquals(1, config.donateLevel)
+        assertEquals("", config.walletAddress)
+        assertFalse(config.isValid())
+    }
+
+    @Test
+    fun `toJson uses configured donate level and log file`() {
+        val config = MiningConfig(
+            poolUrl = "pool.supportxmr.com:3333",
+            walletAddress = "my_wallet_address",
+            donateLevel = 1
+        )
+        val json = config.toJson("/data/xmrig.log")
+        assertTrue(json.contains("\"donate-level\": 1"))
+        assertTrue(json.contains("/data/xmrig.log"))
+        assertTrue(json.contains("my_wallet_address"))
     }
 }

@@ -22,7 +22,8 @@ import kotlin.math.roundToInt
 @Composable
 fun MiningScreen(
     viewModel: MiningViewModel = hiltViewModel(),
-    onNavigateToConfig: () -> Unit = {}
+    onNavigateToConfig: () -> Unit = {},
+    onNavigateToStats: () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
@@ -47,6 +48,12 @@ fun MiningScreen(
             TopAppBar(
                 title = { Text("XMRig Miner") },
                 actions = {
+                    IconButton(onClick = onNavigateToStats) {
+                        Icon(
+                            imageVector = Icons.Default.BarChart,
+                            contentDescription = "Statistics"
+                        )
+                    }
                     IconButton(onClick = onNavigateToConfig) {
                         Icon(
                             imageVector = Icons.Default.Settings,

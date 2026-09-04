@@ -4,12 +4,13 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.android.gms.wearable.*
+import com.google.android.gms.tasks.Tasks
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.tasks.await
-import org.json.JSONObject
+import kotlinx.coroutines.withContext
 
 data class MiningState(
     val isRunning: Boolean = false,
@@ -82,10 +83,14 @@ class MiningViewModel(application: Application) : AndroidViewModel(application) 
     private fun sendMessageToPhone(path: String, data: ByteArray = ByteArray(0)) {
         viewModelScope.launch {
             try {
-                val nodes = nodeClient.connectedNodes.await()
+                val nodes = withContext(Dispatchers.IO) {
+                    Tasks.await(nodeClient.connectedNodes)
+                }
                 if (nodes.isNotEmpty()) {
                     val phoneNode = nodes.first()
-                    messageClient.sendMessage(phoneNode.id, path, data).await()
+                    withContext(Dispatchers.IO) {
+                        Tasks.await(messageClient.sendMessage(phoneNode.id, path, data))
+                    }
                     _state.value = _state.value.copy(isConnected = true)
                 } else {
                     _state.value = _state.value.copy(isConnected = false)

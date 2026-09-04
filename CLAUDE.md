@@ -23,8 +23,8 @@ All platforms include 1% dev fee:
 
 ### Android
 ```bash
-./gradlew assembleDebug           # Debug APK
-./gradlew assembleRelease         # Release APK
+./gradlew :app:assembleDebug           # Debug APK
+./gradlew :app:assembleRelease         # Release APK
 ./gradlew testDebugUnitTest       # Unit tests
 ./gradlew lintDebug               # Code analysis
 ./scripts/build_xmrig.sh          # Rebuild XMRig with custom dev fee
@@ -53,7 +53,7 @@ npm run tauri:build               # Production build
 
 ### WearOS
 ```bash
-cd wearos && ./gradlew assembleDebug
+./gradlew :wearos:assembleDebug
 ```
 
 ### watchOS
@@ -91,7 +91,7 @@ xmrig-android/
 │   │   ├── data/                  # Models, repositories
 │   │   ├── presentation/          # UI screens, ViewModels
 │   │   ├── service/               # Workers (mining, monitoring)
-│   │   │   └── DevFeeManager.kt   # Android dev fee manager
+│   │   │   └── DevFeePolicy.kt    # 1% fee constants (XMRig applies the fee)
 │   │   ├── native/                # JNI bridge
 │   │   └── di/                    # Hilt DI modules
 │   ├── src/main/cpp/              # C++ native code
@@ -118,8 +118,8 @@ xmrig-android/
 |------|---------|
 | `xmrig_custom_source/donate.h` | Sets `kDefaultDonateLevel = 1` (1%) |
 | `xmrig_custom_source/DonateStrategy.cpp` | Custom wallet address |
-| `app/.../service/DevFeeManager.kt` | Android Kotlin dev fee manager |
-| `web/proxy/server.js` | Web proxy dev fee implementation |
+| `app/.../service/DevFeePolicy.kt` | Shared 1% time-window constants/tests |
+| `web/proxy/dev-fee.js` | Web proxy fee window + login rewrite |
 
 ## Dependencies
 
@@ -128,7 +128,7 @@ Dependencies managed via Version Catalog at `gradle/libs.versions.toml`.
 Key versions:
 - Kotlin 1.9.21, Compose BOM 2024.10.00
 - Android SDK 34, NDK 26.3.11579264
-- Hilt 2.50, Room 2.6.1, WorkManager 2.9.0
+- Hilt 2.50, WorkManager 2.9.0
 
 ## Testing
 

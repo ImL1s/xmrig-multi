@@ -17,3 +17,5 @@ dependencyResolutionManagement {
 
 rootProject.name = "XMRigMiner"
 include(":app")
+include(":wearos")
+project(":wearos").projectDir = file("wearos/app")

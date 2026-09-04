@@ -176,12 +176,9 @@ struct ConfigView: View {
             threads: threads
         )
 
-        // Save to UserDefaults
-        if let encoded = try? JSONEncoder().encode(config) {
-            UserDefaults.standard.set(encoded, forKey: "miningConfig")
-        }
+        MiningConfigStore.save(config)
 
-        print("Saving config for \(selectedCoin.displayName): \(config)")
+        print("Saving config for \(selectedCoin.displayName)")
         if let json = config.toJSON() {
             print("XMRig JSON:\n\(json)")
         }

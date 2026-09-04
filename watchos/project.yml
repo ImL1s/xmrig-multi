@@ -1,0 +1,45 @@
+name: XMRigWatch
+options:
+  bundleIdPrefix: com.iml1s
+  deploymentTarget:
+    watchOS: "10.0"
+  xcodeVersion: "15.0"
+  createIntermediateGroups: true
+
+settings:
+  base:
+    SWIFT_VERSION: "5.9"
+    PRODUCT_NAME: XMRigWatch
+    MARKETING_VERSION: "1.0.0"
+    CURRENT_PROJECT_VERSION: "1"
+    CODE_SIGN_STYLE: Automatic
+    DEVELOPMENT_TEAM: ""
+
+targets:
+  XMRigWatch:
+    type: application
+    platform: watchOS
+    sources:
+      - path: XMRigWatch/Sources
+        excludes:
+          - "**/.DS_Store"
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.iml1s.xmrigminer.watchkitapp
+        SDKROOT: watchos
+        TARGETED_DEVICE_FAMILY: "4"
+        INFOPLIST_KEY_WKWatchOnly: YES
+        INFOPLIST_KEY_CFBundleDisplayName: XMRig
+        INFOPLIST_KEY_NSWKCompanionAppBundleIdentifier: com.iml1s.xmrigminer
+    info:
+      properties:
+        WKWatchOnly: true
+        CFBundleDisplayName: XMRig
+
+schemes:
+  XMRigWatch:
+    build:
+      targets:
+        XMRigWatch: all
+    run:
+      config: Debug

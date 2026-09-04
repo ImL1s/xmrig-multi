@@ -6,6 +6,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import com.iml1s.xmrigminer.presentation.config.ConfigScreen
 import com.iml1s.xmrigminer.presentation.mining.MiningScreen
+import com.iml1s.xmrigminer.presentation.stats.StatsScreen
 
 @Composable
 fun AppNavigation(
@@ -19,6 +20,9 @@ fun AppNavigation(
             MiningScreen(
                 onNavigateToConfig = {
                     navController.navigate(Screen.Config.route)
+                },
+                onNavigateToStats = {
+                    navController.navigate(Screen.Stats.route)
                 }
             )
         }
@@ -31,6 +35,12 @@ fun AppNavigation(
             )
         }
 
-        // TODO: Add Stats and Settings screens
+        composable(Screen.Stats.route) {
+            StatsScreen(
+                onNavigateBack = {
+                    navController.popBackStack()
+                }
+            )
+        }
     }
 }

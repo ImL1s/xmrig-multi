@@ -11,17 +11,16 @@ data class MiningConfig(
     val maxCpuUsage: Int = 75,
     val useTls: Boolean = true,
     val autoReconnect: Boolean = true,
-    val mineWhenScreenOff: Boolean = false,
-    val donateLevel: Int = 1,  // 捐贈 1%
+    val donateLevel: Int = 1,
     val customArgs: String = "",
     val retries: Int = 5,
     val retryPause: Int = 5,
-    val printTime: Int = 60,
-    val coinType: String = "MONERO"  // 新增：幣種類型
+    val printTime: Int = 10,
+    val coinType: String = "MONERO"
 ) {
     fun getCoin(): CoinType = CoinType.fromString(coinType)
 
-    fun toJson(): String {
+    fun toJson(logFile: String? = null): String {
         val coin = getCoin()
         val coinConfig = when (coin) {
             CoinType.MONERO -> ""  // Monero 不需要額外配置
@@ -73,8 +72,8 @@ data class MiningConfig(
                     "tls": $useTls
                 }
             ],
-            "donate-level": 1,
-            "log-file": null,
+            "donate-level": $donateLevel,
+            "log-file": ${logFile?.let { "\"$it\"" } ?: "null"},
             "print-time": $printTime,
             "health-print-time": $printTime,
             "retries": $retries,
