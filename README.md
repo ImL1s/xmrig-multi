@@ -10,7 +10,7 @@ Cross-platform **Monero (XMR) / Wownero (WOW) / DERO** mining solution.
 | Platform | Status | Mining | Notes |
 |----------|--------|--------|-------|
 | 📱 **Android** | ✅ Asset binary in checkout | Native XMRig | `./gradlew :app:assembleDebug` |
-| 🍎 **iOS** | ✅ Sideload | Native XMRig | App Store prohibited |
+| 🍎 **iOS** | ⚠️ Tracked `.a` is upstream donate | Native XMRig | Rebuild for this repo's fee; App Store prohibited |
 | 🌐 **Web** | ✅ Demo | RandomX.js | Needs local WebSocket proxy |
 | 💻 **Desktop** | ⚠️ Linux binary tracked | Native XMRig | macOS/Windows: `desktop/scripts/build-xmrig.sh` |
 | ⌚ **WearOS** | Companion | No | `./gradlew :wearos:assembleDebug` |
@@ -31,12 +31,14 @@ Cross-platform **Monero (XMR) / Wownero (WOW) / DERO** mining solution.
 A checkout includes `app/src/main/assets/xmrig_arm64` with this repo's 1% fee wallet. Packaged `jniLibs/.../libxmrig.so` is produced by `./scripts/build_xmrig.sh` (gitignored) and is preferred when present. Rebuild before shipping a release.
 
 ### iOS (Sideload)
+
+Tracked `ios/XMRigCore/output/libxmrig-ios-arm64.a` is XMRig 6.25.0 with **upstream** donate (`donate.v2.xmrig.com`), not this repo's `8AfU...` wallet. Xcode can still link it. Rebuild with this project's fee: [docs/ios.md](docs/ios.md).
+
+From the repository root:
+
 ```bash
 open ios/XMRigMiner-iOS.xcodeproj
-# Build with Xcode, install via Sideloadly or AltStore
 ```
-
-A checkout already includes `ios/XMRigCore/output/libxmrig-ios-arm64.a`. Do not run `build-ios.sh` first: it needs `ios-cmake` and a built `libuv.a` that a typical clone does not have. Rebuild steps are in [docs/ios.md](docs/ios.md).
 
 ### Web Miner
 ```bash

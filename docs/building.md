@@ -11,8 +11,8 @@ A **normal git clone already contains some miner artifacts**:
 | Artifact | Role |
 |----------|------|
 | `app/src/main/assets/xmrig_arm64` | Android runtime fallback; contains this repo's 1% fee wallet |
-| `desktop/src-tauri/binaries/xmrig-x86_64-unknown-linux-gnu` | Linux desktop binary |
-| `ios/XMRigCore/output/libxmrig-ios-arm64.a` | iOS static library |
+| `desktop/src-tauri/binaries/xmrig-x86_64-unknown-linux-gnu` | Linux desktop binary (this repo's fee wallet) |
+| `ios/XMRigCore/output/libxmrig-ios-arm64.a` | Linkable iOS archive; **upstream** XMRig 6.25.0 donate, not `8AfU...` |
 
 `app/src/main/jniLibs/arm64-v8a/libxmrig.so` is **not** stored in git. The app prefers that packaged library when you have run `./scripts/build_xmrig.sh`. Without it, Android uses the assets fallback. Rebuild before a release so jniLibs and assets both match `xmrig_custom_source/`.
 
@@ -76,7 +76,7 @@ Production: `npm run tauri:build`.
 
 ## iOS
 
-Sideload with the tracked static library. Optional rebuild: [ios.md](ios.md).
+The tracked `.a` only lets Xcode link; it does **not** contain this repo's fee wallet. Rebuild for `8AfU...`: [ios.md](ios.md).
 
 ## WearOS / watchOS companions
 

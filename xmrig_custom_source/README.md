@@ -41,10 +41,10 @@ static const char *kDonateHostTls = "pool.supportxmr.com";  // TLS 連接 port 5
 ./scripts/build_xmrig.sh
 
 # iOS
-cd ios/XMRigCore/scripts && ./build-ios.sh
+./ios/XMRigCore/scripts/build-ios.sh
 
 # Desktop (macOS/Windows/Linux)
-cd desktop/scripts && ./build-xmrig.sh
+./desktop/scripts/build-xmrig.sh
 ```
 
 ## 手動套用

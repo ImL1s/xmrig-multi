@@ -32,10 +32,9 @@ Human-facing build and platform notes live in [docs/README.md](docs/README.md).
 
 ### iOS
 ```bash
-# Build XMRig static library
-cd ios/XMRigCore/scripts && ./build-ios.sh
-
-# Open Xcode project
+# From the repository root. Needs ios-cmake + libuv.a; see docs/ios.md.
+# Tracked libxmrig-ios-arm64.a is upstream donate, not this repo's fee wallet.
+./ios/XMRigCore/scripts/build-ios.sh
 open ios/XMRigMiner-iOS.xcodeproj
 ```
 

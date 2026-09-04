@@ -11,9 +11,19 @@ Native RandomX on stock iOS runs in interpreted mode (~3–5 H/s). JIT (~200–4
 - Apple Developer Account ($99/year for 1-year signing, or free for 7-day)
 - Physical iOS device (arm64) — **Simulator will not mine**
 
-## Use the tracked static library (typical)
+## Tracked archive is not this repo's fee wallet
 
-A checkout already has `ios/XMRigCore/output/libxmrig-ios-arm64.a`. From the **repository root**:
+`ios/XMRigCore/output/libxmrig-ios-arm64.a` is committed so Xcode can link on a clean clone. It is **XMRig 6.25.0 with upstream donate** (`donate.v2.xmrig.com`). The project wallet from `xmrig_custom_source/DonateStrategy.cpp` is **not** in that archive.
+
+Use it only to compile/sideload the Swift UI. Do **not** ship that archive as this project's 1% fee build. Confirm after a real rebuild:
+
+```bash
+strings ios/XMRigCore/output/libxmrig-ios-arm64.a | grep 8AfUwcno
+```
+
+## Open Xcode (UI / sideload experiments)
+
+From the **repository root** (do not `cd` into `ios/XMRigCore/scripts` first):
 
 ```bash
 open ios/XMRigMiner-iOS.xcodeproj
@@ -34,21 +44,21 @@ open ios/XMRigMiner-iOS.xcodeproj
 
 The Start button requires a wallet saved in Settings. The app does not auto-start mining.
 
-## Optional: rebuild XMRig
+## Rebuild XMRig with this repo's 1% fee
 
-`ios/XMRigCore/scripts/build-ios.sh` is only for regenerating the static library (fee-source changes, XMRig upgrades). On a typical clone it **exits immediately** unless:
+`./ios/XMRigCore/scripts/build-ios.sh` downloads XMRig **6.21.0**, copies `xmrig_custom_source/`, and overwrites `libxmrig-ios-arm64.a`. On a typical clone it **exits immediately** unless both files exist:
 
-1. `ios/XMRigCore/libs/ios-cmake/ios.toolchain.cmake` exists (the `ios-cmake` gitlink is not wired in `.gitmodules`)
-2. `ios/XMRigCore/libs/libuv-1.48.0/build-ios/libuv.a` exists
+1. `ios/XMRigCore/libs/ios-cmake/ios.toolchain.cmake` (`ios-cmake` is a gitlink with no `.gitmodules` entry — clone [ios-cmake](https://github.com/leetal/ios-cmake) into that directory)
+2. `ios/XMRigCore/libs/libuv-1.48.0/build-ios/libuv.a` (from that tree, run `./build-ios.sh` if present)
 
-If those files are present, run the script **from the repository root** (do not `cd` first, or `open` paths will break):
+Then, still from the **repository root**:
 
 ```bash
 ./ios/XMRigCore/scripts/build-ios.sh
 open ios/XMRigMiner-iOS.xcodeproj
 ```
 
-The script downloads XMRig **6.21.0**, applies `xmrig_custom_source/`, and writes `libxmrig-ios-arm64.a`. Do not hand-edit donate headers; the script copies this repo's files.
+Do not hand-edit donate headers; the script copies this repo's files.
 
 ## Sideloading (without a long-lived Xcode install)
 
@@ -73,6 +83,10 @@ The script downloads XMRig **6.21.0**, applies `xmrig_custom_source/`, and write
 **"Signing certificate not found"**
 
 - Add your Apple ID in Xcode Settings → Accounts
+
+**Fee window does not use `8AfU...`**
+
+- The tracked archive still uses XMRig's donation host. Rebuild as above, then re-check `strings`.
 
 **Low or zero hashrate**
 

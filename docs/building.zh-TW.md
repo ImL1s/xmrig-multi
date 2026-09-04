@@ -11,8 +11,8 @@
 | 檔案 | 用途 |
 |------|------|
 | `app/src/main/assets/xmrig_arm64` | Android 備援；含本倉庫 1% 費用錢包 |
-| `desktop/src-tauri/binaries/xmrig-x86_64-unknown-linux-gnu` | Linux 桌面版 |
-| `ios/XMRigCore/output/libxmrig-ios-arm64.a` | iOS 靜態庫 |
+| `desktop/src-tauri/binaries/xmrig-x86_64-unknown-linux-gnu` | Linux 桌面版（本倉庫費用錢包） |
+| `ios/XMRigCore/output/libxmrig-ios-arm64.a` | 可連結的 iOS archive；**上游** XMRig 6.25.0 donate，不是 `8AfU...` |
 
 `jniLibs/.../libxmrig.so` **不在 git 裡**。有跑過 `./scripts/build_xmrig.sh` 時 App 會優先用它；否則走 assets 備援。發佈前請重建，讓 jniLibs 與 assets 都對齊 `xmrig_custom_source/`。
 
@@ -74,4 +74,4 @@ npm run tauri:dev
 
 ## iOS
 
-用倉庫裡的靜態庫 sideload。可選重建見 [ios.md](ios.md)。
+倉庫裡的 `.a` 只夠 Xcode 連結，**不含**本倉庫費用錢包。要 `8AfU...` 必須重建：見 [ios.md](ios.md)。

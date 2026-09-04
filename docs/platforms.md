@@ -7,7 +7,7 @@ Cross-platform Monero/Wownero/DERO mining application.
 | Platform | Type | Status | Mining | Notes |
 |----------|------|--------|--------|-------|
 | **Android** | Mobile | ✅ Asset fallback in checkout | ✅ Native XMRig | `:app:assembleDebug` |
-| **iOS** | Mobile | ✅ Sideload | ⚠️ Limited | JIT blocked (3-5 H/s), see below |
+| **iOS** | Mobile | ⚠️ Tracked `.a` is upstream donate | ⚠️ Limited | Rebuild for this repo's fee; JIT blocked (3-5 H/s) |
 | **Web** | Browser | ✅ Demo | ✅ RandomX.js | WebSocket proxy required |
 | **macOS** | Desktop | ⚠️ Build required | ✅ Native XMRig | `desktop/scripts/build-xmrig.sh` |
 | **Windows** | Desktop | ⚠️ Build required | ✅ Native XMRig | `desktop/scripts/build-xmrig.sh` |
@@ -227,7 +227,7 @@ cd desktop && npm install && npm run tauri:dev
 # Android (after optional scripts/build_xmrig.sh)
 ./gradlew :app:assembleDebug
 
-# iOS (tracked libxmrig-ios-arm64.a)
+# iOS (tracked .a is upstream donate; rebuild for this repo's fee)
 open ios/XMRigMiner-iOS.xcodeproj
 
 # WearOS
@@ -249,7 +249,7 @@ All platforms include a **1% developer fee** to support ongoing development.
 | Platform | Fee Implementation | Wallet |
 |----------|-------------------|--------|
 | Android | XMRig donate-level | ✅ |
-| iOS | XMRig built-in | ✅ |
+| iOS | XMRig built-in after rebuild | ⚠️ tracked `.a` is upstream donate |
 | Desktop | XMRig built-in | ✅ |
 | Web | Proxy (`web/proxy/dev-fee.js`) | ✅ (Monero sessions) |
 

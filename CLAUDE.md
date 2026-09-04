@@ -34,8 +34,9 @@ All platforms include 1% dev fee:
 
 ### iOS
 ```bash
-cd ios/XMRigCore/scripts && ./build-ios.sh  # Build XMRig static library
-open ios/XMRigMiner-iOS.xcodeproj           # Open in Xcode
+# From repo root. Tracked .a is upstream donate; rebuild needs ios-cmake + libuv (docs/ios.md).
+./ios/XMRigCore/scripts/build-ios.sh
+open ios/XMRigMiner-iOS.xcodeproj
 ```
 
 ### Web Miner

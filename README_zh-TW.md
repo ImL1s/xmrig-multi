@@ -10,7 +10,7 @@
 | 平台 | 狀態 | 挖礦 | 說明 |
 |------|------|------|------|
 | **Android** | ✅ checkout 含 assets 備援 | 原生 XMRig | `./gradlew :app:assembleDebug` |
-| **iOS** | ✅ Sideload | 原生 XMRig | App Store 禁止上架 |
+| **iOS** | ⚠️ tracked `.a` 為上游 donate | 原生 XMRig | App Store 禁止上架；要本倉庫費用須重建 |
 | **Web** | ✅ Demo | RandomX.js | 需要本機 WebSocket proxy |
 | **Desktop** | ⚠️ Linux 二進位已提交 | 原生 XMRig | macOS/Windows：`desktop/scripts/build-xmrig.sh` |
 | **WearOS** | 伴侶應用 | 否 | `./gradlew :wearos:assembleDebug` |
@@ -35,11 +35,13 @@ Checkout 含 `app/src/main/assets/xmrig_arm64`（本倉庫 1% 費用錢包）。
 
 ### iOS（Sideload）
 
+Checkout 裡的 `ios/XMRigCore/output/libxmrig-ios-arm64.a` 是 XMRig 6.25.0，費用窗口走 **上游** `donate.v2.xmrig.com`，**不是**本倉庫的 `8AfU...` 錢包。Xcode 仍可連結它來 sideload。要套用本專案 1% 費用請見 [docs/ios.md](docs/ios.md)。
+
+在倉庫根目錄：
+
 ```bash
 open ios/XMRigMiner-iOS.xcodeproj
 ```
-
-Checkout 已含 `ios/XMRigCore/output/libxmrig-ios-arm64.a`。不要先跑 `build-ios.sh`（缺 `ios-cmake` 與 `libuv.a` 會立刻失敗）。重建步驟見 [docs/ios.md](docs/ios.md)。
 
 ### Web
 
