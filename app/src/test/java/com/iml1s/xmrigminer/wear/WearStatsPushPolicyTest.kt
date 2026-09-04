@@ -1,5 +1,6 @@
 package com.iml1s.xmrigminer.wear
 
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -26,5 +27,6 @@ class WearStatsPushPolicyTest {
             )
         )
         assertFalse(WearStatsPushPolicy.urgent(runningChanged = false, force = false))
+        assertEquals(5_000L, WearStatsPushPolicy.remainingMs(10_000L, 0L))
     }
 }

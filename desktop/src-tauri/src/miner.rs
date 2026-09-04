@@ -48,7 +48,7 @@ pub struct SystemInfo {
 }
 
 pub struct MinerState {
-    process: Option<Child>,
+    process: Arc<Mutex<Option<Child>>>,
     running: Arc<AtomicBool>,
     stats: Arc<Mutex<MiningStats>>,
 }
@@ -56,7 +56,7 @@ pub struct MinerState {
 impl MinerState {
     pub fn new() -> Self {
         Self {
-            process: None,
+            process: Arc::new(Mutex::new(None)),
             running: Arc::new(AtomicBool::new(false)),
             stats: Arc::new(Mutex::new(MiningStats::default())),
         }
@@ -68,6 +68,13 @@ impl MinerState {
         }
         if config.wallet_address.trim().is_empty() {
             return Err("Wallet address is required".to_string());
+        }
+
+        if let Ok(mut slot) = self.process.lock() {
+            if let Some(mut leftover) = slot.take() {
+                let _ = leftover.kill();
+                let _ = leftover.wait();
+            }
         }
 
         let xmrig_path = get_xmrig_path().ok_or_else(|| {
@@ -107,7 +114,19 @@ impl MinerState {
                 let running = Arc::clone(&self.running);
                 thread::spawn(move || poll_http_stats(stats, running));
 
-                self.process = Some(child);
+                {
+                    let mut slot = self
+                        .process
+                        .lock()
+                        .map_err(|e| format!("Failed to store XMRig process: {e}"))?;
+                    *slot = Some(child);
+                }
+
+                let process = Arc::clone(&self.process);
+                let running = Arc::clone(&self.running);
+                let stats = Arc::clone(&self.stats);
+                thread::spawn(move || reap_when_exited(process, running, stats));
+
                 Ok("Mining started successfully".to_string())
             }
             Err(e) => Err(format!("Failed to start XMRig: {}", e)),
@@ -119,14 +138,13 @@ impl MinerState {
             return Err("Miner is not running".to_string());
         }
 
-        if let Some(mut process) = self.process.take() {
-            let _ = process.kill();
-            let _ = process.wait();
+        if let Ok(mut slot) = self.process.lock() {
+            if let Some(mut process) = slot.take() {
+                let _ = process.kill();
+                let _ = process.wait();
+            }
         }
-        self.running.store(false, Ordering::SeqCst);
-        if let Ok(mut stats) = self.stats.lock() {
-            *stats = MiningStats::default();
-        }
+        clear_session(&self.running, &self.stats);
         Ok("Mining stopped".to_string())
     }
 
@@ -154,6 +172,40 @@ fn parse_stdout<R: Read>(stdout: R, stats: Arc<Mutex<MiningStats>>, running: Arc
             break;
         }
         apply_log_line(&line, &stats);
+    }
+    clear_session(&running, &stats);
+}
+
+fn reap_when_exited(
+    process: Arc<Mutex<Option<Child>>>,
+    running: Arc<AtomicBool>,
+    stats: Arc<Mutex<MiningStats>>,
+) {
+    loop {
+        thread::sleep(Duration::from_millis(400));
+        let mut slot = match process.lock() {
+            Ok(guard) => guard,
+            Err(_) => return,
+        };
+        match slot.as_mut() {
+            None => return,
+            Some(child) => match child.try_wait() {
+                Ok(None) => {}
+                Ok(Some(_)) | Err(_) => {
+                    *slot = None;
+                    drop(slot);
+                    clear_session(&running, &stats);
+                    return;
+                }
+            },
+        }
+    }
+}
+
+fn clear_session(running: &Arc<AtomicBool>, stats: &Arc<Mutex<MiningStats>>) {
+    running.store(false, Ordering::SeqCst);
+    if let Ok(mut stats) = stats.lock() {
+        *stats = MiningStats::default();
     }
 }
 

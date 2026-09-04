@@ -17,5 +17,9 @@ internal object WearStatsPushPolicy {
         return nowMs - lastPushAtMs >= INTERVAL_MS
     }
 
+    fun remainingMs(nowMs: Long, lastPushAtMs: Long): Long {
+        return (INTERVAL_MS - (nowMs - lastPushAtMs)).coerceAtLeast(0L)
+    }
+
     fun urgent(runningChanged: Boolean, force: Boolean): Boolean = runningChanged || force
 }

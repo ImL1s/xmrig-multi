@@ -12,7 +12,9 @@ import com.iml1s.xmrigminer.service.MiningController
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -31,6 +33,8 @@ class WearStatsSyncer @Inject constructor(
     private val pushLock = Any()
     private var lastPushAtMs = 0L
     private var lastPublishedRunning: Boolean? = null
+    private var pending: Snapshot? = null
+    private var flushJob: Job? = null
 
     fun start() {
         scope.launch {
@@ -39,9 +43,9 @@ class WearStatsSyncer @Inject constructor(
                 miningController.isRunning(),
                 configRepository.getConfig()
             ) { stats, running, config ->
-                Triple(stats, running, config)
-            }.collect { (stats, running, config) ->
-                pushStats(stats, running, config, force = false)
+                Snapshot(stats, running, config)
+            }.collect { snapshot ->
+                pushStats(snapshot, force = false)
             }
         }
     }
@@ -52,38 +56,62 @@ class WearStatsSyncer @Inject constructor(
             val stats = statsRepository.stats.first()
             val running = miningController.isRunning().first()
             val config = configRepository.getConfig().first()
-            pushStats(stats, running, config, force = true)
+            pushStats(Snapshot(stats, running, config), force = true)
         }
     }
 
-    private suspend fun pushStats(
-        stats: MiningStats,
-        running: Boolean,
-        config: MiningConfig,
-        force: Boolean
-    ) {
+    private fun pushStats(snapshot: Snapshot, force: Boolean) {
         val now = System.currentTimeMillis()
-        val urgent: Boolean
+        var toSend: Snapshot? = null
+        var urgent = false
+        var waitMs = 0L
+        var startFlush = false
         synchronized(pushLock) {
-            val runningChanged = lastPublishedRunning != running
-            if (!WearStatsPushPolicy.shouldPush(now, lastPushAtMs, runningChanged, force)) {
-                return
+            pending = snapshot
+            val runningChanged = lastPublishedRunning != snapshot.running
+            if (WearStatsPushPolicy.shouldPush(now, lastPushAtMs, runningChanged, force)) {
+                toSend = pending
+                pending = null
+                flushJob?.cancel()
+                flushJob = null
+                urgent = WearStatsPushPolicy.urgent(runningChanged, force)
+                lastPushAtMs = now
+                lastPublishedRunning = snapshot.running
+            } else {
+                waitMs = WearStatsPushPolicy.remainingMs(now, lastPushAtMs)
+                if (flushJob?.isActive != true) {
+                    startFlush = true
+                }
             }
-            urgent = WearStatsPushPolicy.urgent(runningChanged, force)
-            lastPushAtMs = now
-            lastPublishedRunning = running
         }
+        if (startFlush) {
+            synchronized(pushLock) {
+                if (flushJob?.isActive != true) {
+                    flushJob = scope.launch {
+                        delay(waitMs)
+                        val queued = synchronized(pushLock) {
+                            pending.also { pending = null }
+                        } ?: return@launch
+                        pushStats(queued, force = false)
+                    }
+                }
+            }
+        }
+        toSend?.let { deliver(it, urgent) }
+    }
+
+    private fun deliver(snapshot: Snapshot, urgent: Boolean) {
         try {
             val request = PutDataMapRequest.create(WearPaths.STATS)
             request.dataMap.apply {
-                putBoolean("isRunning", running)
-                putDouble("hashrate", stats.hashrate)
-                putLong("sharesAccepted", stats.acceptedShares.toLong())
-                putLong("sharesRejected", stats.rejectedShares.toLong())
-                putLong("difficulty", stats.difficulty)
-                putLong("uptime", stats.uptime)
-                putString("coinType", config.coinType)
-                putString("poolName", config.poolUrl)
+                putBoolean("isRunning", snapshot.running)
+                putDouble("hashrate", snapshot.stats.hashrate)
+                putLong("sharesAccepted", snapshot.stats.acceptedShares.toLong())
+                putLong("sharesRejected", snapshot.stats.rejectedShares.toLong())
+                putLong("difficulty", snapshot.stats.difficulty)
+                putLong("uptime", snapshot.stats.uptime)
+                putString("coinType", snapshot.config.coinType)
+                putString("poolName", snapshot.config.poolUrl)
                 putLong("syncAt", System.currentTimeMillis())
             }
             if (urgent) {
@@ -95,4 +123,10 @@ class WearStatsSyncer @Inject constructor(
             Timber.d(e, "Wear stats sync skipped (no Wear runtime?)")
         }
     }
+
+    private data class Snapshot(
+        val stats: MiningStats,
+        val running: Boolean,
+        val config: MiningConfig
+    )
 }
