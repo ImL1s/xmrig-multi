@@ -50,8 +50,11 @@ Enhancement suggestions are welcome! Please:
 git clone https://github.com/ImL1s/xmrig-android.git
 cd xmrig-android
 
-# Native XMRig: checkout uses assets/xmrig_arm64; jniLibs after scripts/build_xmrig.sh
-./scripts/build_xmrig.sh
+# Optional native rebuild (requires ANDROID_NDK_HOME). Skip this if you
+# only want the documented Gradle build; checkout already has assets/xmrig_arm64
+# and `:app:assembleDebug` packages it as arm64-v8a libxmrig.so.
+# export ANDROID_NDK_HOME=/path/to/ndk
+# ./scripts/build_xmrig.sh
 
 # Build
 ./gradlew :app:assembleDebug
