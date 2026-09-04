@@ -41,7 +41,14 @@ jobs:
           SIGNING_STORE_PASSWORD: ${{ secrets.SIGNING_STORE_PASSWORD }}
           SIGNING_KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
           SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
-        run: ./gradlew :app:assembleRelease
+        run: |
+          if [ ! -f app/src/main/jniLibs/arm64-v8a/libxmrig.so ] && [ ! -f app/src/main/assets/xmrig_arm64 ]; then
+            echo "XMRig binary missing (need jniLibs libxmrig.so or assets/xmrig_arm64)"
+            exit 1
+          fi
+          # API 29+ cannot exec from filesDir; :app:stageXmrigJniLib copies the
+          # tracked asset into packaged jniLibs when libxmrig.so is absent.
+          ./gradlew :app:stageXmrigJniLib :app:assembleRelease :wearos:assembleRelease
 
       - name: Create Release
         uses: softprops/action-gh-release@v2

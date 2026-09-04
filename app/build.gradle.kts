@@ -100,6 +100,26 @@ android {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
         }
     }
+
+    // API 29+ cannot execute binaries copied into filesDir. If the gitignored
+    // jniLibs .so is missing, stage the tracked assets/xmrig_arm64 as libxmrig.so.
+    sourceSets.getByName("main").jniLibs.srcDir(layout.buildDirectory.dir("generated/xmrigJni"))
+}
+
+val stageXmrigJniLib by tasks.registering(Copy::class) {
+    val packaged = layout.projectDirectory.file("src/main/jniLibs/arm64-v8a/libxmrig.so")
+    val asset = layout.projectDirectory.file("src/main/assets/xmrig_arm64")
+    onlyIf { !packaged.asFile.exists() && asset.asFile.exists() }
+    from(asset)
+    into(layout.buildDirectory.dir("generated/xmrigJni/arm64-v8a"))
+    rename { "libxmrig.so" }
+}
+
+tasks.named("preBuild").configure { dependsOn(stageXmrigJniLib) }
+tasks.configureEach {
+    if (name.startsWith("merge") && (name.contains("JniLib") || name.contains("NativeLibs"))) {
+        dependsOn(stageXmrigJniLib)
+    }
 }
 
 dependencies {

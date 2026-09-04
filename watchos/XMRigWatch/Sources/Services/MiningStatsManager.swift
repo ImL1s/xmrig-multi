@@ -84,6 +84,7 @@ class MiningStatsManager: NSObject, ObservableObject {
         stats.uptime = data["uptime"] as? Int ?? 0
         stats.coinType = data["coinType"] as? String ?? "XMR"
         stats.poolName = data["poolName"] as? String ?? ""
+        MiningSnapshotStore.save(hashrate: stats.hashrate, isRunning: stats.isRunning)
     }
 }
 

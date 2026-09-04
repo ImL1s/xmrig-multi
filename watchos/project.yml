@@ -24,12 +24,16 @@ targets:
       - path: XMRigWatch/Sources
         excludes:
           - "**/.DS_Store"
+      - path: Shared
+    entitlements:
+      path: XMRigWatch/XMRigWatch.entitlements
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.iml1s.xmrigminer.watchkitapp
         SDKROOT: watchos
         TARGETED_DEVICE_FAMILY: "4"
         INFOPLIST_KEY_CFBundleDisplayName: XMRig
+        CODE_SIGN_ENTITLEMENTS: XMRigWatch/XMRigWatch.entitlements
     info:
       properties:
         CFBundleDisplayName: XMRig
@@ -40,6 +44,7 @@ targets:
         embed: true
         codeSign: true
       - sdk: WatchConnectivity.framework
+      - sdk: WidgetKit.framework
 
   XMRigWatchWidgets:
     type: app-extension
@@ -48,6 +53,9 @@ targets:
       - path: XMRigWatchWidgets
         excludes:
           - "**/.DS_Store"
+      - path: Shared
+    entitlements:
+      path: XMRigWatchWidgets/XMRigWatchWidgets.entitlements
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.iml1s.xmrigminer.watchkitapp.widgets
@@ -59,6 +67,7 @@ targets:
           - "@executable_path/Frameworks"
           - "@executable_path/../../Frameworks"
         INFOPLIST_KEY_CFBundleDisplayName: Mining Stats
+        CODE_SIGN_ENTITLEMENTS: XMRigWatchWidgets/XMRigWatchWidgets.entitlements
     info:
       properties:
         CFBundleDisplayName: Mining Stats

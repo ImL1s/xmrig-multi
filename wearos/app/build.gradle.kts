@@ -16,10 +16,31 @@ android {
         versionName = "1.0.0"
     }
 
+    signingConfigs {
+        create("release") {
+            val fromEnv = System.getenv("SIGNING_STORE_FILE")
+            val candidate = listOfNotNull(
+                fromEnv?.let { file(it) },
+                fromEnv?.let { rootProject.file("app/$it") },
+                rootProject.file("app/release.keystore")
+            ).firstOrNull { it.exists() }
+            if (candidate != null) {
+                storeFile = candidate
+                storePassword = System.getenv("SIGNING_STORE_PASSWORD") ?: ""
+                keyAlias = System.getenv("SIGNING_KEY_ALIAS") ?: ""
+                keyPassword = System.getenv("SIGNING_KEY_PASSWORD") ?: ""
+            }
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = false
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            val releaseSigning = signingConfigs.findByName("release")
+            if (releaseSigning?.storeFile?.exists() == true) {
+                signingConfig = releaseSigning
+            }
         }
         debug {
             applicationIdSuffix = ".debug"
