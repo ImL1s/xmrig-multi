@@ -139,16 +139,16 @@ class XMRigWrapper: ObservableObject {
             difficulty: stats.difficulty
         )
         
-        if newStats != stats {
-            stats = newStats
-            watchCoordinator.pushStats()
-        }
-        
         isRunning = newStats.isMining
         if newStats.isMining, miningStartedAt == nil {
             miningStartedAt = Date()
         } else if !newStats.isMining {
             miningStartedAt = nil
+        }
+
+        if newStats != stats {
+            stats = newStats
+            watchCoordinator.pushStats()
         }
     }
 }

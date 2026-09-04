@@ -1,5 +1,8 @@
 package com.iml1s.xmrigminer.data.model
 
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import org.junit.Assert.*
 import org.junit.Test
 
@@ -114,5 +117,24 @@ class MiningConfigTest {
         assertTrue(json.contains("\"donate-level\": 1"))
         assertTrue(json.contains("/data/xmrig.log"))
         assertTrue(json.contains("my_wallet_address"))
+    }
+
+    @Test
+    fun `toJson escapes quotes in worker name`() {
+        val config = MiningConfig(
+            poolUrl = "pool.supportxmr.com:3333",
+            walletAddress = "wallet",
+            workerName = "my\"rig",
+            threads = 4
+        )
+        val parsed = kotlinx.serialization.json.Json.parseToJsonElement(config.toJson())
+            .jsonObject["pools"]!!.jsonArray[0].jsonObject
+        assertEquals("my\"rig", parsed["pass"]!!.jsonPrimitive.content)
+    }
+
+    @Test
+    fun `default tls is off so plaintext pool ports work`() {
+        val config = MiningConfig()
+        assertFalse(config.useTls)
     }
 }

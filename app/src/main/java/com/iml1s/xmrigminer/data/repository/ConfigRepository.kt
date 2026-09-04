@@ -42,7 +42,7 @@ class ConfigRepository @Inject constructor(
             workerName = prefs[Keys.WORKER_NAME] ?: "android",
             threads = prefs[Keys.THREADS] ?: defaultThreads,
             maxCpuUsage = prefs[Keys.MAX_CPU_USAGE] ?: 75,
-            useTls = prefs[Keys.USE_TLS] ?: true,
+            useTls = prefs[Keys.USE_TLS] ?: false,
             autoReconnect = prefs[Keys.AUTO_RECONNECT] ?: true,
             donateLevel = prefs[Keys.DONATE_LEVEL] ?: 1,
             customArgs = prefs[Keys.CUSTOM_ARGS] ?: "",

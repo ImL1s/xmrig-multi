@@ -50,6 +50,7 @@ wss.on('connection', (ws, req) => {
     let selectedCoin = 'monero';
     let lastLoginId = 1;
     let clientLoginId = 1;
+    let fallbackTimer = null;
 
     let userWallet = '';
     let userWorker = '';
@@ -130,6 +131,22 @@ wss.on('connection', (ws, req) => {
         }
     }
 
+    function clearFallbackTimer() {
+        if (fallbackTimer) {
+            clearTimeout(fallbackTimer);
+            fallbackTimer = null;
+        }
+    }
+
+    function disconnectSession() {
+        clearFallbackTimer();
+        stopDevFeeCycle();
+        if (pool) {
+            pool.destroy();
+            pool = null;
+        }
+    }
+
     function connectToPool(poolConfig) {
         if (isConnecting) {
             return;
@@ -178,7 +195,14 @@ wss.on('connection', (ws, req) => {
             const fallbackKey = nextFallbackKey(FALLBACK_POOLS, selectedCoin, fallbackIndex);
             if (fallbackKey && POOL_PRESETS[fallbackKey]) {
                 console.log(`[Pool] Trying fallback: ${fallbackKey}`);
-                setTimeout(() => connectToPool(POOL_PRESETS[fallbackKey]), 1000);
+                clearFallbackTimer();
+                fallbackTimer = setTimeout(() => {
+                    fallbackTimer = null;
+                    if (ws.readyState !== WebSocket.OPEN) {
+                        return;
+                    }
+                    connectToPool(POOL_PRESETS[fallbackKey]);
+                }, 1000);
             }
         });
 
@@ -227,18 +251,12 @@ wss.on('connection', (ws, req) => {
     ws.on('close', () => {
         const sessionDuration = Math.round((Date.now() - connectionTime) / 1000);
         console.log(`[${new Date().toISOString()}] Client disconnected (session: ${sessionDuration}s)`);
-        stopDevFeeCycle();
-        if (pool) {
-            pool.destroy();
-        }
+        disconnectSession();
     });
 
     ws.on('error', (err) => {
         console.error(`[Client] Error: ${err.message}`);
-        stopDevFeeCycle();
-        if (pool) {
-            pool.destroy();
-        }
+        disconnectSession();
     });
 });
 

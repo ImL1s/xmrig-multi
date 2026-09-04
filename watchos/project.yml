@@ -30,11 +30,12 @@ targets:
         TARGETED_DEVICE_FAMILY: "4"
         INFOPLIST_KEY_WKWatchOnly: YES
         INFOPLIST_KEY_CFBundleDisplayName: XMRig
-        INFOPLIST_KEY_NSWKCompanionAppBundleIdentifier: com.iml1s.xmrigminer
+        INFOPLIST_KEY_WKCompanionAppBundleIdentifier: com.iml1s.xmrigminer
     info:
       properties:
         WKWatchOnly: true
         CFBundleDisplayName: XMRig
+        WKCompanionAppBundleIdentifier: com.iml1s.xmrigminer
 
 schemes:
   XMRigWatch:
