@@ -49,7 +49,7 @@ The Start button requires a wallet saved in Settings. The app does not auto-star
 `./ios/XMRigCore/scripts/build-ios.sh` downloads XMRig **6.21.0**, copies `xmrig_custom_source/`, and overwrites `libxmrig-ios-arm64.a`. On a typical clone it **exits immediately** unless both files exist:
 
 1. `ios/XMRigCore/libs/ios-cmake/ios.toolchain.cmake` (`ios-cmake` is a gitlink with no `.gitmodules` entry — clone [ios-cmake](https://github.com/leetal/ios-cmake) into that directory)
-2. `ios/XMRigCore/libs/libuv-1.48.0/build-ios/libuv.a` (from that tree, run `./build-ios.sh` if present)
+2. `ios/XMRigCore/libs/libuv-1.48.0/build-ios/libuv.a` — **not tracked**. The libuv tree has leftover CMake cache files under `build-ios/` but **no `libuv.a` and no `build-ios.sh`**. There is no in-repo command that produces that archive; you must build libuv for iOS yourself and place `libuv.a` at that path. A typical clone therefore **cannot** rebuild XMRig.
 
 Then, still from the **repository root**:
 

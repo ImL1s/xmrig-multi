@@ -10,11 +10,11 @@ A **normal git clone already contains some miner artifacts**:
 
 | Artifact | Role |
 |----------|------|
-| `app/src/main/assets/xmrig_arm64` | Android runtime fallback; contains this repo's 1% fee wallet |
+| `app/src/main/assets/xmrig_arm64` | Tracked miner with this repo's 1% fee wallet. Gradle copies it to `jniLibs/.../libxmrig.so` when that gitignored file is missing (Android 10+ cannot execute a copy in `filesDir`) |
 | `desktop/src-tauri/binaries/xmrig-x86_64-unknown-linux-gnu` | Linux desktop binary (this repo's fee wallet) |
 | `ios/XMRigCore/output/libxmrig-ios-arm64.a` | Linkable iOS archive; **upstream** XMRig 6.25.0 donate, not `8AfU...` |
 
-`app/src/main/jniLibs/arm64-v8a/libxmrig.so` is **not** stored in git. The app prefers that packaged library when you have run `./scripts/build_xmrig.sh`. Without it, Android uses the assets fallback. Rebuild before a release so jniLibs and assets both match `xmrig_custom_source/`.
+`app/src/main/jniLibs/arm64-v8a/libxmrig.so` is **not** stored in git. `./scripts/build_xmrig.sh` writes it (preferred). If it is absent, `./gradlew :app:assembleDebug` runs `:app:stageXmrigJniLib`, which packages the tracked asset as `libxmrig.so` so API 29+ devices can start mining. Do not treat a runtime copy into `filesDir` as a modern-Android fallback.
 
 ## Clone
 
@@ -25,7 +25,7 @@ cd xmrig-android
 
 ## Android
 
-### App APK (uses assets fallback until you rebuild)
+### App APK (Gradle packages the tracked asset as jniLibs)
 
 ```bash
 ./gradlew :app:assembleDebug

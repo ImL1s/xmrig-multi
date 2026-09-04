@@ -10,11 +10,11 @@
 
 | 檔案 | 用途 |
 |------|------|
-| `app/src/main/assets/xmrig_arm64` | Android 備援；含本倉庫 1% 費用錢包 |
+| `app/src/main/assets/xmrig_arm64` | 含本倉庫 1% 費用錢包。沒有 gitignore 的 `.so` 時，Gradle 會把它打進 `jniLibs/.../libxmrig.so`（Android 10+ 不能執行 `filesDir` 裡的複本） |
 | `desktop/src-tauri/binaries/xmrig-x86_64-unknown-linux-gnu` | Linux 桌面版（本倉庫費用錢包） |
 | `ios/XMRigCore/output/libxmrig-ios-arm64.a` | 可連結的 iOS archive；**上游** XMRig 6.25.0 donate，不是 `8AfU...` |
 
-`jniLibs/.../libxmrig.so` **不在 git 裡**。有跑過 `./scripts/build_xmrig.sh` 時 App 會優先用它；否則走 assets 備援。發佈前請重建，讓 jniLibs 與 assets 都對齊 `xmrig_custom_source/`。
+`jniLibs/.../libxmrig.so` **不在 git 裡**。`./scripts/build_xmrig.sh` 會寫入它。若沒有，`./gradlew :app:assembleDebug` 會跑 `:app:stageXmrigJniLib`，把 tracked asset 打成 `libxmrig.so`，API 29+ 才能挖礦。不要把複製到 `filesDir` 當成現代 Android 的備援。
 
 ## 克隆
 
@@ -25,7 +25,7 @@ cd xmrig-android
 
 ## Android
 
-### 應用 APK（尚未重建時走 assets 備援）
+### 應用 APK（Gradle 把 tracked asset 打成 jniLibs）
 
 ```bash
 ./gradlew :app:assembleDebug

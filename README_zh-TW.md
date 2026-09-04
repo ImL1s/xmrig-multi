@@ -31,7 +31,7 @@ cd xmrig-android
 ./gradlew :app:installDebug
 ```
 
-Checkout 含 `app/src/main/assets/xmrig_arm64`（本倉庫 1% 費用錢包）。`jniLibs/.../libxmrig.so` 由 `./scripts/build_xmrig.sh` 產出（gitignore），存在時會優先使用。發佈前請重建。
+Checkout 含 `app/src/main/assets/xmrig_arm64`（本倉庫 1% 費用錢包）。若 gitignore 的 `jniLibs/.../libxmrig.so` 不存在，Gradle（`:app:stageXmrigJniLib`）會把它打成 `libxmrig.so`，Android 10+ 才能執行。發佈前仍可用 `./scripts/build_xmrig.sh` 產出優先函式庫。
 
 ### iOS（Sideload）
 

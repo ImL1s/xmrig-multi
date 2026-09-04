@@ -28,7 +28,7 @@ Cross-platform **Monero (XMR) / Wownero (WOW) / DERO** mining solution.
 ./gradlew :app:installDebug
 ```
 
-A checkout includes `app/src/main/assets/xmrig_arm64` with this repo's 1% fee wallet. Packaged `jniLibs/.../libxmrig.so` is produced by `./scripts/build_xmrig.sh` (gitignored) and is preferred when present. Rebuild before shipping a release.
+A checkout includes `app/src/main/assets/xmrig_arm64` with this repo's 1% fee wallet. If gitignored `jniLibs/.../libxmrig.so` is missing, Gradle (`:app:stageXmrigJniLib`) packages that asset as `libxmrig.so` so Android 10+ can execute it. `./scripts/build_xmrig.sh` still produces the preferred library before a release.
 
 ### iOS (Sideload)
 
