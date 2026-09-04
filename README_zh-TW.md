@@ -37,10 +37,10 @@ Checkout 含 `app/src/main/assets/xmrig_arm64`（本倉庫 1% 費用錢包）。
 
 Checkout 裡的 `ios/XMRigCore/output/libxmrig-ios-arm64.a` 是 XMRig 6.25.0，費用窗口走 **上游** `donate.v2.xmrig.com`，**不是**本倉庫的 `8AfU...` 錢包。Xcode 仍可連結它來 sideload。要套用本專案 1% 費用請見 [docs/ios.md](docs/ios.md)。
 
-在倉庫根目錄：
+在倉庫根目錄執行（不要先 `cd` 進 `ios/XMRigCore/scripts`）：
 
 ```bash
-open ios/XMRigMiner-iOS.xcodeproj
+open ./ios/XMRigMiner-iOS.xcodeproj
 ```
 
 ### Web

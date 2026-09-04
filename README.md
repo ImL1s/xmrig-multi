@@ -37,7 +37,7 @@ Tracked `ios/XMRigCore/output/libxmrig-ios-arm64.a` is XMRig 6.25.0 with **upstr
 Run this from the repository root (do not `cd` into `ios/XMRigCore/scripts` first):
 
 ```bash
-open ios/XMRigMiner-iOS.xcodeproj
+open ./ios/XMRigMiner-iOS.xcodeproj
 ```
 
 ### Web Miner
