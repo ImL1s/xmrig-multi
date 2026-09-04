@@ -12,6 +12,7 @@ import com.iml1s.xmrigminer.data.repository.ConfigRepository
 import com.iml1s.xmrigminer.data.repository.StatsRepository
 import com.iml1s.xmrigminer.native.XmrigBinaryResolver
 import com.iml1s.xmrigminer.native.XmrigLaunchCommand
+import com.iml1s.xmrigminer.native.XmrigNativeCapabilities
 import com.iml1s.xmrigminer.native.XmrigProcessController
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
@@ -66,6 +67,9 @@ class MiningWorker @AssistedInject constructor(
     private suspend fun startMining() = coroutineScope {
         val config = configRepository.getConfig().first()
 
+        if (config.useTls && !XmrigNativeCapabilities.TLS_ENABLED) {
+            throw IllegalStateException(XmrigNativeCapabilities.TLS_UNSUPPORTED_MESSAGE)
+        }
         if (!config.isValid()) {
             val errorMsg = when {
                 config.walletAddress.isBlank() -> "錢包地址未設置"

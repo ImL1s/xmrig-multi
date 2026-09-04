@@ -89,6 +89,8 @@ BUILD_DIR="build/android/arm64"
 mkdir -p "$BUILD_DIR"
 cd "$BUILD_DIR"
 
+# TLS is off: ubuntu-latest cannot cross-compile Android OpenSSL.
+# Keep XmrigNativeCapabilities.TLS_ENABLED in sync with -DWITH_TLS.
 cmake ../../.. \
     -DCMAKE_TOOLCHAIN_FILE="$ANDROID_NDK_HOME/build/cmake/android.toolchain.cmake" \
     -DANDROID_ABI=arm64-v8a \

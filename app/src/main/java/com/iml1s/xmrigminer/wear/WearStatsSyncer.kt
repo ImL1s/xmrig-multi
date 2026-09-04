@@ -28,6 +28,9 @@ class WearStatsSyncer @Inject constructor(
     private val configRepository: ConfigRepository
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val pushLock = Any()
+    private var lastPushAtMs = 0L
+    private var lastPublishedRunning: Boolean? = null
 
     fun start() {
         scope.launch {
@@ -38,7 +41,7 @@ class WearStatsSyncer @Inject constructor(
             ) { stats, running, config ->
                 Triple(stats, running, config)
             }.collect { (stats, running, config) ->
-                pushStats(stats, running, config)
+                pushStats(stats, running, config, force = false)
             }
         }
     }
@@ -49,11 +52,27 @@ class WearStatsSyncer @Inject constructor(
             val stats = statsRepository.stats.first()
             val running = miningController.isRunning().first()
             val config = configRepository.getConfig().first()
-            pushStats(stats, running, config)
+            pushStats(stats, running, config, force = true)
         }
     }
 
-    private suspend fun pushStats(stats: MiningStats, running: Boolean, config: MiningConfig) {
+    private suspend fun pushStats(
+        stats: MiningStats,
+        running: Boolean,
+        config: MiningConfig,
+        force: Boolean
+    ) {
+        val now = System.currentTimeMillis()
+        val urgent: Boolean
+        synchronized(pushLock) {
+            val runningChanged = lastPublishedRunning != running
+            if (!WearStatsPushPolicy.shouldPush(now, lastPushAtMs, runningChanged, force)) {
+                return
+            }
+            urgent = WearStatsPushPolicy.urgent(runningChanged, force)
+            lastPushAtMs = now
+            lastPublishedRunning = running
+        }
         try {
             val request = PutDataMapRequest.create(WearPaths.STATS)
             request.dataMap.apply {
@@ -67,7 +86,9 @@ class WearStatsSyncer @Inject constructor(
                 putString("poolName", config.poolUrl)
                 putLong("syncAt", System.currentTimeMillis())
             }
-            request.setUrgent()
+            if (urgent) {
+                request.setUrgent()
+            }
             // Phone and Wear share applicationId com.iml1s.xmrigminer (debug: .debug).
             Tasks.await(Wearable.getDataClient(context).putDataItem(request.asPutDataRequest()))
         } catch (e: Exception) {

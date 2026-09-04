@@ -8,6 +8,7 @@ import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import com.iml1s.xmrigminer.data.repository.ConfigRepository
 import com.iml1s.xmrigminer.data.repository.StatsRepository
+import com.iml1s.xmrigminer.native.XmrigNativeCapabilities
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
@@ -33,6 +34,9 @@ class MiningController @Inject constructor(
 
     suspend fun start(): MiningStartResult {
         val config = configRepository.getConfig().first()
+        if (config.useTls && !XmrigNativeCapabilities.TLS_ENABLED) {
+            return MiningStartResult.InvalidConfig(XmrigNativeCapabilities.TLS_UNSUPPORTED_MESSAGE)
+        }
         if (!config.isValid() || config.walletAddress.isBlank()) {
             val message = when {
                 config.walletAddress.isBlank() -> "配置無效：錢包地址未設置"
