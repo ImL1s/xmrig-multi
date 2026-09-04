@@ -14,7 +14,7 @@ A **normal git clone already contains some miner artifacts**:
 | `desktop/src-tauri/binaries/xmrig-x86_64-unknown-linux-gnu` | Linux desktop binary (this repo's fee wallet) |
 | `ios/XMRigCore/output/libxmrig-ios-arm64.a` | Linkable iOS archive; **upstream** XMRig 6.25.0 donate, not `8AfU...` |
 
-`app/src/main/jniLibs/arm64-v8a/libxmrig.so` is **not** stored in git. `./scripts/build_xmrig.sh` writes it (preferred). If it is absent, `./gradlew :app:assembleDebug` runs `:app:stageXmrigJniLib`, which packages the tracked asset as `libxmrig.so` so API 29+ devices can start mining. Do not treat a runtime copy into `filesDir` as a modern-Android fallback.
+`app/src/main/jniLibs/arm64-v8a/libxmrig.so` is **not** stored in git. `./scripts/build_xmrig.sh` writes it (preferred). If it is absent, `./gradlew :app:assembleDebug` runs `:app:stageXmrigJniLib`, which packages the tracked asset as **arm64-v8a** `libxmrig.so` so API 29+ **64-bit** devices can start mining. There is no `armeabi-v7a` miner in a checkout (`build_xmrig.sh` only builds arm64); 32-bit devices cannot mine until you add that ABI. Do not treat a runtime copy into `filesDir` as a modern-Android fallback.
 
 ## Clone
 

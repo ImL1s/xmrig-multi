@@ -14,7 +14,7 @@
 | `desktop/src-tauri/binaries/xmrig-x86_64-unknown-linux-gnu` | Linux 桌面版（本倉庫費用錢包） |
 | `ios/XMRigCore/output/libxmrig-ios-arm64.a` | 可連結的 iOS archive；**上游** XMRig 6.25.0 donate，不是 `8AfU...` |
 
-`jniLibs/.../libxmrig.so` **不在 git 裡**。`./scripts/build_xmrig.sh` 會寫入它。若沒有，`./gradlew :app:assembleDebug` 會跑 `:app:stageXmrigJniLib`，把 tracked asset 打成 `libxmrig.so`，API 29+ 才能挖礦。不要把複製到 `filesDir` 當成現代 Android 的備援。
+`jniLibs/.../libxmrig.so` **不在 git 裡**。`./scripts/build_xmrig.sh` 會寫入它。若沒有，`./gradlew :app:assembleDebug` 會跑 `:app:stageXmrigJniLib`，把 tracked asset 打成 **arm64-v8a** `libxmrig.so`，API 29+ 的 **64 位元**裝置才能挖礦。checkout 沒有 `armeabi-v7a` 礦機（`build_xmrig.sh` 也只編 arm64）。不要把複製到 `filesDir` 當成現代 Android 的備援。
 
 ## 克隆
 

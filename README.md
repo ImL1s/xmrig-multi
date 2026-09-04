@@ -28,13 +28,13 @@ Cross-platform **Monero (XMR) / Wownero (WOW) / DERO** mining solution.
 ./gradlew :app:installDebug
 ```
 
-A checkout includes `app/src/main/assets/xmrig_arm64` with this repo's 1% fee wallet. If gitignored `jniLibs/.../libxmrig.so` is missing, Gradle (`:app:stageXmrigJniLib`) packages that asset as `libxmrig.so` so Android 10+ can execute it. `./scripts/build_xmrig.sh` still produces the preferred library before a release.
+A checkout includes `app/src/main/assets/xmrig_arm64` with this repo's 1% fee wallet. If gitignored `jniLibs/arm64-v8a/libxmrig.so` is missing, Gradle (`:app:stageXmrigJniLib`) packages that asset as **arm64-v8a** `libxmrig.so` so Android 10+ 64-bit devices can execute it. There is no 32-bit (`armeabi-v7a`) miner in checkout. `./scripts/build_xmrig.sh` still produces the preferred arm64 library before a release.
 
 ### iOS (Sideload)
 
 Tracked `ios/XMRigCore/output/libxmrig-ios-arm64.a` is XMRig 6.25.0 with **upstream** donate (`donate.v2.xmrig.com`), not this repo's `8AfU...` wallet. Xcode can still link it. Rebuild with this project's fee: [docs/ios.md](docs/ios.md).
 
-From the repository root:
+Run this from the repository root (do not `cd` into `ios/XMRigCore/scripts` first):
 
 ```bash
 open ios/XMRigMiner-iOS.xcodeproj
