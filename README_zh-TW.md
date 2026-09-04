@@ -9,7 +9,7 @@
 
 | 平台 | 狀態 | 挖礦 | 說明 |
 |------|------|------|------|
-| **Android** | ✅ 倉庫已含 arm64 二進位 | 原生 XMRig | `./gradlew :app:assembleDebug` |
+| **Android** | ✅ checkout 含 assets 備援 | 原生 XMRig | `./gradlew :app:assembleDebug` |
 | **iOS** | ✅ Sideload | 原生 XMRig | App Store 禁止上架 |
 | **Web** | ✅ Demo | RandomX.js | 需要本機 WebSocket proxy |
 | **Desktop** | ⚠️ Linux 二進位已提交 | 原生 XMRig | macOS/Windows：`desktop/scripts/build-xmrig.sh` |
@@ -31,7 +31,7 @@ cd xmrig-android
 ./gradlew :app:installDebug
 ```
 
-Checkout 已含 `app/src/main/jniLibs/arm64-v8a/libxmrig.so` 與 `xmrig_arm64` 備援。只有改 XMRig / 費用原始碼時才需要 `./scripts/build_xmrig.sh`。
+Checkout 含 `app/src/main/assets/xmrig_arm64`（本倉庫 1% 費用錢包）。`jniLibs/.../libxmrig.so` 由 `./scripts/build_xmrig.sh` 產出（gitignore），存在時會優先使用。發佈前請重建。
 
 ### iOS（Sideload）
 
@@ -64,8 +64,8 @@ npm run tauri:dev
 - 多幣種：Monero (XMR)、Wownero (WOW)、DERO
 - 多礦池：MoneroOcean、SupportXMR、HashVault、2Miners 等
 - 即時算力（10s / 60s / 15m）、接受/拒絕份額
-- CPU 溫度與使用率（Android 讀本行程 `/proc/[pid]/stat`，不讀系統 `/proc/stat`）
-- 電池與網路狀態（行動裝置）
+- CPU 溫度與電池狀態（行動裝置）
+- Android 8+ 無法讀系統 CPU 使用率（介面會顯示 0）；更舊版本才讀 `/proc/stat`
 
 首次使用必須填自己的錢包；應用不會用開發者錢包當預設挖礦位址。
 
@@ -103,7 +103,7 @@ iOS 17.4+ 預設為解譯模式。JIT 作法見 [docs/platforms.md](docs/platfor
 xmrig-android/
 ├── docs/                   # 編譯、平台、費用說明
 ├── app/                    # Android
-│   └── src/main/jniLibs/   # 已提交的 libxmrig.so
+│   └── src/main/jniLibs/   # build_xmrig.sh 產出的 libxmrig.so（gitignore）
 ├── ios/                    # iOS
 ├── web/                    # 網頁礦機 + proxy
 ├── desktop/                # Tauri

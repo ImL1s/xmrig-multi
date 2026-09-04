@@ -6,7 +6,7 @@ Cross-platform Monero/Wownero/DERO mining application.
 
 | Platform | Type | Status | Mining | Notes |
 |----------|------|--------|--------|-------|
-| **Android** | Mobile | ✅ Tracked arm64 binary | ✅ Native XMRig | `:app:assembleDebug` |
+| **Android** | Mobile | ✅ Asset fallback in checkout | ✅ Native XMRig | `:app:assembleDebug` |
 | **iOS** | Mobile | ✅ Sideload | ⚠️ Limited | JIT blocked (3-5 H/s), see below |
 | **Web** | Browser | ✅ Demo | ✅ RandomX.js | WebSocket proxy required |
 | **macOS** | Desktop | ⚠️ Build required | ✅ Native XMRig | `desktop/scripts/build-xmrig.sh` |
@@ -271,11 +271,11 @@ All build scripts automatically apply custom dev fee configuration from `xmrig_c
 # Android
 ./scripts/build_xmrig.sh
 
-# iOS
-cd ios/XMRigCore/scripts && ./build-ios.sh
+# iOS (optional; needs ios-cmake + libuv.a — see ios.md)
+./ios/XMRigCore/scripts/build-ios.sh
 
 # Desktop
-cd desktop/scripts && ./build-xmrig.sh
+./desktop/scripts/build-xmrig.sh
 ```
 
 ---

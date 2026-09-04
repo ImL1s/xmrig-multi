@@ -6,16 +6,15 @@ Compile (or rebuild) native XMRig with this repo's 1% developer fee (`xmrig_cust
 
 There are no `compile_xmrig.sh` or `create_mock_binaries.sh` scripts. Do not download random third-party XMRig binaries.
 
-A **normal git clone already contains miner artifacts** (they were committed; `.gitignore` only ignores *untracked* replacements):
+A **normal git clone already contains some miner artifacts**:
 
 | Artifact | Role |
 |----------|------|
-| `app/src/main/jniLibs/arm64-v8a/libxmrig.so` | Android packaged library |
-| `app/src/main/assets/xmrig_arm64` | Android runtime fallback |
+| `app/src/main/assets/xmrig_arm64` | Android runtime fallback; contains this repo's 1% fee wallet |
 | `desktop/src-tauri/binaries/xmrig-x86_64-unknown-linux-gnu` | Linux desktop binary |
 | `ios/XMRigCore/output/libxmrig-ios-arm64.a` | iOS static library |
 
-You can assemble the Android app and sideload iOS without compiling XMRig first. Run the scripts below when you change `xmrig_custom_source/` or need another desktop OS.
+`app/src/main/jniLibs/arm64-v8a/libxmrig.so` is **not** stored in git. The app prefers that packaged library when you have run `./scripts/build_xmrig.sh`. Without it, Android uses the assets fallback. Rebuild before a release so jniLibs and assets both match `xmrig_custom_source/`.
 
 ## Clone
 
@@ -26,7 +25,7 @@ cd xmrig-android
 
 ## Android
 
-### App APK (uses the tracked binary)
+### App APK (uses assets fallback until you rebuild)
 
 ```bash
 ./gradlew :app:assembleDebug

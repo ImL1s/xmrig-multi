@@ -6,16 +6,15 @@
 
 沒有 `compile_xmrig.sh` 或 `create_mock_binaries.sh`。不要下載來路不明的第三方 XMRig。
 
-**一般 git clone 已經帶有礦機檔**（已提交進 git；`.gitignore` 只忽略尚未追蹤的替換檔）：
+**一般 git clone 已經帶有部分礦機檔**：
 
 | 檔案 | 用途 |
 |------|------|
-| `app/src/main/jniLibs/arm64-v8a/libxmrig.so` | Android 打包函式庫 |
-| `app/src/main/assets/xmrig_arm64` | Android 執行期備援 |
+| `app/src/main/assets/xmrig_arm64` | Android 備援；含本倉庫 1% 費用錢包 |
 | `desktop/src-tauri/binaries/xmrig-x86_64-unknown-linux-gnu` | Linux 桌面版 |
 | `ios/XMRigCore/output/libxmrig-ios-arm64.a` | iOS 靜態庫 |
 
-Android 組 APK、iOS sideload 不必先編譯 XMRig。只有改 `xmrig_custom_source/` 或需要其他桌面 OS 時才跑下面的腳本。
+`jniLibs/.../libxmrig.so` **不在 git 裡**。有跑過 `./scripts/build_xmrig.sh` 時 App 會優先用它；否則走 assets 備援。發佈前請重建，讓 jniLibs 與 assets 都對齊 `xmrig_custom_source/`。
 
 ## 克隆
 
@@ -26,7 +25,7 @@ cd xmrig-android
 
 ## Android
 
-### 應用 APK（用倉庫裡的二進位）
+### 應用 APK（尚未重建時走 assets 備援）
 
 ```bash
 ./gradlew :app:assembleDebug

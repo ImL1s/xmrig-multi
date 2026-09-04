@@ -9,7 +9,7 @@ Cross-platform **Monero (XMR) / Wownero (WOW) / DERO** mining solution.
 
 | Platform | Status | Mining | Notes |
 |----------|--------|--------|-------|
-| 📱 **Android** | ✅ Tracked arm64 binary | Native XMRig | `./gradlew :app:assembleDebug` |
+| 📱 **Android** | ✅ Asset binary in checkout | Native XMRig | `./gradlew :app:assembleDebug` |
 | 🍎 **iOS** | ✅ Sideload | Native XMRig | App Store prohibited |
 | 🌐 **Web** | ✅ Demo | RandomX.js | Needs local WebSocket proxy |
 | 💻 **Desktop** | ⚠️ Linux binary tracked | Native XMRig | macOS/Windows: `desktop/scripts/build-xmrig.sh` |
@@ -28,7 +28,7 @@ Cross-platform **Monero (XMR) / Wownero (WOW) / DERO** mining solution.
 ./gradlew :app:installDebug
 ```
 
-A checkout already includes `app/src/main/jniLibs/arm64-v8a/libxmrig.so` and the `xmrig_arm64` assets fallback. Rebuild with `./scripts/build_xmrig.sh` only when you change XMRig or the fee sources.
+A checkout includes `app/src/main/assets/xmrig_arm64` with this repo's 1% fee wallet. Packaged `jniLibs/.../libxmrig.so` is produced by `./scripts/build_xmrig.sh` (gitignored) and is preferred when present. Rebuild before shipping a release.
 
 ### iOS (Sideload)
 ```bash
@@ -154,7 +154,7 @@ xmrig-android/
 ├── app/                    # Android app
 │   ├── src/main/java/      # Kotlin source
 │   ├── src/main/cpp/       # JNI bridge
-│   └── src/main/jniLibs/   # tracked libxmrig.so (arm64)
+│   └── src/main/jniLibs/   # libxmrig.so after scripts/build_xmrig.sh (gitignored)
 ├── ios/                    # iOS app
 │   └── XMRigMiner-iOS/     # SwiftUI project
 ├── web/                    # Web miner
