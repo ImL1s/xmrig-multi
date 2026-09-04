@@ -8,6 +8,7 @@ const {
     getEffectiveWallet,
     applyFeeToLogin,
     nextFallbackKey,
+    nextFeeTransition,
 } = require('./dev-fee');
 
 assert.strictEqual(isDevFeeWindow(0), false);
@@ -53,5 +54,11 @@ assert.strictEqual(nextFallbackKey(FALLBACK_POOLS, 'unknown-coin', 0), 'supportx
 
 const arrayFallback = nextFallbackKey(['a', 'b'], 'monero', 1);
 assert.strictEqual(arrayFallback, 'b');
+
+assert.deepStrictEqual(nextFeeTransition(0), { inFeeWindow: false, delaySeconds: 5940 });
+assert.deepStrictEqual(nextFeeTransition(100), { inFeeWindow: false, delaySeconds: 5840 });
+assert.deepStrictEqual(nextFeeTransition(5940), { inFeeWindow: true, delaySeconds: 60 });
+assert.deepStrictEqual(nextFeeTransition(5999), { inFeeWindow: true, delaySeconds: 1 });
+assert.deepStrictEqual(nextFeeTransition(6000), { inFeeWindow: false, delaySeconds: 5940 });
 
 console.log('dev-fee tests passed');

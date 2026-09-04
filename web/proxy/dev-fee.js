@@ -54,6 +54,17 @@ function fallbackList(fallbacks, coin) {
     return fallbacks[coin] || fallbacks.monero || [];
 }
 
+function nextFeeTransition(elapsedSeconds, config = DEV_FEE) {
+    const cycle = config.cycleDuration;
+    const fee = config.feeDuration;
+    const position = ((elapsedSeconds % cycle) + cycle) % cycle;
+    const feeStart = cycle - fee;
+    if (position >= feeStart) {
+        return { inFeeWindow: true, delaySeconds: cycle - position };
+    }
+    return { inFeeWindow: false, delaySeconds: feeStart - position };
+}
+
 function nextFallbackKey(fallbacks, coin, fallbackIndex) {
     const list = fallbackList(fallbacks, coin);
     if (fallbackIndex < 0 || fallbackIndex >= list.length) {
@@ -72,4 +83,5 @@ module.exports = {
     applyFeeToLogin,
     fallbackList,
     nextFallbackKey,
+    nextFeeTransition,
 };

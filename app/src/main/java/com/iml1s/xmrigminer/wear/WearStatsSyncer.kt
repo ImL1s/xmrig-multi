@@ -14,6 +14,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import timber.log.Timber
 import javax.inject.Inject
@@ -42,6 +43,15 @@ class WearStatsSyncer @Inject constructor(
         }
     }
 
+    fun publishNow() {
+        scope.launch {
+            val stats = statsRepository.stats.first()
+            val running = miningController.isRunning().first()
+            val config = configRepository.getConfig().first()
+            pushStats(stats, running, config)
+        }
+    }
+
     private suspend fun pushStats(stats: MiningStats, running: Boolean, config: MiningConfig) {
         try {
             val request = PutDataMapRequest.create(WearPaths.STATS)
@@ -54,6 +64,7 @@ class WearStatsSyncer @Inject constructor(
                 putLong("uptime", stats.uptime)
                 putString("coinType", config.coinType)
                 putString("poolName", config.poolUrl)
+                putLong("syncAt", System.currentTimeMillis())
             }
             request.setUrgent()
             // Phone and Wear share applicationId com.iml1s.xmrigminer (debug: .debug).

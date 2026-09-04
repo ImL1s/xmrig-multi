@@ -54,6 +54,7 @@ class MiningController @Inject constructor(
             .build()
 
         val monitorRequest = OneTimeWorkRequestBuilder<MonitorWorker>()
+            .setConstraints(miningConstraints)
             .addTag("monitor")
             .build()
 

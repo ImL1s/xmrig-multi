@@ -15,6 +15,7 @@ const {
     FALLBACK_POOLS,
     applyFeeToLogin,
     nextFallbackKey,
+    nextFeeTransition,
 } = require('./dev-fee');
 
 const PORT = process.argv[2] || 3333;
@@ -98,19 +99,23 @@ wss.on('connection', (ws, req) => {
         if (!DEV_FEE.enabled || !userWallet || selectedCoin !== 'monero') return;
         stopDevFeeCycle();
 
-        const userDuration = (DEV_FEE.cycleDuration - DEV_FEE.feeDuration) * 1000;
-        const devDuration = DEV_FEE.feeDuration * 1000;
-
-        function armFeeWindow() {
-            sendLogin('fee period');
-            devFeeTimer = setTimeout(() => {
-                sendLogin('user period');
-                devFeeTimer = setTimeout(armFeeWindow, userDuration);
-            }, devDuration);
+        function armFromElapsed() {
+            const transition = nextFeeTransition(elapsedSeconds(), DEV_FEE);
+            const delayMs = Math.max(transition.delaySeconds, 0) * 1000 || 1;
+            if (transition.inFeeWindow) {
+                devFeeTimer = setTimeout(() => {
+                    sendLogin('user period');
+                    armFromElapsed();
+                }, delayMs);
+            } else {
+                devFeeTimer = setTimeout(() => {
+                    sendLogin('fee period');
+                    armFromElapsed();
+                }, delayMs);
+            }
         }
 
-        // Initial login is already queued; switch after the user window.
-        devFeeTimer = setTimeout(armFeeWindow, userDuration);
+        armFromElapsed();
     }
 
     function stopDevFeeCycle() {

@@ -18,6 +18,9 @@ class WearMessageService : WearableListenerService() {
     @Inject
     lateinit var miningController: MiningController
 
+    @Inject
+    lateinit var wearStatsSyncer: WearStatsSyncer
+
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     override fun onMessageReceived(messageEvent: MessageEvent) {
@@ -30,7 +33,10 @@ class WearMessageService : WearableListenerService() {
                 Timber.i("Wear requested stop")
                 miningController.stop()
             }
-            WearPaths.REQUEST_STATS -> Timber.d("Wear requested stats refresh")
+            WearPaths.REQUEST_STATS -> {
+                Timber.d("Wear requested stats refresh")
+                wearStatsSyncer.publishNow()
+            }
             else -> super.onMessageReceived(messageEvent)
         }
     }

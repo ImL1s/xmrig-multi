@@ -95,6 +95,8 @@ impl MinerState {
 
         match cmd.spawn() {
             Ok(mut child) => {
+                self.running.store(true, Ordering::SeqCst);
+
                 if let Some(stdout) = child.stdout.take() {
                     let stats = Arc::clone(&self.stats);
                     let running = Arc::clone(&self.running);
@@ -106,7 +108,6 @@ impl MinerState {
                 thread::spawn(move || poll_http_stats(stats, running));
 
                 self.process = Some(child);
-                self.running.store(true, Ordering::SeqCst);
                 Ok("Mining started successfully".to_string())
             }
             Err(e) => Err(format!("Failed to start XMRig: {}", e)),
