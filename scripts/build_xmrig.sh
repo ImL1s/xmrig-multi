@@ -95,7 +95,7 @@ cmake ../../.. \
     -DANDROID_PLATFORM=android-21 \
     -DANDROID_STL=c++_shared \
     -DWITH_HWLOC=OFF \
-    -DWITH_TLS=ON \
+    -DWITH_TLS=OFF \
     -DWITH_HTTP=OFF \
     -DWITH_OPENCL=OFF \
     -DWITH_CUDA=OFF \
