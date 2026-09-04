@@ -16,7 +16,7 @@ Cross-platform **Monero (XMR) / Wownero (WOW) / DERO** mining solution.
 | ⌚ **WearOS** | Companion | No | `./gradlew :wearos:assembleDebug` |
 | ⌚ **watchOS** | Companion | No | `cd watchos && xcodegen generate` |
 
-[繁體中文](README_zh-TW.md) | [Platform Details](PLATFORMS.md) | [Dev Fee Info](DEV_FEE.md)
+[繁體中文](README_zh-TW.md) | [Docs](docs/README.md) | [Platforms](docs/platforms.md) | [Dev fee](docs/dev-fee.md)
 
 ---
 
@@ -31,7 +31,8 @@ Cross-platform **Monero (XMR) / Wownero (WOW) / DERO** mining solution.
 
 ### iOS (Sideload)
 ```bash
-cd ios && open XMRigMiner-iOS.xcodeproj
+cd ios/XMRigCore/scripts && ./build-ios.sh
+open ios/XMRigMiner-iOS.xcodeproj
 # Build with Xcode, install via Sideloadly or AltStore
 ```
 
@@ -84,7 +85,7 @@ This application includes a **1% developer fee** to support ongoing development.
 - **Mechanism**: Time-based (99 min user → 1 min dev → repeat)
 - **Transparency**: All code is open source
 
-See [DEV_FEE.md](DEV_FEE.md) for detailed explanation.
+See [docs/dev-fee.md](docs/dev-fee.md) for detailed explanation.
 
 ---
 
@@ -126,7 +127,7 @@ Native Layer (JNI → C++ XMRig)
 | Desktop | Apple M2 | 2,500+ H/s | Full JIT support |
 | Web | Modern browser | 40-120 H/s | WASM, no JIT |
 
-> **iOS Note**: Apple blocks JIT compilation on iOS 17.4+. Without JIT, RandomX runs in interpreted mode (~3-5 H/s). To enable JIT (~200+ H/s), use [SideStore](https://sidestore.io) + [StikDebug](https://github.com/StephenDev0/StikDebug). See [PLATFORMS.md](PLATFORMS.md) for details.
+> **iOS Note**: Apple blocks JIT compilation on iOS 17.4+. Without JIT, RandomX runs in interpreted mode (~3-5 H/s). To enable JIT (~200+ H/s), use [SideStore](https://sidestore.io) + [StikDebug](https://github.com/StephenDev0/StikDebug). See [docs/platforms.md](docs/platforms.md) for details.
 
 > Note: Actual hashrate depends on device, cooling, and background processes.
 
@@ -147,10 +148,11 @@ Native Layer (JNI → C++ XMRig)
 
 ```
 xmrig-android/
+├── docs/                   # Build, platforms, fee guides
 ├── app/                    # Android app
 │   ├── src/main/java/      # Kotlin source
 │   ├── src/main/cpp/       # JNI bridge
-│   └── src/main/assets/    # XMRig binary
+│   └── src/main/jniLibs/   # gitignored libxmrig.so (after build_xmrig.sh)
 ├── ios/                    # iOS app
 │   └── XMRigMiner-iOS/     # SwiftUI project
 ├── web/                    # Web miner

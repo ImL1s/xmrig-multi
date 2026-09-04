@@ -35,6 +35,8 @@
 
 Kotlin `DevFeePolicy` 與 JS `dev-fee.js` 共用同一組數字，方便測試，**不會**再平行跑一套 Kotlin 錢包切換。
 
+Web 的費用錢包是 Monero 位址；Wownero / DERO 連線不會改寫 login（專用礦池會拒絕 XMR 位址）。
+
 ## 技術細節
 
 ### XMRig C++ 層 (Android/iOS/Desktop)
@@ -57,15 +59,20 @@ const char *donateWallet = "8AfUwcnoJiRDMXnDGj3zX6bMgfaj9pM1WFGr2pakLm3jSYXVLD5f
 ## 常見問題
 
 ### Q: 費用會從我已挖到的幣中扣除嗎？
+
 **A:** 不會。費用是透過時間分配實現的，不會動到您已挖到的幣。
 
 ### Q: 我可以關閉開發者費用嗎？
+
 **A:** 技術上可以自行編譯移除，但這會違反使用條款。1% 的費用用於支持應用程式的持續開發與維護。
 
 ### Q: 費用會影響我的算力嗎？
+
 **A:** 不會影響您的算力表現。只是在切換期間，收益會暫時進入開發者錢包。
 
 ## 重新編譯
+
+見 [building.md](building.md) 與 [ios.md](ios.md)。編譯腳本會自動套用 `xmrig_custom_source/` 中的自訂設定。
 
 ```bash
 # Android（產出 jniLibs/arm64-v8a/libxmrig.so，檔案 gitignore）
@@ -77,5 +84,3 @@ cd ios/XMRigCore/scripts && ./build-ios.sh
 # Desktop
 cd desktop/scripts && ./build-xmrig.sh
 ```
-
-編譯腳本會自動套用 `xmrig_custom_source/` 中的自訂設定。

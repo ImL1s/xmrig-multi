@@ -28,8 +28,8 @@ Enhancement suggestions are welcome! Please:
 1. Fork the repository
 2. Create a feature branch (`git checkout -b feature/amazing-feature`)
 3. Make your changes
-4. Run tests (`./gradlew testDebugUnitTest`)
-5. Run lint (`./gradlew lintDebug`)
+4. Run tests (`./gradlew :app:testDebugUnitTest`)
+5. Run lint (`./gradlew :app:lintDebug`)
 6. Commit your changes (`git commit -m 'Add amazing feature'`)
 7. Push to the branch (`git push origin feature/amazing-feature`)
 8. Open a Pull Request
@@ -50,14 +50,17 @@ Enhancement suggestions are welcome! Please:
 git clone https://github.com/ImL1s/xmrig-android.git
 cd xmrig-android
 
+# Native XMRig (gitignored libxmrig.so) — see docs/building.md
+./scripts/build_xmrig.sh
+
 # Build
-./gradlew assembleDebug
+./gradlew :app:assembleDebug
 
 # Run tests
-./gradlew testDebugUnitTest
+./gradlew :app:testDebugUnitTest
 
 # Run lint
-./gradlew lintDebug
+./gradlew :app:lintDebug
 ```
 
 ## Code Style

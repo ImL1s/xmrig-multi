@@ -12,6 +12,8 @@ Cross-platform Monero (XMR) / Wownero (WOW) / DERO mining application with six t
 - **WearOS**: Companion app for Android smartwatches
 - **watchOS**: Stats viewer for Apple Watch (no mining, Apple ban)
 
+User-facing guides: `docs/` (building, platforms, fee, iOS sideload).
+
 ## Developer Fee
 
 All platforms include 1% dev fee:
@@ -86,6 +88,7 @@ Native Layer (JNI → C++ XMRig)
 
 ```
 xmrig-android/
+├── docs/                          # Building, platforms, fee guides
 ├── app/                           # Android app
 │   ├── src/main/java/.../
 │   │   ├── data/                  # Models, repositories
@@ -95,7 +98,7 @@ xmrig-android/
 │   │   ├── native/                # JNI bridge
 │   │   └── di/                    # Hilt DI modules
 │   ├── src/main/cpp/              # C++ native code
-│   └── src/main/assets/           # XMRig binary
+│   └── src/main/jniLibs/          # gitignored libxmrig.so
 ├── ios/                           # iOS app
 │   ├── XMRigMiner-iOS/            # SwiftUI app
 │   └── XMRigCore/                 # XMRig C++ build
@@ -120,6 +123,7 @@ xmrig-android/
 | `xmrig_custom_source/DonateStrategy.cpp` | Custom wallet address |
 | `app/.../service/DevFeePolicy.kt` | Shared 1% time-window constants/tests |
 | `web/proxy/dev-fee.js` | Web proxy fee window + login rewrite |
+| `docs/dev-fee.md` | Fee documentation |
 
 ## Dependencies
 
