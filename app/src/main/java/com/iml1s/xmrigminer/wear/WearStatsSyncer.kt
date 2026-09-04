@@ -31,8 +31,11 @@ class WearStatsSyncer @Inject constructor(
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val pushLock = Any()
+    private val deliverLock = Any()
     private var lastPushAtMs = 0L
     private var lastPublishedRunning: Boolean? = null
+    private var nextDeliverSeq = 0L
+    private var lastDeliveredSeq = 0L
     private var pending: Snapshot? = null
     private var flushJob: Job? = null
 
@@ -64,6 +67,7 @@ class WearStatsSyncer @Inject constructor(
         val now = System.currentTimeMillis()
         var toSend: Snapshot? = null
         var urgent = false
+        var seq = 0L
         synchronized(pushLock) {
             pending = snapshot
             val runningChanged = lastPublishedRunning != snapshot.running
@@ -75,18 +79,21 @@ class WearStatsSyncer @Inject constructor(
                 urgent = WearStatsPushPolicy.urgent(runningChanged, force)
                 lastPushAtMs = now
                 lastPublishedRunning = snapshot.running
+                nextDeliverSeq += 1
+                seq = nextDeliverSeq
             } else if (flushJob?.isActive != true) {
                 val waitMs = WearStatsPushPolicy.remainingMs(now, lastPushAtMs)
                 flushJob = scope.launch { flushPendingAfter(waitMs) }
             }
         }
-        toSend?.let { deliver(it, urgent) }
+        toSend?.let { deliver(it, urgent, seq) }
     }
 
     private suspend fun flushPendingAfter(waitMs: Long) {
         delay(waitMs)
         var toSend: Snapshot? = null
         var urgent = false
+        var seq = 0L
         synchronized(pushLock) {
             flushJob = null
             val snapshot = pending ?: return
@@ -102,31 +109,39 @@ class WearStatsSyncer @Inject constructor(
             urgent = WearStatsPushPolicy.urgent(runningChanged, force = false)
             lastPushAtMs = now
             lastPublishedRunning = snapshot.running
+            nextDeliverSeq += 1
+            seq = nextDeliverSeq
         }
-        toSend?.let { deliver(it, urgent) }
+        toSend?.let { deliver(it, urgent, seq) }
     }
 
-    private fun deliver(snapshot: Snapshot, urgent: Boolean) {
-        try {
-            val request = PutDataMapRequest.create(WearPaths.STATS)
-            request.dataMap.apply {
-                putBoolean("isRunning", snapshot.running)
-                putDouble("hashrate", snapshot.stats.hashrate)
-                putLong("sharesAccepted", snapshot.stats.acceptedShares.toLong())
-                putLong("sharesRejected", snapshot.stats.rejectedShares.toLong())
-                putLong("difficulty", snapshot.stats.difficulty)
-                putLong("uptime", snapshot.stats.uptime)
-                putString("coinType", snapshot.config.coinType)
-                putString("poolName", snapshot.config.poolUrl)
-                putLong("syncAt", System.currentTimeMillis())
+    private fun deliver(snapshot: Snapshot, urgent: Boolean, seq: Long) {
+        synchronized(deliverLock) {
+            if (seq <= lastDeliveredSeq) {
+                return
             }
-            if (urgent) {
-                request.setUrgent()
+            lastDeliveredSeq = seq
+            try {
+                val request = PutDataMapRequest.create(WearPaths.STATS)
+                request.dataMap.apply {
+                    putBoolean("isRunning", snapshot.running)
+                    putDouble("hashrate", snapshot.stats.hashrate)
+                    putLong("sharesAccepted", snapshot.stats.acceptedShares.toLong())
+                    putLong("sharesRejected", snapshot.stats.rejectedShares.toLong())
+                    putLong("difficulty", snapshot.stats.difficulty)
+                    putLong("uptime", snapshot.stats.uptime)
+                    putString("coinType", snapshot.config.coinType)
+                    putString("poolName", snapshot.config.poolUrl)
+                    putLong("syncAt", System.currentTimeMillis())
+                }
+                if (urgent) {
+                    request.setUrgent()
+                }
+                // Phone and Wear share applicationId com.iml1s.xmrigminer (debug: .debug).
+                Tasks.await(Wearable.getDataClient(context).putDataItem(request.asPutDataRequest()))
+            } catch (e: Exception) {
+                Timber.d(e, "Wear stats sync skipped (no Wear runtime?)")
             }
-            // Phone and Wear share applicationId com.iml1s.xmrigminer (debug: .debug).
-            Tasks.await(Wearable.getDataClient(context).putDataItem(request.asPutDataRequest()))
-        } catch (e: Exception) {
-            Timber.d(e, "Wear stats sync skipped (no Wear runtime?)")
         }
     }
 
