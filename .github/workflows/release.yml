@@ -260,8 +260,9 @@ jobs:
 
       - name: Build Tauri (NSIS)
         working-directory: desktop
-        shell: bash
+        shell: pwsh
         run: |
+          # Avoid Git's /usr/bin/link.exe shadowing MSVC link.exe when using bash PATH.
           npm install
           npx tauri build --bundles nsis
 
