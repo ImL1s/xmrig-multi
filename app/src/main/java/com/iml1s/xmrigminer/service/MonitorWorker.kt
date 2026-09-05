@@ -126,9 +126,24 @@ class MonitorWorker @AssistedInject constructor(
 
     private fun isLoopbackDaemonEndpoint(poolUrl: String?): Boolean {
         if (poolUrl.isNullOrBlank()) return false
-        val host = poolUrl.substringBefore('/').substringBefore(':').trim().lowercase()
-            .removePrefix("[").removeSuffix("]")
+        val host = daemonHostFromPoolUrl(poolUrl)
         return host == "127.0.0.1" || host == "localhost" || host == "::1"
+    }
+
+    /** Host from `host:port`, `[ipv6]:port`, or bare loopback forms. */
+    private fun daemonHostFromPoolUrl(poolUrl: String): String {
+        val endpoint = poolUrl.trim().substringBefore('/').lowercase()
+        if (endpoint.startsWith("[")) {
+            return endpoint.substringAfter("[").substringBefore("]")
+        }
+        val colonCount = endpoint.count { it == ':' }
+        if (colonCount > 1) {
+            val lastColon = endpoint.lastIndexOf(':')
+            val after = endpoint.substring(lastColon + 1)
+            val before = endpoint.substring(0, lastColon)
+            return if (after.all { it.isDigit() } && before.contains("::")) before else endpoint
+        }
+        return endpoint.substringBefore(':')
     }
 
     private fun isDeviceCharging(): Boolean {
