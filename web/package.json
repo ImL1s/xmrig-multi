@@ -1,6 +1,6 @@
 {
   "name": "xmrig-web-miner",
-  "version": "1.0.0",
+  "version": "2.3.0",
   "description": "XMRig Multi web UI — browser RandomX.js miner",
   "type": "module",
   "scripts": {

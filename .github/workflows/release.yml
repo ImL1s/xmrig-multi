@@ -6,9 +6,13 @@ on:
 permissions:
   contents: write
 
+env:
+  # Keep in sync with app/wear versionName and desktop/web package versions.
+  APP_VERSION: ${{ github.ref_name }}
+
 jobs:
-  build:
-    name: Build and Release APK
+  android:
+    name: Android + Wear APKs
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
@@ -31,9 +35,7 @@ jobs:
       - name: Install CMake
         run: sudo apt-get update && sudo apt-get install -y cmake
 
-      # Prefer the tracked fee-wallet binary when present. A full NDK rebuild needs an
-      # Android-built libuv (host libuv1-dev is not enough for arm64-v8a cross-compile).
-      - name: Build XMRig
+      - name: Stage XMRig
         env:
           ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
         run: |
@@ -58,7 +60,7 @@ jobs:
             echo "$SIGNING_KEYSTORE_BASE64" | base64 --decode > app/release.keystore
             echo "Keystore written"
           else
-            echo "::warning::SIGNING_KEYSTORE_BASE64 secret is not set; assembling an unsigned release APK"
+            echo "::warning::SIGNING_KEYSTORE_BASE64 secret is not set; assembling unsigned release APKs"
           fi
 
       - name: Build Release APKs
@@ -74,17 +76,294 @@ jobs:
           fi
           ./gradlew :app:stageXmrigJniLib :app:assembleRelease :wearos:assembleRelease
 
+      - name: Package Android artifacts
+        run: |
+          VER="${GITHUB_REF_NAME#v}"
+          mkdir -p release-out
+          if [ -f app/build/outputs/apk/release/app-release.apk ]; then
+            cp app/build/outputs/apk/release/app-release.apk "release-out/xmrig-multi-android-${VER}.apk"
+          elif [ -f app/build/outputs/apk/release/app-release-unsigned.apk ]; then
+            cp app/build/outputs/apk/release/app-release-unsigned.apk "release-out/xmrig-multi-android-${VER}-unsigned.apk"
+          fi
+          WEAR=$(ls wearos/app/build/outputs/apk/release/*.apk 2>/dev/null | head -n1 || true)
+          if [ -n "$WEAR" ]; then
+            BASE=$(basename "$WEAR")
+            if echo "$BASE" | grep -qi unsigned; then
+              cp "$WEAR" "release-out/xmrig-multi-wearos-${VER}-unsigned.apk"
+            else
+              cp "$WEAR" "release-out/xmrig-multi-wearos-${VER}.apk"
+            fi
+          fi
+          ls -la release-out
+
+      - name: Upload Android artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-wear
+          path: release-out/*
+          if-no-files-found: error
+
+  web:
+    name: Web miner + proxy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: |
+            web/package-lock.json
+            web/proxy/package-lock.json
+
+      - name: Build web UI
+        working-directory: web
+        run: |
+          npm ci
+          npm run build
+
+      - name: Install proxy deps
+        working-directory: web/proxy
+        run: npm ci
+
+      - name: Package web artifacts
+        run: |
+          VER="${GITHUB_REF_NAME#v}"
+          mkdir -p release-out
+          (cd web/dist && zip -r "../../release-out/xmrig-multi-web-${VER}.zip" .)
+          (cd web/proxy && zip -r "../../release-out/xmrig-multi-web-proxy-${VER}.zip" . -x "node_modules/*")
+          ls -la release-out
+
+      - name: Upload web artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: web
+          path: release-out/*
+          if-no-files-found: error
+
+  desktop-linux:
+    name: Desktop Linux (deb)
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: desktop/package.json
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install Linux deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            build-essential \
+            curl \
+            wget \
+            file \
+            libxdo-dev \
+            libssl-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            patchelf
+
+      - name: Stage tracked Linux XMRig sidecar
+        run: |
+          BIN=desktop/src-tauri/binaries
+          if [ ! -f "$BIN/xmrig-x86_64-unknown-linux-gnu" ]; then
+            echo "Tracked Linux XMRig sidecar missing"
+            exit 1
+          fi
+          # Tauri also accepts a plain name during local runs.
+          cp "$BIN/xmrig-x86_64-unknown-linux-gnu" "$BIN/xmrig"
+          chmod 755 "$BIN/xmrig" "$BIN/xmrig-x86_64-unknown-linux-gnu"
+
+      - name: Build Tauri (deb)
+        working-directory: desktop
+        env:
+          NO_STRIP: true
+        run: |
+          npm install
+          npx tauri build --bundles deb
+
+      - name: Package desktop Linux artifacts
+        run: |
+          VER="${GITHUB_REF_NAME#v}"
+          mkdir -p release-out
+          DEB=$(ls desktop/src-tauri/target/release/bundle/deb/*.deb 2>/dev/null | head -n1 || true)
+          if [ -z "$DEB" ]; then
+            echo "No .deb produced"
+            exit 1
+          fi
+          cp "$DEB" "release-out/xmrig-multi-desktop-linux-${VER}.deb"
+          ls -la release-out
+
+      - name: Upload desktop Linux artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: desktop-linux
+          path: release-out/*
+          if-no-files-found: error
+
+  desktop-windows:
+    name: Desktop Windows (NSIS)
+    runs-on: windows-latest
+    continue-on-error: true
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: desktop/package.json
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Setup MSVC
+        uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Install CMake
+        uses: lukka/get-cmake@latest
+
+      - name: Build XMRig sidecar (custom fee)
+        shell: bash
+        run: |
+          chmod +x desktop/scripts/build-xmrig.sh
+          ./desktop/scripts/build-xmrig.sh
+          ls -la desktop/src-tauri/binaries/
+
+      - name: Build Tauri (NSIS)
+        working-directory: desktop
+        shell: bash
+        run: |
+          npm install
+          npx tauri build --bundles nsis
+
+      - name: Package desktop Windows artifacts
+        shell: bash
+        run: |
+          VER="${GITHUB_REF_NAME#v}"
+          mkdir -p release-out
+          EXE=$(ls desktop/src-tauri/target/release/bundle/nsis/*.exe 2>/dev/null | head -n1 || true)
+          if [ -z "$EXE" ]; then
+            echo "No NSIS installer produced"
+            exit 1
+          fi
+          cp "$EXE" "release-out/xmrig-multi-desktop-windows-${VER}-setup.exe"
+          ls -la release-out
+
+      - name: Upload desktop Windows artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: desktop-windows
+          path: release-out/*
+          if-no-files-found: error
+
+  desktop-macos:
+    name: Desktop macOS (DMG)
+    runs-on: macos-latest
+    continue-on-error: true
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: desktop/package.json
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install build tools
+        run: brew install cmake || true
+
+      - name: Build XMRig sidecar (custom fee)
+        run: |
+          chmod +x desktop/scripts/build-xmrig.sh
+          ./desktop/scripts/build-xmrig.sh
+          ls -la desktop/src-tauri/binaries/
+
+      - name: Build Tauri (DMG)
+        working-directory: desktop
+        run: |
+          npm install
+          npx tauri build --bundles dmg
+
+      - name: Package desktop macOS artifacts
+        run: |
+          VER="${GITHUB_REF_NAME#v}"
+          mkdir -p release-out
+          DMG=$(ls desktop/src-tauri/target/release/bundle/dmg/*.dmg 2>/dev/null | head -n1 || true)
+          if [ -z "$DMG" ]; then
+            echo "No DMG produced"
+            exit 1
+          fi
+          cp "$DMG" "release-out/xmrig-multi-desktop-macos-${VER}.dmg"
+          ls -la release-out
+
+      - name: Upload desktop macOS artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: desktop-macos
+          path: release-out/*
+          if-no-files-found: error
+
+  publish:
+    name: GitHub Release
+    needs: [android, web, desktop-linux, desktop-windows, desktop-macos]
+    if: ${{ always() && needs.android.result == 'success' && needs.web.result == 'success' && needs.desktop-linux.result == 'success' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: Flatten artifacts
+        run: |
+          mkdir -p release-files
+          find artifacts -type f -print -exec cp {} release-files/ \;
+          ls -la release-files
+          test -n "$(ls -A release-files)"
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
-          files: |
-            app/build/outputs/apk/release/app-release.apk
-            app/build/outputs/apk/release/app-release-unsigned.apk
-            wearos/app/build/outputs/apk/release/*.apk
+          files: release-files/*
           fail_on_unmatched_files: false
-          name: Release ${{ github.ref_name }}
+          name: XMRig Multi ${{ github.ref_name }}
           draft: false
           prerelease: false
           generate_release_notes: true
+          body: |
+            ## XMRig Multi ${{ github.ref_name }}
+
+            Multi-platform build. Version strings are aligned at **${{ github.ref_name }}** across Android, WearOS, Desktop, Web, iOS, and watchOS sources.
+
+            ### Attached (when CI succeeded)
+            - **Android** / **WearOS** APKs
+            - **Web** UI zip + WebSocket proxy zip
+            - **Desktop** Linux `.deb`, Windows NSIS installer, macOS `.dmg`
+
+            ### Not attached from CI
+            - **iOS** / **watchOS**: sideload locally (App Store mining ban). See `docs/ios.md` / `docs/platforms.md`.
+
+            Signing secrets may be unset → Android/Wear assets can be `*-unsigned.apk`.
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

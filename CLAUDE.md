@@ -174,4 +174,4 @@ class MiningViewModel : ViewModel() {
 GitHub Actions workflows in `.github/workflows/`:
 - `android-ci.yml` - Build, test, lint on push/PR
 - `web-miner-ci.yml` - Web miner builds
-- `release.yml` - Auto-release on version tags
+- `release.yml` - Tag `v*` multi-platform release (Android/Wear, Web, Desktop Linux/Windows/macOS)

@@ -1,6 +1,6 @@
 {
   "name": "xmrig-miner-desktop",
-  "version": "1.0.0",
+  "version": "2.3.0",
   "description": "XMRig Multi desktop app (Tauri) — Monero / Wownero / DERO",
   "private": true,
   "type": "module",
