@@ -31,12 +31,21 @@ jobs:
       - name: Install CMake
         run: sudo apt-get update && sudo apt-get install -y cmake
 
+      # Prefer the tracked fee-wallet binary when present. A full NDK rebuild needs an
+      # Android-built libuv (host libuv1-dev is not enough for arm64-v8a cross-compile).
       - name: Build XMRig
         env:
           ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
         run: |
           chmod +x scripts/build_xmrig.sh
-          ./scripts/build_xmrig.sh
+          if [ -f app/src/main/assets/xmrig_arm64 ]; then
+            echo "Using tracked app/src/main/assets/xmrig_arm64 (repo 1% fee wallet)"
+            mkdir -p app/src/main/jniLibs/arm64-v8a
+            cp app/src/main/assets/xmrig_arm64 app/src/main/jniLibs/arm64-v8a/libxmrig.so
+            chmod 755 app/src/main/jniLibs/arm64-v8a/libxmrig.so
+          else
+            ./scripts/build_xmrig.sh
+          fi
 
       - name: Grant Execute Permission for Gradle
         run: chmod +x gradlew
