@@ -133,7 +133,7 @@ Dependencies managed via Version Catalog at `gradle/libs.versions.toml`.
 Key versions:
 - Kotlin 1.9.21, Compose BOM 2024.10.00
 - Android SDK 34, NDK 26.3.11579264
-- Hilt 2.50, WorkManager 2.9.0
+- Hilt 2.50, WorkManager 2.10.5
 
 ## Testing
 

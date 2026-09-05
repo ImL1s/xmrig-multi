@@ -27,8 +27,14 @@ class XMRigApplication : Application(), Configuration.Provider {
         // Initialize Timber
         if (BuildConfig.DEBUG) {
             Timber.plant(Timber.DebugTree())
+            // Debug source set only (app/src/release is gitignored as "release/").
+            runCatching {
+                Class.forName("com.iml1s.xmrigminer.LeakCanarySetup")
+                    .getMethod("install")
+                    .invoke(null)
+            }
         }
-        
+
         createNotificationChannel()
         wearStatsSyncer.start()
         Timber.i("XMRig Miner Application started")
