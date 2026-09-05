@@ -16,8 +16,10 @@ import com.iml1s.xmrigminer.native.XmrigNativeCapabilities
 import com.iml1s.xmrigminer.native.XmrigProcessController
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
@@ -55,12 +57,16 @@ class MiningWorker @AssistedInject constructor(
             setForeground(createForegroundInfo())
             startMining()
             Result.success()
+        } catch (e: CancellationException) {
+            // WorkManager cancel / coroutine cancel — still tear down XMRig below.
+            throw e
         } catch (e: Exception) {
             Timber.e(e, "Mining failed")
-            stopMining()
             if (isStopped) Result.success() else Result.retry()
         } finally {
-            stopMining()
+            withContext(NonCancellable) {
+                stopMining()
+            }
         }
     }
 

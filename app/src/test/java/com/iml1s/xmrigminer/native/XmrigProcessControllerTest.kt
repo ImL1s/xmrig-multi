@@ -1,5 +1,6 @@
 package com.iml1s.xmrigminer.native
 
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -19,8 +20,13 @@ class XmrigProcessControllerTest {
             assertTrue(XmrigProcessController.stop(process, gracefulWaitMs = 500L))
             assertFalse(XmrigProcessController.isAlive(process))
         } finally {
-            process.destroy()
+            process.destroyForcibly()
         }
+    }
+
+    @Test
+    fun `killByCommandLine is safe when nothing matches`() {
+        assertEquals(0, XmrigProcessController.killByCommandLine("definitely-not-a-real-process-name-xyz"))
     }
 
     private fun startSleeper(): Process {
