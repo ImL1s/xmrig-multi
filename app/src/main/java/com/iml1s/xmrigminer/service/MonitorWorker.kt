@@ -161,12 +161,8 @@ class MonitorWorker @AssistedInject constructor(
             return endpoint.substringAfter("[").substringBefore("]")
         }
         val colonCount = endpoint.count { it == ':' }
-        if (colonCount > 1) {
-            val lastColon = endpoint.lastIndexOf(':')
-            val after = endpoint.substring(lastColon + 1)
-            val before = endpoint.substring(0, lastColon)
-            return if (after.all { it.isDigit() } && before.contains("::")) before else endpoint
-        }
+        // Bare IPv6 has multiple colons and is portless; use [ipv6]:port instead.
+        if (colonCount > 1) return endpoint
         return endpoint.substringBefore(':')
     }
 
@@ -177,17 +173,9 @@ class MonitorWorker @AssistedInject constructor(
             return after.removePrefix(":").toIntOrNull() ?: DEFAULT_DAEMON_PORT
         }
         val colonCount = endpoint.count { it == ':' }
-        if (colonCount == 0) return DEFAULT_DAEMON_PORT
-        if (colonCount == 1) {
-            return endpoint.substringAfter(':').toIntOrNull() ?: DEFAULT_DAEMON_PORT
-        }
-        val lastColon = endpoint.lastIndexOf(':')
-        val after = endpoint.substring(lastColon + 1)
-        return if (after.all { it.isDigit() }) {
-            after.toIntOrNull() ?: DEFAULT_DAEMON_PORT
-        } else {
-            DEFAULT_DAEMON_PORT
-        }
+        // Bare IPv6 literals are portless; use [ipv6]:port for non-default ports.
+        if (colonCount != 1) return DEFAULT_DAEMON_PORT
+        return endpoint.substringAfter(':').toIntOrNull() ?: DEFAULT_DAEMON_PORT
     }
 
     private fun isDeviceCharging(): Boolean {
