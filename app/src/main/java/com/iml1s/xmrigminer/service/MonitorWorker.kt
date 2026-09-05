@@ -115,25 +115,18 @@ class MonitorWorker @AssistedInject constructor(
             return
         }
         // Launch-time solo snapshot (#15 / Codex P2): do not re-read DataStore mid-run.
-        // Solo loopback: on-device monerod needs no Wi-Fi/cellular.
-        // Solo LAN: probe daemon TCP reachability (cellular≠LAN).
+        // Solo: TCP-probe the launch-snapshot daemon (loopback or LAN).
         // Pool: require validated Internet.
-        val networkOk = when {
-            !soloDaemonAtLaunch -> networkMonitor.isConnected()
-            isLoopbackDaemonEndpoint(launchConfig?.poolUrl) -> true
-            else -> canReachDaemon(launchConfig?.poolUrl)
+        val networkOk = if (soloDaemonAtLaunch) {
+            canReachDaemon(launchConfig?.poolUrl)
+        } else {
+            networkMonitor.isConnected()
         }
         if (!networkOk) {
             pauseMining(
                 if (soloDaemonAtLaunch) "Daemon unreachable" else "No network connection"
             )
         }
-    }
-
-    private fun isLoopbackDaemonEndpoint(poolUrl: String?): Boolean {
-        if (poolUrl.isNullOrBlank()) return false
-        val host = daemonHostFromPoolUrl(poolUrl)
-        return host == "127.0.0.1" || host == "localhost" || host == "::1"
     }
 
     private suspend fun canReachDaemon(poolUrl: String?): Boolean {
