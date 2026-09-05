@@ -10,9 +10,11 @@ import com.iml1s.xmrigminer.data.repository.ConfigRepository
 import com.iml1s.xmrigminer.data.repository.StatsRepository
 import com.iml1s.xmrigminer.native.XmrigNativeCapabilities
 import com.iml1s.xmrigminer.native.XmrigProcessController
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.withContext
 import timber.log.Timber
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -77,13 +79,13 @@ class MiningController @Inject constructor(
         return MiningStartResult.Started
     }
 
-    fun stop(resetStats: Boolean = true) {
+    suspend fun stop(resetStats: Boolean = true) = withContext(Dispatchers.IO) {
         workManager.cancelUniqueWork(MiningWorker.WORK_NAME)
         workManager.cancelUniqueWork(MonitorWorker.WORK_NAME)
         // WorkManager can mark the unique work CANCELLED (UI shows stopped) before the
         // CoroutineWorker finally block runs; XMRig may ignore soft destroy. Sweep same-UID
-        // libxmrig.so children so Stop always ends the miner on device.
-        val killed = XmrigProcessController.killByCommandLine("libxmrig.so")
+        // miner children so Stop always ends mining on device.
+        val killed = XmrigProcessController.killLeftoverMiners()
         if (killed > 0) {
             Timber.i("Killed %d leftover XMRig process(es)", killed)
         }

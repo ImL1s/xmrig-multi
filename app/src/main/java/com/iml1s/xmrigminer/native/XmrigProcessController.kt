@@ -10,10 +10,13 @@ import java.io.File
  * On Android, [Process.destroy] alone can leave RandomX miners alive. API 26+ uses
  * [Process.destroyForcibly], then same-UID [AndroidProcess.killProcess].
  *
- * [killByCommandLine] is the belt-and-suspenders path used when WorkManager reports
+ * [killLeftoverMiners] is the belt-and-suspenders path used when WorkManager reports
  * cancelled before the worker's finally block has torn the child down.
  */
 object XmrigProcessController {
+    /** Packaged jniLibs name and asset-fallback extract name from [XmrigBinaryResolver]. */
+    private val MINER_EXECUTABLE_NAMES = setOf("libxmrig.so", XmrigBinaryResolver.EXTRACTED_NAME)
+
     fun isAlive(process: Process?): Boolean {
         if (process == null) return false
         return try {
@@ -58,12 +61,23 @@ object XmrigProcessController {
     }
 
     /**
-     * Kill same-UID processes whose cmdline contains [needle] (e.g. `libxmrig.so`).
-     * Skips our own JVM pid.
+     * True when [cmdline] is an XMRig binary we launched (`libxmrig.so` or extracted `xmrig`),
+     * not merely a process whose args mention the app package name.
+     */
+    fun isMinerCommandLine(cmdline: String): Boolean {
+        val exe = cmdline.substringBefore('\u0000').ifBlank {
+            cmdline.substringBefore(' ').ifBlank { cmdline }
+        }
+        val name = File(exe).name
+        return name in MINER_EXECUTABLE_NAMES
+    }
+
+    /**
+     * Kill same-UID leftover miner processes. Skips our own JVM pid.
      *
      * @return number of kill attempts
      */
-    fun killByCommandLine(needle: String): Int {
+    fun killLeftoverMiners(): Int {
         val self = try {
             AndroidProcess.myPid()
         } catch (_: Throwable) {
@@ -84,7 +98,7 @@ object XmrigProcessController {
             } catch (_: Exception) {
                 continue
             }
-            if (!cmdline.contains(needle)) continue
+            if (!isMinerCommandLine(cmdline)) continue
             try {
                 AndroidProcess.killProcess(pid)
                 attempts++

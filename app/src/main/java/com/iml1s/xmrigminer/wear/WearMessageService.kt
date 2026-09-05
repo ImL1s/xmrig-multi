@@ -29,7 +29,7 @@ class WearMessageService : WearableListenerService() {
                 Timber.i("Wear requested start")
                 miningController.start()
             }
-            WearPaths.STOP -> {
+            WearPaths.STOP -> scope.launch {
                 Timber.i("Wear requested stop")
                 miningController.stop()
             }

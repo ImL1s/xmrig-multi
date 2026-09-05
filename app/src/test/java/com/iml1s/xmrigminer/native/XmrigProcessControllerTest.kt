@@ -25,8 +25,32 @@ class XmrigProcessControllerTest {
     }
 
     @Test
-    fun `killByCommandLine is safe when nothing matches`() {
-        assertEquals(0, XmrigProcessController.killByCommandLine("definitely-not-a-real-process-name-xyz"))
+    fun `killLeftoverMiners is safe on JVM stubs`() {
+        assertEquals(0, XmrigProcessController.killLeftoverMiners())
+    }
+
+    @Test
+    fun `isMinerCommandLine matches packaged and extracted binaries only`() {
+        assertTrue(
+            XmrigProcessController.isMinerCommandLine(
+                "/data/app/~~x/com.iml1s.xmrigminer.debug-y/lib/arm64/libxmrig.so\u0000-c\u0000/config.json"
+            )
+        )
+        assertTrue(
+            XmrigProcessController.isMinerCommandLine(
+                "/data/user/0/com.iml1s.xmrigminer.debug/files/xmrig\u0000-c\u0000/config.json"
+            )
+        )
+        assertFalse(
+            XmrigProcessController.isMinerCommandLine(
+                "com.iml1s.xmrigminer.debug"
+            )
+        )
+        assertFalse(
+            XmrigProcessController.isMinerCommandLine(
+                "/system/bin/app_process64\u0000com.iml1s.xmrigminer.debug"
+            )
+        )
     }
 
     private fun startSleeper(): Process {
