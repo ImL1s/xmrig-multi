@@ -14,11 +14,12 @@
 | 📱 **Android** | ✅ Asset binary in checkout | Native XMRig | Pool + Monero solo (`monerod`); `./gradlew :app:assembleDebug` |
 | 🍎 **iOS** | ⚠️ Tracked `.a` is upstream donate | Native XMRig | Rebuild for this repo's fee; App Store prohibited |
 | 🌐 **Web** | ✅ Demo | RandomX.js | Needs local WebSocket proxy |
-| 💻 **Desktop** | ⚠️ Linux binary tracked | Native XMRig | macOS/Windows: `desktop/scripts/build-xmrig.sh` |
+| 💻 **Desktop** | ✅ Linux tracked + CI installers | Native XMRig | [v2.3.0](https://github.com/ImL1s/xmrig-multi/releases/tag/v2.3.0) `.deb` / NSIS / DMG; or `desktop/scripts/build-xmrig.sh` |
+
 | ⌚ **WearOS** | Companion | No | `./gradlew :wearos:assembleDebug` |
 | ⌚ **watchOS** | Companion | No | `cd watchos && xcodegen generate` |
 
-[繁體中文](README_zh-TW.md) | [Docs](docs/README.md) | [Platforms](docs/platforms.md) | [Dev fee](docs/dev-fee.md) | [Screenshots](docs/screenshots/README.md)
+[繁體中文](README_zh-TW.md) | [Docs](docs/README.md) | [Platforms](docs/platforms.md) | [Dev fee](docs/dev-fee.md) | [Screenshots](docs/screenshots/README.md) | [Release v2.3.0](https://github.com/ImL1s/xmrig-multi/releases/tag/v2.3.0)
 
 ### Android UI (S21+)
 

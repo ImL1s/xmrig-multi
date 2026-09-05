@@ -66,6 +66,10 @@ cd xmrig-multi
 ./gradlew :app:lintDebug
 ```
 
+### Releases
+
+Pushing an annotated tag `v*` (for example `v2.3.0`) triggers [`.github/workflows/release.yml`](.github/workflows/release.yml). Align Android/Wear `versionName`, Desktop, Web, and iOS/watchOS marketing versions with the tag before cutting it. Artifact list and notes: [docs/platforms.md](docs/platforms.md#releases-github-actions). Latest: [v2.3.0](https://github.com/ImL1s/xmrig-multi/releases/tag/v2.3.0).
+
 ## Code Style
 
 - Follow [Kotlin Coding Conventions](https://kotlinlang.org/docs/coding-conventions.html)

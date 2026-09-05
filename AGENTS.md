@@ -362,7 +362,7 @@ struct AppState {
 3. **Linting**: Fix all lint issues before PR
 4. **Building**: Verify builds on all target platforms
 5. **Code Review**: All changes require review
-6. **CI/CD**: Automated testing and building via GitHub Actions
+6. **CI/CD**: Automated testing via GitHub Actions (`android-ci.yml`, `web-miner-ci.yml`). Tag `v*` runs `release.yml` and publishes Android/Wear APKs, Web zips, and Desktop Linux/Windows/macOS installers (see [docs/platforms.md](docs/platforms.md#releases-github-actions); example [v2.3.0](https://github.com/ImL1s/xmrig-multi/releases/tag/v2.3.0)). Keep platform version strings aligned with the tag.
 
 ## Dependencies
 

@@ -9,9 +9,9 @@ Cross-platform **Monero (XMR) / Wownero (WOW) / DERO** mining application (**XMR
 | **Android** | Mobile | ✅ Asset fallback in checkout | ✅ Native XMRig | `:app:assembleDebug` |
 | **iOS** | Mobile | ⚠️ Tracked `.a` is upstream donate | ⚠️ Limited | Rebuild for this repo's fee; JIT blocked (3-5 H/s) |
 | **Web** | Browser | ✅ Demo | ✅ RandomX.js | WebSocket proxy required |
-| **macOS** | Desktop | ⚠️ Build required | ✅ Native XMRig | `desktop/scripts/build-xmrig.sh` |
-| **Windows** | Desktop | ⚠️ Build required | ✅ Native XMRig | `desktop/scripts/build-xmrig.sh` |
-| **Linux** | Desktop | ✅ Tracked binary | ✅ Native XMRig | `xmrig-x86_64-unknown-linux-gnu` |
+| **macOS** | Desktop | ✅ CI release DMG | ✅ Native XMRig | Tag builds + local `desktop/scripts/build-xmrig.sh` |
+| **Windows** | Desktop | ✅ CI release NSIS | ✅ Native XMRig | Tag builds + local `desktop/scripts/build-xmrig.sh` |
+| **Linux** | Desktop | ✅ Tracked binary + CI `.deb` | ✅ Native XMRig | `xmrig-x86_64-unknown-linux-gnu` |
 | **WearOS** | Watch | Companion | ❌ No | `./gradlew :wearos:assembleDebug` |
 | **watchOS** | Watch | Companion | ❌ No | `cd watchos && xcodegen generate` |
 
@@ -28,12 +28,12 @@ Tag `v*` (e.g. `v2.3.0`) runs [`.github/workflows/release.yml`](../.github/workf
 | `xmrig-multi-web-*.zip` | `web` Vite `dist/` |
 | `xmrig-multi-web-proxy-*.zip` | `web/proxy` (no `node_modules`) |
 | `xmrig-multi-desktop-linux-*.deb` | Tauri + tracked Linux XMRig sidecar |
-| `xmrig-multi-desktop-windows-*-setup.exe` | Tauri NSIS (best-effort; builds XMRig in CI) |
-| `xmrig-multi-desktop-macos-*.dmg` | Tauri DMG (best-effort; builds XMRig in CI) |
+| `xmrig-multi-desktop-windows-*-setup.exe` | Tauri NSIS (CI builds XMRig 6.24 sidecar) |
+| `xmrig-multi-desktop-macos-*.dmg` | Tauri DMG (CI builds XMRig 6.24 sidecar) |
 
 **Version alignment:** Android/Wear `versionName`, Desktop (`package.json` / `tauri.conf.json` / `Cargo.toml`), Web (`package.json`), iOS/watchOS (`MARKETING_VERSION`) should match the tag (without `v`). iOS/watchOS binaries are **not** CI artifacts (sideload only).
 
-Windows/macOS/Linux desktop jobs use `continue-on-error`; **Android + Web** are required for the release to publish. Desktop artifacts attach when those jobs succeed.
+Latest published multi-platform set: [v2.3.0](https://github.com/ImL1s/xmrig-multi/releases/tag/v2.3.0). Desktop jobs use `continue-on-error` so a single OS failure does not block Android + Web publishing; when all jobs succeed, Linux/Windows/macOS installers are attached.
 
 ---
 
