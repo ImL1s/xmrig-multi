@@ -9,14 +9,14 @@ Cross-platform **Monero (XMR) / Wownero (WOW) / DERO** mining solution.
 
 | Platform | Status | Mining | Notes |
 |----------|--------|--------|-------|
-| 📱 **Android** | ⚠️ Needs XMRig binary | Native XMRig | Run `scripts/build_xmrig.sh` then `./gradlew :app:assembleDebug` |
-| 🍎 **iOS** | ✅ Sideload | Native XMRig | App Store prohibited |
+| 📱 **Android** | ✅ Asset binary in checkout | Native XMRig | `./gradlew :app:assembleDebug` |
+| 🍎 **iOS** | ⚠️ Tracked `.a` is upstream donate | Native XMRig | Rebuild for this repo's fee; App Store prohibited |
 | 🌐 **Web** | ✅ Demo | RandomX.js | Needs local WebSocket proxy |
-| 💻 **Desktop** | ⚠️ Needs XMRig binary | Native XMRig | Run `desktop/scripts/build-xmrig.sh` |
+| 💻 **Desktop** | ⚠️ Linux binary tracked | Native XMRig | macOS/Windows: `desktop/scripts/build-xmrig.sh` |
 | ⌚ **WearOS** | Companion | No | `./gradlew :wearos:assembleDebug` |
 | ⌚ **watchOS** | Companion | No | `cd watchos && xcodegen generate` |
 
-[繁體中文](README_zh-TW.md) | [Platform Details](PLATFORMS.md) | [Dev Fee Info](DEV_FEE.md)
+[繁體中文](README_zh-TW.md) | [Docs](docs/README.md) | [Platforms](docs/platforms.md) | [Dev fee](docs/dev-fee.md)
 
 ---
 
@@ -24,15 +24,20 @@ Cross-platform **Monero (XMR) / Wownero (WOW) / DERO** mining solution.
 
 ### Android
 ```bash
-./scripts/build_xmrig.sh   # produces gitignored libxmrig.so
 ./gradlew :app:assembleDebug
 ./gradlew :app:installDebug
 ```
 
+A checkout includes `app/src/main/assets/xmrig_arm64` with this repo's 1% fee wallet. If gitignored `jniLibs/arm64-v8a/libxmrig.so` is missing, Gradle (`:app:stageXmrigJniLib`) packages that asset as **arm64-v8a** `libxmrig.so` so Android 10+ 64-bit devices can execute it. There is no 32-bit (`armeabi-v7a`) miner in checkout. `./scripts/build_xmrig.sh` still produces the preferred arm64 library before a release.
+
 ### iOS (Sideload)
+
+Tracked `ios/XMRigCore/output/libxmrig-ios-arm64.a` is XMRig 6.25.0 with **upstream** donate (`donate.v2.xmrig.com`), not this repo's `8AfU...` wallet. Xcode can still link it. Rebuild with this project's fee: [docs/ios.md](docs/ios.md).
+
+Run this from the repository root (do not `cd` into `ios/XMRigCore/scripts` first):
+
 ```bash
-cd ios && open XMRigMiner-iOS.xcodeproj
-# Build with Xcode, install via Sideloadly or AltStore
+open ./ios/XMRigMiner-iOS.xcodeproj
 ```
 
 ### Web Miner
@@ -84,7 +89,7 @@ This application includes a **1% developer fee** to support ongoing development.
 - **Mechanism**: Time-based (99 min user → 1 min dev → repeat)
 - **Transparency**: All code is open source
 
-See [DEV_FEE.md](DEV_FEE.md) for detailed explanation.
+See [docs/dev-fee.md](docs/dev-fee.md) for detailed explanation.
 
 ---
 
@@ -126,7 +131,7 @@ Native Layer (JNI → C++ XMRig)
 | Desktop | Apple M2 | 2,500+ H/s | Full JIT support |
 | Web | Modern browser | 40-120 H/s | WASM, no JIT |
 
-> **iOS Note**: Apple blocks JIT compilation on iOS 17.4+. Without JIT, RandomX runs in interpreted mode (~3-5 H/s). To enable JIT (~200+ H/s), use [SideStore](https://sidestore.io) + [StikDebug](https://github.com/StephenDev0/StikDebug). See [PLATFORMS.md](PLATFORMS.md) for details.
+> **iOS Note**: Apple blocks JIT compilation on iOS 17.4+. Without JIT, RandomX runs in interpreted mode (~3-5 H/s). To enable JIT (~200+ H/s), use [SideStore](https://sidestore.io) + [StikDebug](https://github.com/StephenDev0/StikDebug). See [docs/platforms.md](docs/platforms.md) for details.
 
 > Note: Actual hashrate depends on device, cooling, and background processes.
 
@@ -147,10 +152,11 @@ Native Layer (JNI → C++ XMRig)
 
 ```
 xmrig-android/
+├── docs/                   # Build, platforms, fee guides
 ├── app/                    # Android app
 │   ├── src/main/java/      # Kotlin source
 │   ├── src/main/cpp/       # JNI bridge
-│   └── src/main/assets/    # XMRig binary
+│   └── src/main/jniLibs/   # libxmrig.so after scripts/build_xmrig.sh (gitignored)
 ├── ios/                    # iOS app
 │   └── XMRigMiner-iOS/     # SwiftUI project
 ├── web/                    # Web miner

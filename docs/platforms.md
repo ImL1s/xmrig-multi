@@ -6,14 +6,16 @@ Cross-platform Monero/Wownero/DERO mining application.
 
 | Platform | Type | Status | Mining | Notes |
 |----------|------|--------|--------|-------|
-| **Android** | Mobile | ⚠️ Binary required | ✅ Native XMRig | `scripts/build_xmrig.sh` then `:app:assembleDebug` |
-| **iOS** | Mobile | ✅ Sideload | ⚠️ Limited | JIT blocked (3-5 H/s), see below |
+| **Android** | Mobile | ✅ Asset fallback in checkout | ✅ Native XMRig | `:app:assembleDebug` |
+| **iOS** | Mobile | ⚠️ Tracked `.a` is upstream donate | ⚠️ Limited | Rebuild for this repo's fee; JIT blocked (3-5 H/s) |
 | **Web** | Browser | ✅ Demo | ✅ RandomX.js | WebSocket proxy required |
-| **macOS** | Desktop | ⚠️ Binary required | ✅ Native XMRig | `desktop/scripts/build-xmrig.sh` |
-| **Windows** | Desktop | ⚠️ Binary required | ✅ Native XMRig | `desktop/scripts/build-xmrig.sh` |
-| **Linux** | Desktop | ⚠️ Binary required | ✅ Native XMRig | `desktop/scripts/build-xmrig.sh` |
+| **macOS** | Desktop | ⚠️ Build required | ✅ Native XMRig | `desktop/scripts/build-xmrig.sh` |
+| **Windows** | Desktop | ⚠️ Build required | ✅ Native XMRig | `desktop/scripts/build-xmrig.sh` |
+| **Linux** | Desktop | ✅ Tracked binary | ✅ Native XMRig | `xmrig-x86_64-unknown-linux-gnu` |
 | **WearOS** | Watch | Companion | ❌ No | `./gradlew :wearos:assembleDebug` |
 | **watchOS** | Watch | Companion | ❌ No | `cd watchos && xcodegen generate` |
+
+Compile steps: [building.md](building.md). iOS sideload: [ios.md](ios.md).
 
 ---
 
@@ -22,6 +24,7 @@ Cross-platform Monero/Wownero/DERO mining application.
 Built with **Tauri 2.0** for native performance with minimal bundle size.
 
 ### Features
+
 - Native XMRig integration
 - Real-time hashrate monitoring
 - Multi-coin support (XMR, WOW, DERO)
@@ -36,7 +39,7 @@ cd desktop
 # Install dependencies
 npm install
 
-# Download XMRig binary for your platform
+# Build XMRig with this repo's 1% fee
 ./scripts/build-xmrig.sh
 
 # Development
@@ -47,6 +50,7 @@ npm run tauri:build
 ```
 
 ### Output
+
 - **macOS**: `target/release/bundle/dmg/XMRig Miner.dmg`
 - **Windows**: `target/release/bundle/nsis/XMRig Miner Setup.exe`
 - **Linux**: `target/release/bundle/appimage/XMRig Miner.AppImage`
@@ -58,6 +62,7 @@ npm run tauri:build
 Companion app for Android smartwatches running Wear OS 3.0+.
 
 ### Features
+
 - View mining stats from phone
 - Start/Stop mining remotely
 - Tile for quick stats view
@@ -71,9 +76,11 @@ Companion app for Android smartwatches running Wear OS 3.0+.
 ```
 
 ### Requirements
+
 - Wear OS 3.0+ (API 30+)
 - Main XMRig Miner app installed on phone
 - Phone and watch paired
+- Matching application IDs (including debug `.debug` suffix) so Wearable Data Layer can route
 
 ---
 
@@ -84,6 +91,7 @@ Stats viewer for Apple Watch. **Note: Apple prohibits mining apps.**
 > ⚠️ **Apple App Store Guidelines 2.4.2**: "Apps, including any third-party advertisements displayed within them, may not run unrelated background processes, such as cryptocurrency mining."
 
 ### Features
+
 - View hashrate and stats
 - Control mining on connected iPhone/Mac
 - Watch face complications
@@ -93,14 +101,12 @@ Stats viewer for Apple Watch. **Note: Apple prohibits mining apps.**
 
 ```bash
 cd watchos
-
-# Open in Xcode
+xcodegen generate
 open XMRigWatch.xcodeproj
-
-# Build for simulator or device
 ```
 
 ### Requirements
+
 - watchOS 9.0+
 - iPhone with iOS companion app
 - WatchConnectivity framework
@@ -172,9 +178,11 @@ Apple blocks JIT (Just-In-Time) compilation on iOS for security reasons. RandomX
 ### Solutions
 
 #### Option 1: Accept Low Performance
+
 Just use the app as-is with ~3-5 H/s. Mining will work, just very slowly.
 
 #### Option 2: SideStore + StikDebug (Recommended)
+
 For non-TXM devices (iPhone 11 and older, 4+ years old):
 
 1. Install [SideStore](https://sidestore.io) via [iLoader](https://github.com/nab138/iloader)
@@ -187,10 +195,13 @@ For non-TXM devices (iPhone 11 and older, 4+ years old):
 ### Why Native XMRig Still Matters
 
 Even with low hashrate, native XMRig provides:
+
 - Real mining functionality (accepted shares confirmed)
 - Proper pool communication
 - Accurate statistics
 - Foundation for future improvements
+
+Sideload steps: [ios.md](ios.md).
 
 ---
 
@@ -202,29 +213,28 @@ Even with low hashrate, native XMRig provides:
 - **Android**: Android Studio, NDK 26+
 - **iOS**: Xcode 15+, macOS 14+
 - **WearOS**: Android Studio, Wear OS emulator
-- **watchOS**: Xcode 15+, watchOS Simulator
+- **watchOS**: Xcode 15+, watchOS Simulator, XcodeGen
 
 ### Quick Start
 
 ```bash
-# Clone repository
-git clone https://github.com/iml1s/xmrig-android.git
+git clone https://github.com/ImL1s/xmrig-android.git
 cd xmrig-android
 
 # Desktop
 cd desktop && npm install && npm run tauri:dev
 
-# Android
-./gradlew assembleDebug
+# Android (after optional scripts/build_xmrig.sh)
+./gradlew :app:assembleDebug
 
-# iOS
-cd ios && open XMRigMiner-iOS.xcodeproj
+# iOS (tracked .a is upstream donate; rebuild for this repo's fee)
+open ios/XMRigMiner-iOS.xcodeproj
 
 # WearOS
-cd wearos && ./gradlew assembleDebug
+./gradlew :wearos:assembleDebug
 
 # watchOS
-cd watchos && open XMRigWatch.xcodeproj
+cd watchos && xcodegen generate && open XMRigWatch.xcodeproj
 
 # Web
 cd web && npm install && npm run dev
@@ -239,16 +249,17 @@ All platforms include a **1% developer fee** to support ongoing development.
 | Platform | Fee Implementation | Wallet |
 |----------|-------------------|--------|
 | Android | XMRig donate-level | ✅ |
-| iOS | XMRig built-in | ✅ |
+| iOS | XMRig built-in after rebuild | ⚠️ tracked `.a` is upstream donate |
 | Desktop | XMRig built-in | ✅ |
-| Web | Proxy server (server.js) | ✅ |
+| Web | Proxy (`web/proxy/dev-fee.js`) | ✅ (Monero sessions) |
 
 **Developer Wallet:**
+
 ```
 8AfUwcnoJiRDMXnDGj3zX6bMgfaj9pM1WFGr2pakLm3jSYXVLD5fcDMBzkmk4AeSqWYQTA5aerXJ43W65AT82RMqG6NDBnC
 ```
 
-See [DEV_FEE.md](DEV_FEE.md) for detailed explanation.
+See [dev-fee.md](dev-fee.md) for detailed explanation.
 
 ---
 
@@ -260,11 +271,11 @@ All build scripts automatically apply custom dev fee configuration from `xmrig_c
 # Android
 ./scripts/build_xmrig.sh
 
-# iOS
-cd ios/XMRigCore/scripts && ./build-ios.sh
+# iOS (optional; needs ios-cmake + libuv.a — see ios.md)
+./ios/XMRigCore/scripts/build-ios.sh
 
 # Desktop
-cd desktop/scripts && ./build-xmrig.sh
+./desktop/scripts/build-xmrig.sh
 ```
 
 ---

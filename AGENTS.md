@@ -2,6 +2,8 @@
 
 This document provides comprehensive development guidelines for the XMRig cross-platform mining application. Follow these guidelines to maintain code quality, consistency, and architectural integrity across Android, iOS, Web, Desktop, WearOS, and watchOS platforms.
 
+Human-facing build and platform notes live in [docs/README.md](docs/README.md).
+
 ## Build Commands
 
 ### Android
@@ -30,10 +32,9 @@ This document provides comprehensive development guidelines for the XMRig cross-
 
 ### iOS
 ```bash
-# Build XMRig static library
-cd ios/XMRigCore/scripts && ./build-ios.sh
-
-# Open Xcode project
+# From the repository root. Needs ios-cmake + libuv.a; see docs/ios.md.
+# Tracked libxmrig-ios-arm64.a is upstream donate, not this repo's fee wallet.
+./ios/XMRigCore/scripts/build-ios.sh
 open ios/XMRigMiner-iOS.xcodeproj
 ```
 
@@ -381,6 +382,7 @@ struct AppState {
 
 ```
 xmrig-android/
+├── docs/                   # Building, platforms, fee guides
 ├── app/                    # Android application
 │   ├── src/main/java/.../  # Source code by feature
 │   │   ├── data/           # Data layer (models, repositories)
@@ -393,5 +395,4 @@ xmrig-android/
 └── scripts/                # Build and utility scripts
 ```
 
-This document should be updated as the codebase evolves and new patterns emerge.</content>
-<parameter name="filePath">AGENTS.md
+This document should be updated as the codebase evolves and new patterns emerge.

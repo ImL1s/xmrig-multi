@@ -41,10 +41,10 @@ static const char *kDonateHostTls = "pool.supportxmr.com";  // TLS 連接 port 5
 ./scripts/build_xmrig.sh
 
 # iOS
-cd ios/XMRigCore/scripts && ./build-ios.sh
+./ios/XMRigCore/scripts/build-ios.sh
 
 # Desktop (macOS/Windows/Linux)
-cd desktop/scripts && ./build-xmrig.sh
+./desktop/scripts/build-xmrig.sh
 ```
 
 ## 手動套用
@@ -91,4 +91,4 @@ cd desktop/scripts && ./build-xmrig.sh
 strings xmrig | grep "8AfUwcnoJiRDMXnDGj3zX6bMgfaj9pM1WFGr2pakLm3jSYXVLD5fcDMBzkmk4AeSqWYQTA5aerXJ43W65AT82RMqG6NDBnC"
 ```
 
-詳細編譯步驟請參考根目錄的 [BUILDING.md](../BUILDING.md) 文件。
+詳細編譯步驟請參考 [docs/building.md](../docs/building.md) 與 [docs/ios.md](../docs/ios.md)。
