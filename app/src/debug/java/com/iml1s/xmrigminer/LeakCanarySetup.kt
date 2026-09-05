@@ -12,6 +12,7 @@ import shark.AndroidReferenceMatchers
  * excludes for Xiaomi, Samsung, Motorola, etc.; Nothing was not in the built-in list.
  */
 object LeakCanarySetup {
+    @JvmStatic
     fun install() {
         if (!AppWatcher.isInstalled) return
 
