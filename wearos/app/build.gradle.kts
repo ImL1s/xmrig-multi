@@ -5,7 +5,7 @@ plugins {
 
 android {
     namespace = "com.iml1s.xmrigminer.wear"
-    compileSdk = 34
+    compileSdk = 35
 
     defaultConfig {
         // Must match the phone applicationId for Wearable Data Layer routing.

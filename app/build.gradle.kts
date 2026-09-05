@@ -9,7 +9,7 @@ plugins {
 
 android {
     namespace = "com.iml1s.xmrigminer"
-    compileSdk = 34
+    compileSdk = 35
     ndkVersion = "26.3.11579264"
 
     defaultConfig {
