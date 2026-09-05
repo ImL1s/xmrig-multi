@@ -85,7 +85,7 @@ class MonitorWorker @AssistedInject constructor(
         }
     }
 
-    private fun checkCriticalConditions() {
+    private suspend fun checkCriticalConditions() {
         val intent = context.registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
         val level = intent?.getIntExtra(BatteryManager.EXTRA_LEVEL, 100) ?: 100
         val temp = getBatteryTemperature()
@@ -118,9 +118,11 @@ class MonitorWorker @AssistedInject constructor(
         return temp / 10f
     }
 
-    private fun pauseMining(reason: String) {
+    private suspend fun pauseMining(reason: String) {
         Timber.w("Pausing mining: $reason")
-        miningController.stop(resetStats = false)
+        // Notify before stop(): canceling this MonitorWorker can resume with
+        // CancellationException and skip any code after miningController.stop().
         com.iml1s.xmrigminer.util.NotificationHelper.showWarning(context, reason)
+        miningController.stop(resetStats = false)
     }
 }

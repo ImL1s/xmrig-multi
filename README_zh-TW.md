@@ -16,7 +16,7 @@
 | **WearOS** | 伴侶應用 | 否 | `./gradlew :wearos:assembleDebug` |
 | **watchOS** | 伴侶應用 | 否 | `cd watchos && xcodegen generate` |
 
-[English](README.md) | [文件索引](docs/README.md) | [平台說明](docs/platforms.md) | [開發者費用](docs/dev-fee.md) | [編譯指南](docs/building.zh-TW.md)
+[English](README.md) | [文件索引](docs/README.md) | [平台說明](docs/platforms.md) | [開發者費用](docs/dev-fee.md) | [編譯指南](docs/building.zh-TW.md) | [截圖](docs/screenshots/README.md)
 
 ---
 
