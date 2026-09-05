@@ -12,7 +12,7 @@ PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 ROOT_DIR="$(dirname "$PROJECT_DIR")"
 BINARIES_DIR="$PROJECT_DIR/src-tauri/binaries"
 CUSTOM_SOURCE_DIR="$ROOT_DIR/xmrig_custom_source"
-XMRIG_VERSION="6.21.0"
+XMRIG_VERSION="6.24.0"
 
 mkdir -p "$BINARIES_DIR"
 
@@ -161,14 +161,28 @@ echo "🔨 Building for $PLATFORM-$ARCH..."
 mkdir -p build
 cd build
 
-cmake .. \
-    -DCMAKE_BUILD_TYPE=Release \
-    -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
-    -DWITH_HWLOC=OFF \
-    -DWITH_TLS=ON \
-    -DWITH_HTTP=ON \
-    -DWITH_OPENCL=OFF \
+CMAKE_ARGS=(
+    -DCMAKE_BUILD_TYPE=Release
+    -DCMAKE_POLICY_VERSION_MINIMUM=3.5
+    -DWITH_HWLOC=OFF
+    -DWITH_HTTP=ON
+    -DWITH_OPENCL=OFF
     -DWITH_CUDA=OFF
+)
+
+if [[ "$PLATFORM" == "windows" ]]; then
+    # GHA runners often lack OpenSSL CMake package config for MSVC.
+    CMAKE_ARGS+=(-DWITH_TLS=OFF)
+    if [ -d "/c/Program Files/OpenSSL-Win64" ]; then
+        CMAKE_ARGS+=(-DOPENSSL_ROOT_DIR="/c/Program Files/OpenSSL-Win64" -DWITH_TLS=ON)
+    elif [ -d "/c/Program Files/OpenSSL" ]; then
+        CMAKE_ARGS+=(-DOPENSSL_ROOT_DIR="/c/Program Files/OpenSSL" -DWITH_TLS=ON)
+    fi
+else
+    CMAKE_ARGS+=(-DWITH_TLS=ON)
+fi
+
+cmake .. "${CMAKE_ARGS[@]}"
 
 JOBS=$(sysctl -n hw.ncpu 2>/dev/null || nproc 2>/dev/null || echo 4)
 if [[ "$PLATFORM" == "windows" ]]; then
