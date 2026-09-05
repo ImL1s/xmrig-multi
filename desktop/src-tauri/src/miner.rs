@@ -171,7 +171,7 @@ fn parse_stdout<R: Read>(stdout: R, stats: Arc<Mutex<MiningStats>>, running: Arc
         if !running.load(Ordering::SeqCst) {
             break;
         }
-        apply_log_line(&line, &stats);
+        apply_log_line(&line, stats.clone());
     }
 }
 

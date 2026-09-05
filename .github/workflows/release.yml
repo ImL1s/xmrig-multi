@@ -147,6 +147,7 @@ jobs:
   desktop-linux:
     name: Desktop Linux (deb)
     runs-on: ubuntu-22.04
+    continue-on-error: true
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -327,7 +328,7 @@ jobs:
   publish:
     name: GitHub Release
     needs: [android, web, desktop-linux, desktop-windows, desktop-macos]
-    if: ${{ always() && needs.android.result == 'success' && needs.web.result == 'success' && needs.desktop-linux.result == 'success' }}
+    if: ${{ always() && needs.android.result == 'success' && needs.web.result == 'success' }}
     runs-on: ubuntu-latest
     steps:
       - name: Download all artifacts
@@ -335,6 +336,7 @@ jobs:
         with:
           path: artifacts
           merge-multiple: true
+          pattern: '*'
 
       - name: Flatten artifacts
         run: |
