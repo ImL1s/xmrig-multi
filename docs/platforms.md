@@ -33,7 +33,7 @@ Tag `v*` (e.g. `v2.3.0`) runs [`.github/workflows/release.yml`](../.github/workf
 
 **Version alignment:** Android/Wear `versionName`, Desktop (`package.json` / `tauri.conf.json` / `Cargo.toml`), Web (`package.json`), iOS/watchOS (`MARKETING_VERSION`) should match the tag (without `v`). iOS/watchOS binaries are **not** CI artifacts (sideload only).
 
-Windows/macOS desktop jobs use `continue-on-error`; Android + Web + Linux deb are required for the release to publish.
+Windows/macOS/Linux desktop jobs use `continue-on-error`; **Android + Web** are required for the release to publish. Desktop artifacts attach when those jobs succeed.
 
 ---
 

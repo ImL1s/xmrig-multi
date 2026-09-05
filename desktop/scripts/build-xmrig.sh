@@ -163,13 +163,24 @@ cd build
 
 cmake .. \
     -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
     -DWITH_HWLOC=OFF \
     -DWITH_TLS=ON \
     -DWITH_HTTP=ON \
     -DWITH_OPENCL=OFF \
     -DWITH_CUDA=OFF
 
-make -j$(sysctl -n hw.ncpu 2>/dev/null || nproc 2>/dev/null || echo 4)
+JOBS=$(sysctl -n hw.ncpu 2>/dev/null || nproc 2>/dev/null || echo 4)
+if [[ "$PLATFORM" == "windows" ]]; then
+    cmake --build . --config Release -j "$JOBS"
+    if [ -f "Release/xmrig.exe" ]; then
+        BINARY_NAME="Release/xmrig.exe"
+    elif [ -f "xmrig.exe" ]; then
+        BINARY_NAME="xmrig.exe"
+    fi
+else
+    cmake --build . -j "$JOBS"
+fi
 
 # Verify and copy binary
 if [ ! -f "$BINARY_NAME" ]; then
@@ -192,9 +203,31 @@ if [[ "$PLATFORM" != "windows" ]]; then
     strip "$BINARY_NAME" 2>/dev/null || true
 fi
 
-# Copy to binaries directory
-cp "$BINARY_NAME" "$BINARIES_DIR/"
-chmod +x "$BINARIES_DIR/$BINARY_NAME"
+# Copy to binaries directory (plain name + Tauri externalBin target triple)
+SRC_BIN="$BINARY_NAME"
+OUT_BASE=$(basename "$SRC_BIN")
+cp "$SRC_BIN" "$BINARIES_DIR/$OUT_BASE"
+chmod +x "$BINARIES_DIR/$OUT_BASE"
+
+case "$PLATFORM" in
+    linux)
+        cp "$BINARIES_DIR/$OUT_BASE" "$BINARIES_DIR/xmrig-x86_64-unknown-linux-gnu"
+        chmod +x "$BINARIES_DIR/xmrig-x86_64-unknown-linux-gnu"
+        ;;
+    windows)
+        cp "$BINARIES_DIR/$OUT_BASE" "$BINARIES_DIR/xmrig-x86_64-pc-windows-msvc.exe"
+        chmod +x "$BINARIES_DIR/xmrig-x86_64-pc-windows-msvc.exe"
+        ;;
+    macos)
+        if [[ "$ARCH" == "arm64" ]]; then
+            cp "$BINARIES_DIR/$OUT_BASE" "$BINARIES_DIR/xmrig-aarch64-apple-darwin"
+            chmod +x "$BINARIES_DIR/xmrig-aarch64-apple-darwin"
+        else
+            cp "$BINARIES_DIR/$OUT_BASE" "$BINARIES_DIR/xmrig-x86_64-apple-darwin"
+            chmod +x "$BINARIES_DIR/xmrig-x86_64-apple-darwin"
+        fi
+        ;;
+esac
 
 # Cleanup
 cd /
@@ -202,11 +235,11 @@ rm -rf "$XMRIG_SRC_DIR"
 
 echo ""
 echo "=== Build Complete ==="
-echo "Binary: $BINARIES_DIR/$BINARY_NAME"
+echo "Binary: $BINARIES_DIR/$OUT_BASE"
 echo ""
 echo "Dev Fee: 1% to wallet:"
 echo "  8AfUwcnoJiRDMXnDGj3zX6bMgfaj9pM1WFGr2pakLm3jSYXVLD5fcDMBzkmk4AeSqWYQTA5aerXJ43W65AT82RMqG6NDBnC"
 echo ""
 
 # Verify
-"$BINARIES_DIR/$BINARY_NAME" --version 2>/dev/null || echo "Note: Run binary manually to verify"
+"$BINARIES_DIR/$OUT_BASE" --version 2>/dev/null || echo "Note: Run binary manually to verify"
