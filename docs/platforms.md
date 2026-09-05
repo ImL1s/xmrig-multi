@@ -1,6 +1,6 @@
-# XMRig Miner - Multi-Platform Support
+# XMRig Miner — Multi-Platform Support
 
-Cross-platform Monero/Wownero/DERO mining application.
+Cross-platform **Monero (XMR) / Wownero (WOW) / DERO** mining application (**XMRig Miner**). The repository slug on GitHub is still `xmrig-android`.
 
 ## Supported Platforms
 

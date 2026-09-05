@@ -1,7 +1,7 @@
 {
   "name": "xmrig-web-miner",
   "version": "1.0.0",
-  "description": "Browser-based RandomX miner using randomx.js",
+  "description": "XMRig Miner web UI — browser RandomX.js miner",
   "type": "module",
   "scripts": {
     "dev": "vite",

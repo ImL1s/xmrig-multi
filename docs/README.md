@@ -1,6 +1,6 @@
 # Documentation
 
-Guides for building and running XMRig Miner across platforms.
+Guides for building and running **XMRig Miner** across Android, iOS, Web, Desktop, WearOS, and watchOS.
 
 | Doc | Description |
 |-----|-------------|
@@ -11,3 +11,5 @@ Guides for building and running XMRig Miner across platforms.
 | [Screenshots](screenshots/README.md) | Android UI captures (S21+) |
 
 Agent-facing notes stay at the repo root: [AGENTS.md](../AGENTS.md), [CLAUDE.md](../CLAUDE.md).
+
+The GitHub repo slug remains `xmrig-android`; the product name is **XMRig Miner**.

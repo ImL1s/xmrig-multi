@@ -1,11 +1,13 @@
-# XMRig Miner - Multi-Platform
+# XMRig Miner — Multi-Platform
 
 [![Android CI](https://github.com/ImL1s/xmrig-android/actions/workflows/android-ci.yml/badge.svg)](https://github.com/ImL1s/xmrig-android/actions/workflows/android-ci.yml)
 [![Web Miner CI](https://github.com/ImL1s/xmrig-android/actions/workflows/web-miner-ci.yml/badge.svg)](https://github.com/ImL1s/xmrig-android/actions/workflows/web-miner-ci.yml)
 [![Release](https://github.com/ImL1s/xmrig-android/actions/workflows/release.yml/badge.svg)](https://github.com/ImL1s/xmrig-android/actions/workflows/release.yml)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 
-Cross-platform **Monero (XMR) / Wownero (WOW) / DERO** mining solution.
+Cross-platform **Monero (XMR) / Wownero (WOW) / DERO** mining: native XMRig on Android, iOS (sideload), and Desktop; RandomX.js in the browser; WearOS / watchOS companions for stats.
+
+> The GitHub repository is still named `xmrig-android` for history and clone URLs. The product name across apps and docs is **XMRig Miner**.
 
 | Platform | Status | Mining | Notes |
 |----------|--------|--------|-------|
