@@ -6,14 +6,14 @@ Cross-platform Monero/Wownero/DERO mining application.
 
 | Platform | Type | Status | Mining | Notes |
 |----------|------|--------|--------|-------|
-| **Android** | Mobile | ✅ Ready | ✅ Native XMRig | ARM64 native mining |
-| **iOS** | Mobile | ✅ Ready | ⚠️ Limited | JIT blocked (3-5 H/s), see below |
-| **Web** | Browser | ✅ Ready | ✅ RandomX.js | WebSocket proxy required |
-| **macOS** | Desktop | ✅ Ready | ✅ Native XMRig | Full performance |
-| **Windows** | Desktop | ✅ Ready | ✅ Native XMRig | Full performance |
-| **Linux** | Desktop | ✅ Ready | ✅ Native XMRig | Full performance |
-| **WearOS** | Watch | ✅ Ready | ❌ No | Companion app only |
-| **watchOS** | Watch | ✅ Ready | ❌ No | Stats viewer only (Apple ban) |
+| **Android** | Mobile | ⚠️ Binary required | ✅ Native XMRig | `scripts/build_xmrig.sh` then `:app:assembleDebug` |
+| **iOS** | Mobile | ✅ Sideload | ⚠️ Limited | JIT blocked (3-5 H/s), see below |
+| **Web** | Browser | ✅ Demo | ✅ RandomX.js | WebSocket proxy required |
+| **macOS** | Desktop | ⚠️ Binary required | ✅ Native XMRig | `desktop/scripts/build-xmrig.sh` |
+| **Windows** | Desktop | ⚠️ Binary required | ✅ Native XMRig | `desktop/scripts/build-xmrig.sh` |
+| **Linux** | Desktop | ⚠️ Binary required | ✅ Native XMRig | `desktop/scripts/build-xmrig.sh` |
+| **WearOS** | Watch | Companion | ❌ No | `./gradlew :wearos:assembleDebug` |
+| **watchOS** | Watch | Companion | ❌ No | `cd watchos && xcodegen generate` |
 
 ---
 
@@ -66,13 +66,8 @@ Companion app for Android smartwatches running Wear OS 3.0+.
 ### Build
 
 ```bash
-cd wearos
-
-# Build APK
-./gradlew assembleRelease
-
-# Install on watch
-adb -s <watch-id> install app/build/outputs/apk/release/app-release.apk
+# from repo root
+./gradlew :wearos:assembleDebug
 ```
 
 ### Requirements
@@ -243,7 +238,7 @@ All platforms include a **1% developer fee** to support ongoing development.
 
 | Platform | Fee Implementation | Wallet |
 |----------|-------------------|--------|
-| Android | XMRig built-in + DevFeeManager.kt | ✅ |
+| Android | XMRig donate-level | ✅ |
 | iOS | XMRig built-in | ✅ |
 | Desktop | XMRig built-in | ✅ |
 | Web | Proxy server (server.js) | ✅ |

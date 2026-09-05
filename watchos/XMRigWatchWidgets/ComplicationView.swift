@@ -1,8 +1,6 @@
 import SwiftUI
 import WidgetKit
-import ClockKit
 
-/// Complication for showing mining stats on watch face
 struct MiningComplication: Widget {
     let kind: String = "MiningComplication"
 
@@ -33,13 +31,13 @@ struct MiningTimelineProvider: TimelineProvider {
     }
 
     func getSnapshot(in context: Context, completion: @escaping (MiningEntry) -> Void) {
-        let entry = MiningEntry(date: Date(), hashrate: 120.5, isRunning: true)
-        completion(entry)
+        let snapshot = MiningSnapshotStore.load()
+        completion(MiningEntry(date: Date(), hashrate: snapshot.hashrate, isRunning: snapshot.isRunning))
     }
 
     func getTimeline(in context: Context, completion: @escaping (Timeline<MiningEntry>) -> Void) {
-        // In real app, fetch from shared UserDefaults or App Group
-        let entry = MiningEntry(date: Date(), hashrate: 0.0, isRunning: false)
+        let snapshot = MiningSnapshotStore.load()
+        let entry = MiningEntry(date: Date(), hashrate: snapshot.hashrate, isRunning: snapshot.isRunning)
         let timeline = Timeline(entries: [entry], policy: .after(Date().addingTimeInterval(60)))
         completion(timeline)
     }
@@ -64,8 +62,6 @@ struct ComplicationView: View {
         }
     }
 }
-
-// MARK: - Complication Styles
 
 struct CircularComplication: View {
     let entry: MiningEntry

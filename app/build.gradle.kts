@@ -20,7 +20,8 @@ android {
         versionName = "1.0.0"
 
         ndk {
-            abiFilters += listOf("arm64-v8a", "armeabi-v7a")
+            // Checkout and scripts/build_xmrig.sh only ship arm64-v8a XMRig.
+            abiFilters += listOf("arm64-v8a")
         }
 
         externalNativeBuild {
@@ -39,6 +40,18 @@ android {
         }
     }
 
+    signingConfigs {
+        create("release") {
+            val storeFilePath = System.getenv("SIGNING_STORE_FILE")
+            if (!storeFilePath.isNullOrBlank()) {
+                storeFile = file(storeFilePath)
+                storePassword = System.getenv("SIGNING_STORE_PASSWORD") ?: ""
+                keyAlias = System.getenv("SIGNING_KEY_ALIAS") ?: ""
+                keyPassword = System.getenv("SIGNING_KEY_PASSWORD") ?: ""
+            }
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = true
@@ -47,6 +60,10 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            val releaseSigning = signingConfigs.findByName("release")
+            if (releaseSigning?.storeFile?.exists() == true) {
+                signingConfig = releaseSigning
+            }
         }
         debug {
             isMinifyEnabled = false
@@ -84,6 +101,26 @@ android {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
         }
     }
+
+    // API 29+ cannot execute binaries copied into filesDir. If the gitignored
+    // jniLibs .so is missing, stage the tracked assets/xmrig_arm64 as libxmrig.so.
+    sourceSets.getByName("main").jniLibs.srcDir(layout.buildDirectory.dir("generated/xmrigJni"))
+}
+
+val stageXmrigJniLib by tasks.registering(Copy::class) {
+    val packaged = layout.projectDirectory.file("src/main/jniLibs/arm64-v8a/libxmrig.so")
+    val asset = layout.projectDirectory.file("src/main/assets/xmrig_arm64")
+    onlyIf { !packaged.asFile.exists() && asset.asFile.exists() }
+    from(asset)
+    into(layout.buildDirectory.dir("generated/xmrigJni/arm64-v8a"))
+    rename { "libxmrig.so" }
+}
+
+tasks.named("preBuild").configure { dependsOn(stageXmrigJniLib) }
+tasks.configureEach {
+    if (name.startsWith("merge") && (name.contains("JniLib") || name.contains("NativeLibs"))) {
+        dependsOn(stageXmrigJniLib)
+    }
 }
 
 dependencies {
@@ -113,9 +150,8 @@ dependencies {
     // DataStore
     implementation(libs.datastore.preferences)
 
-    // Room
-    implementation(libs.bundles.room)
-    ksp(libs.room.compiler)
+    // Wearable Data Layer (phone <-> watch)
+    implementation(libs.play.services.wearable)
 
     // WorkManager
     implementation(libs.work.runtime)
@@ -140,8 +176,7 @@ dependencies {
     androidTestImplementation(libs.androidx.test.espresso)
     androidTestImplementation(platform(libs.compose.bom))
     androidTestImplementation(libs.compose.ui.test.junit4)
+
+    wearApp(project(":wearos"))
 }
 
-ksp {
-    arg("room.schemaLocation", "$projectDir/schemas")
-}

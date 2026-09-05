@@ -30,14 +30,35 @@ jobs:
         distribution: 'temurin'
         cache: gradle
 
-    - name: Grant execute permission for gradlew
+    - name: Grant execute permission for Gradle
       run: chmod +x gradlew
 
+    - name: Check XMRig binary packaging
+      run: |
+        if [ -f app/src/main/jniLibs/arm64-v8a/libxmrig.so ] || [ -f app/src/main/assets/xmrig_arm64 ]; then
+          echo "XMRig binary present"
+        else
+          echo "::warning::libxmrig.so / xmrig_arm64 missing. App builds, but mining will fail until scripts/build_xmrig.sh is run."
+        fi
+
     - name: Build Debug APK
-      run: ./gradlew assembleDebug
+      run: ./gradlew :app:assembleDebug
+
+    - name: Build Wear OS Debug
+      run: ./gradlew :wearos:assembleDebug
 
     - name: Run Unit Tests
-      run: ./gradlew testDebugUnitTest
-    
+      run: ./gradlew :app:testDebugUnitTest
+
     - name: Run Android Lint
-      run: ./gradlew lintDebug
+      run: ./gradlew :app:lintDebug
+
+    - name: Upload lint reports
+      if: failure()
+      uses: actions/upload-artifact@v4
+      with:
+        name: android-lint-report
+        path: |
+          app/build/reports/lint-results-debug.html
+          app/build/reports/lint-results-debug.xml
+        if-no-files-found: ignore

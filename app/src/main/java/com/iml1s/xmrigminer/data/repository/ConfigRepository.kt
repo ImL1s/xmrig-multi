@@ -2,7 +2,11 @@ package com.iml1s.xmrigminer.data.repository
 
 import android.content.Context
 import androidx.datastore.core.DataStore
-import androidx.datastore.preferences.core.*
+import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.booleanPreferencesKey
+import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.iml1s.xmrigminer.data.model.MiningConfig
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -10,6 +14,11 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 import javax.inject.Singleton
+
+internal object ConfigRepositoryDefaults {
+    const val POOL_URL = "gulf.moneroocean.stream:10128"
+    const val USE_TLS = false
+}
 
 private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "mining_config")
 
@@ -25,19 +34,24 @@ class ConfigRepository @Inject constructor(
         val MAX_CPU_USAGE = intPreferencesKey("max_cpu_usage")
         val USE_TLS = booleanPreferencesKey("use_tls")
         val AUTO_RECONNECT = booleanPreferencesKey("auto_reconnect")
-        val MINE_WHEN_SCREEN_OFF = booleanPreferencesKey("mine_when_screen_off")
+        val COIN_TYPE = stringPreferencesKey("coin_type")
+        val DONATE_LEVEL = intPreferencesKey("donate_level")
+        val CUSTOM_ARGS = stringPreferencesKey("custom_args")
     }
 
     fun getConfig(): Flow<MiningConfig> = context.dataStore.data.map { prefs ->
+        val defaultThreads = (Runtime.getRuntime().availableProcessors() - 1).coerceAtLeast(1)
         MiningConfig(
-            poolUrl = prefs[Keys.POOL_URL] ?: "gulf.moneroocean.stream:10128",
-            walletAddress = prefs[Keys.WALLET_ADDRESS] ?: "8AfUwcnoJiRDMXnDGj3zX6bMgfaj9pM1WFGr2pakLm3jSYXVLD5fcDMBzkmk4AeSqWYQTA5aerXJ43W65AT82RMqG6NDBnC",
+            poolUrl = prefs[Keys.POOL_URL] ?: ConfigRepositoryDefaults.POOL_URL,
+            walletAddress = prefs[Keys.WALLET_ADDRESS] ?: "",
             workerName = prefs[Keys.WORKER_NAME] ?: "android",
-            threads = prefs[Keys.THREADS] ?: (Runtime.getRuntime().availableProcessors() - 1),
+            threads = prefs[Keys.THREADS] ?: defaultThreads,
             maxCpuUsage = prefs[Keys.MAX_CPU_USAGE] ?: 75,
-            useTls = prefs[Keys.USE_TLS] ?: true,
+            useTls = prefs[Keys.USE_TLS] ?: ConfigRepositoryDefaults.USE_TLS,
             autoReconnect = prefs[Keys.AUTO_RECONNECT] ?: true,
-            mineWhenScreenOff = prefs[Keys.MINE_WHEN_SCREEN_OFF] ?: false
+            donateLevel = prefs[Keys.DONATE_LEVEL] ?: 1,
+            customArgs = prefs[Keys.CUSTOM_ARGS] ?: "",
+            coinType = prefs[Keys.COIN_TYPE] ?: "MONERO"
         )
     }
 
@@ -50,7 +64,9 @@ class ConfigRepository @Inject constructor(
             prefs[Keys.MAX_CPU_USAGE] = config.maxCpuUsage
             prefs[Keys.USE_TLS] = config.useTls
             prefs[Keys.AUTO_RECONNECT] = config.autoReconnect
-            prefs[Keys.MINE_WHEN_SCREEN_OFF] = config.mineWhenScreenOff
+            prefs[Keys.COIN_TYPE] = config.coinType
+            prefs[Keys.DONATE_LEVEL] = config.donateLevel
+            prefs[Keys.CUSTOM_ARGS] = config.customArgs
         }
     }
 

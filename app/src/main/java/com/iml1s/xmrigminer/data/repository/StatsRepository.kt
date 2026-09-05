@@ -9,14 +9,14 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * 簡化版 Stats Repository
- * 後續可以接入 Room Database 持久化
+ * In-memory mining stats. Historical persistence is intentionally out of scope.
  */
 @Singleton
 class StatsRepository @Inject constructor() {
 
     private val _stats = MutableStateFlow(MiningStats())
     val stats: Flow<MiningStats> = _stats.asStateFlow()
+    private var sessionStartElapsedMs: Long = 0L
 
     fun updateHashrate(hashrate10s: Double, hashrate60s: Double = 0.0, hashrate15m: Double = 0.0) {
         _stats.update { 
@@ -60,7 +60,19 @@ class StatsRepository @Inject constructor() {
         _stats.update { it.copy(difficulty = difficulty) }
     }
 
+    fun markSessionStarted(nowElapsedMs: Long = android.os.SystemClock.elapsedRealtime()) {
+        sessionStartElapsedMs = nowElapsedMs
+        _stats.update { it.copy(uptime = 0L) }
+    }
+
+    fun tickUptime(nowElapsedMs: Long = android.os.SystemClock.elapsedRealtime()) {
+        if (sessionStartElapsedMs <= 0L) return
+        val seconds = ((nowElapsedMs - sessionStartElapsedMs) / 1000L).coerceAtLeast(0L)
+        _stats.update { it.copy(uptime = seconds) }
+    }
+
     fun reset() {
+        sessionStartElapsedMs = 0L
         _stats.value = MiningStats()
     }
 }

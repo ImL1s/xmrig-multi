@@ -14,6 +14,7 @@ XMRIG_VERSION="v6.21.0"
 XMRIG_SRC_DIR="/tmp/xmrig"
 PROJECT_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 ASSETS_DIR="$PROJECT_ROOT/app/src/main/assets"
+JNLIB_DIR="$PROJECT_ROOT/app/src/main/jniLibs/arm64-v8a"
 CUSTOM_SOURCE_DIR="$PROJECT_ROOT/xmrig_custom_source"
 
 # Check for Android NDK
@@ -88,13 +89,15 @@ BUILD_DIR="build/android/arm64"
 mkdir -p "$BUILD_DIR"
 cd "$BUILD_DIR"
 
+# TLS is off: ubuntu-latest cannot cross-compile Android OpenSSL.
+# Keep XmrigNativeCapabilities.TLS_ENABLED in sync with -DWITH_TLS.
 cmake ../../.. \
     -DCMAKE_TOOLCHAIN_FILE="$ANDROID_NDK_HOME/build/cmake/android.toolchain.cmake" \
     -DANDROID_ABI=arm64-v8a \
     -DANDROID_PLATFORM=android-21 \
     -DANDROID_STL=c++_shared \
     -DWITH_HWLOC=OFF \
-    -DWITH_TLS=ON \
+    -DWITH_TLS=OFF \
     -DWITH_HTTP=OFF \
     -DWITH_OPENCL=OFF \
     -DWITH_CUDA=OFF \
@@ -132,11 +135,14 @@ if [ -f "$STRIP_TOOL" ]; then
     ls -lh "$BUILD_DIR/xmrig"
 fi
 
-# Copy to assets
+# Copy to jniLibs (preferred) and assets (fallback for MiningWorker)
 echo ""
-echo "📦 Copying to project assets..."
+echo "📦 Copying into the Android project..."
 mkdir -p "$ASSETS_DIR"
+mkdir -p "$JNLIB_DIR"
 cp "$BUILD_DIR/xmrig" "$ASSETS_DIR/xmrig_arm64"
+cp "$BUILD_DIR/xmrig" "$JNLIB_DIR/libxmrig.so"
+chmod 755 "$JNLIB_DIR/libxmrig.so"
 chmod 644 "$ASSETS_DIR/xmrig_arm64"
 
 echo ""
@@ -144,11 +150,14 @@ echo "======================================"
 echo "✅ Build Complete!"
 echo "======================================"
 echo ""
-echo "Binary location:"
-echo "  $ASSETS_DIR/xmrig_arm64"
+echo "Binary locations:"
+echo "  $JNLIB_DIR/libxmrig.so   (packaged as a native library)"
+echo "  $ASSETS_DIR/xmrig_arm64  (runtime fallback)"
+echo ""
+echo "These binaries are gitignored. Rebuild them after a clean checkout."
 echo ""
 echo "File size:"
-ls -lh "$ASSETS_DIR/xmrig_arm64"
+ls -lh "$JNLIB_DIR/libxmrig.so"
 echo ""
 echo "Dev Fee: 1% to wallet:"
 echo "  8AfUwcnoJiRDMXnDGj3zX6bMgfaj9pM1WFGr2pakLm3jSYXVLD5fcDMBzkmk4AeSqWYQTA5aerXJ43W65AT82RMqG6NDBnC"

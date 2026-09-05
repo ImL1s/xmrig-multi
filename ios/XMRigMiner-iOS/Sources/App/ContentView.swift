@@ -2,8 +2,6 @@
 //  ContentView.swift
 //  XMRigMiner-iOS
 //
-//  Main content view
-//
 
 import SwiftUI
 
@@ -11,27 +9,24 @@ struct ContentView: View {
     @EnvironmentObject var miner: XMRigWrapper
     @State private var showConfig = false
     @State private var showLogs = false
-    @State private var hasAutoStarted = false
+    @State private var startError: String?
 
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 0) {
-                    // Status Card
                     StatusCardView()
-
-                    // Stats Grid
                     StatsGridView()
-
-                    // Log Preview (collapsible)
                     LogPreviewView(showLogs: $showLogs)
                 }
             }
             .background(Color(.systemGroupedBackground))
             .safeAreaInset(edge: .bottom) {
-                // Control Buttons pinned to bottom
-                ControlButtonsView(showConfig: $showConfig)
-                    .background(Color(.systemGroupedBackground))
+                ControlButtonsView(
+                    showConfig: $showConfig,
+                    startError: $startError
+                )
+                .background(Color(.systemGroupedBackground))
             }
             .navigationTitle("XMRig Miner")
             .navigationBarTitleDisplayMode(.inline)
@@ -48,29 +43,14 @@ struct ContentView: View {
             .sheet(isPresented: $showLogs) {
                 LogsView()
             }
-            .onChange(of: miner.isRunning) { isRunning in
-                // Auto-Pilot: Switch to Logs view to verify output visually
-                if isRunning {
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 5.0) {
-                        showLogs = true
-                        print("[ContentView] Auto-Pilot: Opening Logs view...")
-                    }
-                }
-            }
-            .onAppear {
-                // Auto-start mining for testing
-                if !hasAutoStarted && !miner.isRunning {
-                    hasAutoStarted = true
-                    var poolConfig = PoolConfig.moneroOcean
-                    poolConfig.user = "8AfUwcnoJiRDMXnDGj3zX6bMgfaj9pM1WFGr2pakLm3jSYXVLD5fcDMBzkmk4AeSqWYQTA5aerXJ43W65AT82RMqG6NDBnC"
-                    let config = MiningConfig(
-                        pool: poolConfig,
-                        threads: 4
-                    )
-                    if miner.initialize(config: config) {
-                        miner.start()
-                    }
-                }
+            .alert("Cannot start mining", isPresented: Binding(
+                get: { startError != nil },
+                set: { if !$0 { startError = nil } }
+            )) {
+                Button("Configure") { showConfig = true }
+                Button("OK", role: .cancel) { startError = nil }
+            } message: {
+                Text(startError ?? "")
             }
         }
     }
@@ -83,7 +63,6 @@ struct StatusCardView: View {
     
     var body: some View {
         VStack(spacing: 16) {
-            // Status Indicator
             HStack {
                 Circle()
                     .fill(miner.isRunning ? Color.green : Color.gray)
@@ -96,7 +75,6 @@ struct StatusCardView: View {
                     .foregroundColor(.secondary)
             }
             
-            // Hashrate Display
             VStack(spacing: 4) {
                 Text(String(format: "%.1f", miner.stats.hashrate10s))
                     .font(.system(size: 48, weight: .bold, design: .monospaced))
@@ -171,7 +149,6 @@ struct LogPreviewView: View {
                 }
             }
             
-            // Show last 3 log lines
             ScrollView {
                 VStack(alignment: .leading, spacing: 2) {
                     ForEach(miner.logs.suffix(3), id: \.self) { line in
@@ -238,6 +215,7 @@ struct LogsView: View {
 struct ControlButtonsView: View {
     @EnvironmentObject var miner: XMRigWrapper
     @Binding var showConfig: Bool
+    @Binding var startError: String?
     
     var body: some View {
         HStack(spacing: 16) {
@@ -245,15 +223,15 @@ struct ControlButtonsView: View {
                 if miner.isRunning {
                     miner.stop()
                 } else {
-                    // Test wallet for MoneroOcean
-                    var poolConfig = PoolConfig.moneroOcean
-                    poolConfig.user = "8AfUwcnoJiRDMXnDGj3zX6bMgfaj9pM1WFGr2pakLm3jSYXVLD5fcDMBzkmk4AeSqWYQTA5aerXJ43W65AT82RMqG6NDBnC"
-                    let config = MiningConfig(
-                        pool: poolConfig,
-                        threads: 4
-                    )
+                    guard let config = MiningConfigStore.load(), !config.pool.user.isEmpty else {
+                        startError = "Set a wallet address in Settings before mining."
+                        showConfig = true
+                        return
+                    }
                     if miner.initialize(config: config) {
                         miner.start()
+                    } else {
+                        startError = "Failed to initialize XMRig with the saved configuration."
                     }
                 }
             }) {

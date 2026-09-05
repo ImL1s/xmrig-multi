@@ -1,5 +1,11 @@
 package com.iml1s.xmrigminer.data.model
 
+import com.iml1s.xmrigminer.data.repository.ConfigRepositoryDefaults
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.boolean
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import org.junit.Assert.*
 import org.junit.Test
 
@@ -97,8 +103,54 @@ class MiningConfigTest {
     }
 
     @Test
-    fun `default donate level is 1`() {
+    fun `default wallet is empty so first launch cannot mine to the fee address`() {
         val config = MiningConfig()
-        assertEquals(1, config.donateLevel)
+        assertEquals("", config.walletAddress)
+        assertFalse(config.isValid())
+    }
+
+    @Test
+    fun `toJson uses configured donate level and log file`() {
+        val config = MiningConfig(
+            poolUrl = "pool.supportxmr.com:3333",
+            walletAddress = "my_wallet_address",
+            donateLevel = 1
+        )
+        val json = config.toJson("/data/xmrig.log")
+        assertTrue(json.contains("\"donate-level\": 1"))
+        assertTrue(json.contains("/data/xmrig.log"))
+        assertTrue(json.contains("my_wallet_address"))
+    }
+
+    @Test
+    fun `toJson escapes quotes in worker name`() {
+        val config = MiningConfig(
+            poolUrl = "pool.supportxmr.com:3333",
+            walletAddress = "wallet",
+            workerName = "my\"rig",
+            threads = 4
+        )
+        val parsed = Json.parseToJsonElement(config.toJson())
+            .jsonObject["pools"]!!.jsonArray[0].jsonObject
+        assertEquals("my\"rig", parsed["pass"]!!.jsonPrimitive.content)
+    }
+
+    @Test
+    fun `default tls is off so plaintext pool ports work`() {
+        val config = MiningConfig()
+        assertFalse(config.useTls)
+    }
+
+    @Test
+    fun `fresh-install MoneroOcean port is written without TLS`() {
+        val config = MiningConfig(
+            poolUrl = ConfigRepositoryDefaults.POOL_URL,
+            walletAddress = "wallet",
+            useTls = ConfigRepositoryDefaults.USE_TLS
+        )
+        val pool = Json.parseToJsonElement(config.toJson())
+            .jsonObject["pools"]!!.jsonArray[0].jsonObject
+        assertEquals("gulf.moneroocean.stream:10128", pool["url"]!!.jsonPrimitive.content)
+        assertFalse(pool["tls"]!!.jsonPrimitive.boolean)
     }
 }

@@ -1,62 +1,60 @@
 package com.iml1s.xmrigminer.wear.tile
 
-import android.content.Context
-import androidx.wear.protolayout.*
 import androidx.wear.protolayout.ColorBuilders.argb
-import androidx.wear.protolayout.DimensionBuilders.*
-import androidx.wear.protolayout.LayoutElementBuilders.*
-import androidx.wear.protolayout.ResourceBuilders.*
-import androidx.wear.protolayout.TimelineBuilders.*
-import androidx.wear.protolayout.material.*
-import androidx.wear.protolayout.material.layouts.*
-import androidx.wear.tiles.*
-import com.google.android.gms.wearable.DataClient
+import androidx.wear.protolayout.DeviceParametersBuilders
+import androidx.wear.protolayout.DimensionBuilders.dp
+import androidx.wear.protolayout.DimensionBuilders.expand
+import androidx.wear.protolayout.LayoutElementBuilders
+import androidx.wear.protolayout.LayoutElementBuilders.HORIZONTAL_ALIGN_CENTER
+import androidx.wear.protolayout.LayoutElementBuilders.VERTICAL_ALIGN_CENTER
+import androidx.wear.protolayout.ResourceBuilders
+import androidx.wear.protolayout.TimelineBuilders
+import androidx.wear.protolayout.material.Text
+import androidx.wear.protolayout.material.Typography
+import androidx.wear.protolayout.material.layouts.PrimaryLayout
+import androidx.wear.tiles.RequestBuilders
+import androidx.wear.tiles.TileBuilders
+import androidx.wear.tiles.TileService
+import com.google.android.gms.tasks.Tasks
 import com.google.android.gms.wearable.DataMapItem
 import com.google.android.gms.wearable.Wearable
-import kotlinx.coroutines.guava.await
-import kotlinx.coroutines.runBlocking
+import com.google.common.util.concurrent.Futures
+import com.google.common.util.concurrent.ListenableFuture
+import java.util.concurrent.TimeUnit
 
-/**
- * XMRig Mining Stats Tile
- * Shows hashrate and mining status at a glance
- */
 class MiningTileService : TileService() {
 
-    private lateinit var dataClient: DataClient
-
-    override fun onCreate() {
-        super.onCreate()
-        dataClient = Wearable.getDataClient(this)
+    override fun onTileRequest(requestParams: RequestBuilders.TileRequest): ListenableFuture<TileBuilders.Tile> {
+        val stats = getMiningStats()
+        val tile = TileBuilders.Tile.Builder()
+            .setResourcesVersion(RESOURCES_VERSION)
+            .setFreshnessIntervalMillis(5000)
+            .setTileTimeline(
+                TimelineBuilders.Timeline.Builder()
+                    .addTimelineEntry(
+                        TimelineBuilders.TimelineEntry.Builder()
+                            .setLayout(
+                                LayoutElementBuilders.Layout.Builder()
+                                    .setRoot(createTileLayout(stats))
+                                    .build()
+                            )
+                            .build()
+                    )
+                    .build()
+            )
+            .build()
+        return Futures.immediateFuture(tile)
     }
 
-    override fun onTileRequest(requestParams: RequestBuilders.TileRequest) =
-        runBlocking {
-            val stats = getMiningStats()
-            Tile.Builder()
-                .setResourcesVersion(RESOURCES_VERSION)
-                .setFreshnessIntervalMillis(5000) // Update every 5 seconds
-                .setTileTimeline(
-                    Timeline.Builder()
-                        .addTimelineEntry(
-                            TimelineEntry.Builder()
-                                .setLayout(
-                                    Layout.Builder()
-                                        .setRoot(createTileLayout(stats))
-                                        .build()
-                                )
-                                .build()
-                        )
-                        .build()
-                )
-                .build()
-        }
+    override fun onTileResourcesRequest(
+        requestParams: RequestBuilders.ResourcesRequest
+    ): ListenableFuture<ResourceBuilders.Resources> {
+        return Futures.immediateFuture(
+            ResourceBuilders.Resources.Builder().setVersion(RESOURCES_VERSION).build()
+        )
+    }
 
-    override fun onTileResourcesRequest(requestParams: RequestBuilders.ResourcesRequest) =
-        Resources.Builder()
-            .setVersion(RESOURCES_VERSION)
-            .build()
-
-    private fun createTileLayout(stats: MiningStats): LayoutElement {
+    private fun createTileLayout(stats: MiningStats): LayoutElementBuilders.LayoutElement {
         val deviceParams = DeviceParametersBuilders.DeviceParameters.Builder()
             .setScreenWidthDp(200)
             .setScreenHeightDp(200)
@@ -65,50 +63,42 @@ class MiningTileService : TileService() {
         return PrimaryLayout.Builder(deviceParams)
             .setResponsiveContentInsetEnabled(true)
             .setContent(
-                Column.Builder()
+                LayoutElementBuilders.Column.Builder()
                     .setWidth(expand())
                     .setHorizontalAlignment(HORIZONTAL_ALIGN_CENTER)
                     .addContent(
-                        // Status indicator
-                        Text.Builder()
-                            .setText(if (stats.isRunning) "⚡ Mining" else "⏸ Stopped")
+                        Text.Builder(this, if (stats.isRunning) "Mining" else "Stopped")
                             .setTypography(Typography.TYPOGRAPHY_CAPTION1)
                             .setColor(argb(if (stats.isRunning) 0xFF10B981.toInt() else 0xFF94A3B8.toInt()))
                             .build()
                     )
-                    .addContent(Spacer.Builder().setHeight(dp(8f)).build())
+                    .addContent(LayoutElementBuilders.Spacer.Builder().setHeight(dp(8f)).build())
                     .addContent(
-                        // Hashrate
-                        Text.Builder()
-                            .setText("%.1f".format(stats.hashrate))
+                        Text.Builder(this, "%.1f".format(stats.hashrate))
                             .setTypography(Typography.TYPOGRAPHY_DISPLAY1)
                             .setColor(argb(0xFF7C3AED.toInt()))
                             .build()
                     )
                     .addContent(
-                        Text.Builder()
-                            .setText("H/s")
+                        Text.Builder(this, "H/s")
                             .setTypography(Typography.TYPOGRAPHY_CAPTION2)
                             .setColor(argb(0xFF94A3B8.toInt()))
                             .build()
                     )
-                    .addContent(Spacer.Builder().setHeight(dp(12f)).build())
+                    .addContent(LayoutElementBuilders.Spacer.Builder().setHeight(dp(12f)).build())
                     .addContent(
-                        // Shares
-                        Row.Builder()
+                        LayoutElementBuilders.Row.Builder()
                             .setWidth(expand())
                             .setVerticalAlignment(VERTICAL_ALIGN_CENTER)
                             .addContent(
-                                Text.Builder()
-                                    .setText("✓ ${stats.accepted}")
+                                Text.Builder(this, "A ${stats.accepted}")
                                     .setTypography(Typography.TYPOGRAPHY_CAPTION1)
                                     .setColor(argb(0xFF10B981.toInt()))
                                     .build()
                             )
-                            .addContent(Spacer.Builder().setWidth(dp(16f)).build())
+                            .addContent(LayoutElementBuilders.Spacer.Builder().setWidth(dp(16f)).build())
                             .addContent(
-                                Text.Builder()
-                                    .setText("✗ ${stats.rejected}")
+                                Text.Builder(this, "R ${stats.rejected}")
                                     .setTypography(Typography.TYPOGRAPHY_CAPTION1)
                                     .setColor(argb(0xFFEF4444.toInt()))
                                     .build()
@@ -120,9 +110,9 @@ class MiningTileService : TileService() {
             .build()
     }
 
-    private suspend fun getMiningStats(): MiningStats {
+    private fun getMiningStats(): MiningStats {
         return try {
-            val dataItems = dataClient.getDataItems().await()
+            val dataItems = Tasks.await(Wearable.getDataClient(this).dataItems, 2, TimeUnit.SECONDS)
             val statsItem = dataItems.find { it.uri.path == PATH_MINING_STATS }
             if (statsItem != null) {
                 val dataMap = DataMapItem.fromDataItem(statsItem).dataMap
@@ -135,7 +125,7 @@ class MiningTileService : TileService() {
             } else {
                 MiningStats()
             }
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             MiningStats()
         }
     }

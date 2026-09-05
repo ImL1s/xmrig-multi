@@ -1,6 +1,14 @@
 package com.iml1s.xmrigminer.data.model
 
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonNull
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
+import kotlinx.serialization.json.putJsonObject
 
 @Serializable
 data class MiningConfig(
@@ -9,81 +17,64 @@ data class MiningConfig(
     val workerName: String = "android",
     val threads: Int = Runtime.getRuntime().availableProcessors() - 1,
     val maxCpuUsage: Int = 75,
-    val useTls: Boolean = true,
+    val useTls: Boolean = false,
     val autoReconnect: Boolean = true,
-    val mineWhenScreenOff: Boolean = false,
-    val donateLevel: Int = 1,  // 捐贈 1%
+    val donateLevel: Int = 1,
     val customArgs: String = "",
     val retries: Int = 5,
     val retryPause: Int = 5,
-    val printTime: Int = 60,
-    val coinType: String = "MONERO"  // 新增：幣種類型
+    val printTime: Int = 10,
+    val coinType: String = "MONERO"
 ) {
     fun getCoin(): CoinType = CoinType.fromString(coinType)
 
-    fun toJson(): String {
+    fun toJson(logFile: String? = null): String {
         val coin = getCoin()
-        val coinConfig = when (coin) {
-            CoinType.MONERO -> ""  // Monero 不需要額外配置
-            CoinType.WOWNERO -> """
-                "coin": "wownero",
-            """.trimIndent()
-            CoinType.DERO -> """
-                "coin": "dero",
-                "algo": "astrobwt/v3",
-            """.trimIndent()
-        }
-
-        val randomxConfig = when (coin) {
-            CoinType.WOWNERO -> """
-            "randomx": {
-                "mode": "light",
-                "1gb-pages": false,
-                "rdmsr": false,
-                "wrmsr": false
-            }
-            """.trimIndent()
-            else -> """
-            "randomx": {
-                "mode": "auto",
-                "1gb-pages": false,
-                "rdmsr": false,
-                "wrmsr": false
-            }
-            """.trimIndent()
-        }
-
-        return """
-        {
-            "autosave": false,
-            "cpu": {
-                "enabled": true,
-                "max-threads-hint": $maxCpuUsage,
-                "priority": 1,
-                "asm": true,
-                "argon2-impl": "auto"
-            },
-            "pools": [
-                {
-                    $coinConfig
-                    "url": "$poolUrl",
-                    "user": "$walletAddress",
-                    "pass": "$workerName",
-                    "keepalive": true,
-                    "tls": $useTls
+        val pool = buildJsonObject {
+            when (coin) {
+                CoinType.WOWNERO -> put("coin", "wownero")
+                CoinType.DERO -> {
+                    put("coin", "dero")
+                    put("algo", "astrobwt/v3")
                 }
-            ],
-            "donate-level": 1,
-            "log-file": null,
-            "print-time": $printTime,
-            "health-print-time": $printTime,
-            "retries": $retries,
-            "retry-pause": $retryPause,
-            "api": null,
-            "http": null,
-            $randomxConfig
+                CoinType.MONERO -> Unit
+            }
+            put("url", poolUrl)
+            put("user", walletAddress)
+            put("pass", workerName)
+            put("keepalive", true)
+            put("tls", useTls)
         }
-        """.trimIndent()
+        val root = buildJsonObject {
+            put("autosave", false)
+            putJsonObject("cpu") {
+                put("enabled", true)
+                put("max-threads-hint", maxCpuUsage)
+                put("priority", 1)
+                put("asm", true)
+                put("argon2-impl", "auto")
+            }
+            put("pools", JsonArray(listOf(pool)))
+            put("donate-level", donateLevel)
+            if (logFile != null) {
+                put("log-file", logFile)
+            } else {
+                put("log-file", JsonNull)
+            }
+            put("print-time", printTime)
+            put("health-print-time", printTime)
+            put("retries", retries)
+            put("retry-pause", retryPause)
+            put("api", JsonNull)
+            put("http", JsonNull)
+            putJsonObject("randomx") {
+                put("mode", if (coin == CoinType.WOWNERO) "light" else "auto")
+                put("1gb-pages", false)
+                put("rdmsr", false)
+                put("wrmsr", false)
+            }
+        }
+        return Json { prettyPrint = true }.encodeToString(JsonObject.serializer(), root)
     }
 
     fun isValid(): Boolean {

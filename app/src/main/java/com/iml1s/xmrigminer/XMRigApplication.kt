@@ -7,6 +7,7 @@ import android.os.Build
 import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
 import com.iml1s.xmrigminer.service.MiningWorker
+import com.iml1s.xmrigminer.wear.WearStatsSyncer
 import dagger.hilt.android.HiltAndroidApp
 import timber.log.Timber
 import javax.inject.Inject
@@ -16,6 +17,9 @@ class XMRigApplication : Application(), Configuration.Provider {
     
     @Inject
     lateinit var workerFactory: HiltWorkerFactory
+
+    @Inject
+    lateinit var wearStatsSyncer: WearStatsSyncer
     
     override fun onCreate() {
         super.onCreate()
@@ -25,9 +29,8 @@ class XMRigApplication : Application(), Configuration.Provider {
             Timber.plant(Timber.DebugTree())
         }
         
-        // Create notification channel for Android O+
         createNotificationChannel()
-        
+        wearStatsSyncer.start()
         Timber.i("XMRig Miner Application started")
     }
 

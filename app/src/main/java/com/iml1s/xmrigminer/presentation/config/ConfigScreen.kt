@@ -15,6 +15,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.iml1s.xmrigminer.data.model.CoinType
 import com.iml1s.xmrigminer.data.model.Pool
+import com.iml1s.xmrigminer.native.XmrigNativeCapabilities
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -340,13 +341,18 @@ private fun PoolSelectionCard(
                 Column(modifier = Modifier.weight(1f)) {
                     Text("Use TLS/SSL")
                     Text(
-                        text = "Encrypted connection to mining pool",
+                        text = if (XmrigNativeCapabilities.TLS_ENABLED) {
+                            "Encrypted connection to mining pool"
+                        } else {
+                            "Unavailable: packaged XMRig is built without TLS"
+                        },
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
                 Switch(
                     checked = useTls,
+                    enabled = XmrigNativeCapabilities.TLS_ENABLED || useTls,
                     onCheckedChange = onTlsToggled
                 )
             }

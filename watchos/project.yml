@@ -1,0 +1,87 @@
+name: XMRigWatch
+options:
+  bundleIdPrefix: com.iml1s
+  deploymentTarget:
+    watchOS: "10.0"
+  xcodeVersion: "15.0"
+  createIntermediateGroups: true
+
+settings:
+  base:
+    SWIFT_VERSION: "5.9"
+    PRODUCT_NAME: XMRigWatch
+    MARKETING_VERSION: "1.0.0"
+    CURRENT_PROJECT_VERSION: "1"
+    CODE_SIGN_STYLE: Automatic
+    DEVELOPMENT_TEAM: ""
+    GENERATE_INFOPLIST_FILE: YES
+
+targets:
+  XMRigWatch:
+    type: application
+    platform: watchOS
+    sources:
+      - path: XMRigWatch/Sources
+        excludes:
+          - "**/.DS_Store"
+      - path: Shared
+    entitlements:
+      path: XMRigWatch/XMRigWatch.entitlements
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.iml1s.xmrigminer.watchkitapp
+        SDKROOT: watchos
+        TARGETED_DEVICE_FAMILY: "4"
+        INFOPLIST_KEY_CFBundleDisplayName: XMRig
+        CODE_SIGN_ENTITLEMENTS: XMRigWatch/XMRigWatch.entitlements
+    info:
+      properties:
+        CFBundleDisplayName: XMRig
+        WKApplication: true
+        WKCompanionAppBundleIdentifier: com.iml1s.xmrigminer
+    dependencies:
+      - target: XMRigWatchWidgets
+        embed: true
+        codeSign: true
+      - sdk: WatchConnectivity.framework
+      - sdk: WidgetKit.framework
+
+  XMRigWatchWidgets:
+    type: app-extension
+    platform: watchOS
+    sources:
+      - path: XMRigWatchWidgets
+        excludes:
+          - "**/.DS_Store"
+      - path: Shared
+    entitlements:
+      path: XMRigWatchWidgets/XMRigWatchWidgets.entitlements
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.iml1s.xmrigminer.watchkitapp.widgets
+        SDKROOT: watchos
+        TARGETED_DEVICE_FAMILY: "4"
+        SKIP_INSTALL: YES
+        LD_RUNPATH_SEARCH_PATHS:
+          - "$(inherited)"
+          - "@executable_path/Frameworks"
+          - "@executable_path/../../Frameworks"
+        INFOPLIST_KEY_CFBundleDisplayName: Mining Stats
+        CODE_SIGN_ENTITLEMENTS: XMRigWatchWidgets/XMRigWatchWidgets.entitlements
+    info:
+      properties:
+        CFBundleDisplayName: Mining Stats
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+    dependencies:
+      - sdk: SwiftUI.framework
+      - sdk: WidgetKit.framework
+
+schemes:
+  XMRigWatch:
+    build:
+      targets:
+        XMRigWatch: all
+        XMRigWatchWidgets: all
+    run:
+      config: Debug

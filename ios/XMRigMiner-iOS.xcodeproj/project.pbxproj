@@ -10,6 +10,8 @@
 		0A52A514B935340D5E5BEAE4 /* XMRigMinerApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 220D92C49700F66109121499 /* XMRigMinerApp.swift */; };
 		0C39E502208A4EDDE0E4C4DD /* MiningConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = 821CDD6A92C86ADCF4FF89F9 /* MiningConfig.swift */; };
 		0FD02C2C813713C41844A1FC /* XMRigWrapper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8159C28F8B627AC8DB161C31 /* XMRigWrapper.swift */; };
+		1A2B3C4D5E6F7081920ABCDE /* MiningConfigStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5E6F7081920ABCDF /* MiningConfigStore.swift */; };
+		1A2B3C4D5E6F7081920ABCE0 /* WatchSessionCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5E6F7081920ABCE1 /* WatchSessionCoordinator.swift */; };
 		38590618B974A35882963CCA /* ConfigView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE400D868D26D12A20527EBA /* ConfigView.swift */; };
 		6D5574F55C7ACEB9F9D382D6 /* XMRigBridge.mm in Sources */ = {isa = PBXBuildFile; fileRef = CEFA1694CE518970F3F4CAB2 /* XMRigBridge.mm */; };
 		C3270DD7144ACAF7997A7D1B /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF0A2017E5C5D43FE93FF429 /* ContentView.swift */; };
@@ -20,6 +22,8 @@
 		5524A87543E55E6FD9DABE73 /* xmrig_bridge.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = xmrig_bridge.h; sourceTree = "<group>"; };
 		8159C28F8B627AC8DB161C31 /* XMRigWrapper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = XMRigWrapper.swift; sourceTree = "<group>"; };
 		821CDD6A92C86ADCF4FF89F9 /* MiningConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MiningConfig.swift; sourceTree = "<group>"; };
+		1A2B3C4D5E6F7081920ABCDF /* MiningConfigStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MiningConfigStore.swift; sourceTree = "<group>"; };
+		1A2B3C4D5E6F7081920ABCE1 /* WatchSessionCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchSessionCoordinator.swift; sourceTree = "<group>"; };
 		B98070E037D367581FA0485E /* XMRigMiner-iOS-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "XMRigMiner-iOS-Bridging-Header.h"; sourceTree = "<group>"; };
 		CEFA1694CE518970F3F4CAB2 /* XMRigBridge.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = XMRigBridge.mm; sourceTree = "<group>"; };
 		DE400D868D26D12A20527EBA /* ConfigView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConfigView.swift; sourceTree = "<group>"; };
@@ -65,6 +69,7 @@
 			isa = PBXGroup;
 			children = (
 				8159C28F8B627AC8DB161C31 /* XMRigWrapper.swift */,
+				1A2B3C4D5E6F7081920ABCE1 /* WatchSessionCoordinator.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -119,6 +124,7 @@
 			isa = PBXGroup;
 			children = (
 				821CDD6A92C86ADCF4FF89F9 /* MiningConfig.swift */,
+				1A2B3C4D5E6F7081920ABCDF /* MiningConfigStore.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -185,9 +191,11 @@
 				38590618B974A35882963CCA /* ConfigView.swift in Sources */,
 				C3270DD7144ACAF7997A7D1B /* ContentView.swift in Sources */,
 				0C39E502208A4EDDE0E4C4DD /* MiningConfig.swift in Sources */,
+				1A2B3C4D5E6F7081920ABCDE /* MiningConfigStore.swift in Sources */,
 				6D5574F55C7ACEB9F9D382D6 /* XMRigBridge.mm in Sources */,
 				0A52A514B935340D5E5BEAE4 /* XMRigMinerApp.swift in Sources */,
 				0FD02C2C813713C41844A1FC /* XMRigWrapper.swift in Sources */,
+				1A2B3C4D5E6F7081920ABCE0 /* WatchSessionCoordinator.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
