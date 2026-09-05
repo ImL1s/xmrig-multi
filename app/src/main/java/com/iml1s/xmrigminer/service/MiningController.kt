@@ -8,6 +8,7 @@ import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import com.iml1s.xmrigminer.data.model.CoinType
+import com.iml1s.xmrigminer.data.model.MiningConfig
 import com.iml1s.xmrigminer.data.repository.ConfigRepository
 import com.iml1s.xmrigminer.data.repository.StatsRepository
 import com.iml1s.xmrigminer.native.XmrigNativeCapabilities
@@ -70,7 +71,7 @@ class MiningController @Inject constructor(
 
         val launchSnapshot = Data.Builder()
             .putBoolean(MonitorWorker.KEY_SOLO_DAEMON, soloDaemon)
-            .putString(MiningWorker.KEY_CONFIG_SNAPSHOT, Json.encodeToString(config))
+            .putString(MiningWorker.KEY_CONFIG_SNAPSHOT, Json.encodeToString(MiningConfig.serializer(), config))
             .build()
 
         val miningRequest = OneTimeWorkRequestBuilder<MiningWorker>()
