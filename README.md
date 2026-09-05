@@ -16,7 +16,15 @@ Cross-platform **Monero (XMR) / Wownero (WOW) / DERO** mining solution.
 | ⌚ **WearOS** | Companion | No | `./gradlew :wearos:assembleDebug` |
 | ⌚ **watchOS** | Companion | No | `cd watchos && xcodegen generate` |
 
-[繁體中文](README_zh-TW.md) | [Docs](docs/README.md) | [Platforms](docs/platforms.md) | [Dev fee](docs/dev-fee.md)
+[繁體中文](README_zh-TW.md) | [Docs](docs/README.md) | [Platforms](docs/platforms.md) | [Dev fee](docs/dev-fee.md) | [Screenshots](docs/screenshots/README.md)
+
+### Android UI (S21+)
+
+<p>
+  <img src="docs/screenshots/android/01-home-idle.png" alt="Home idle" width="180" />
+  <img src="docs/screenshots/android/04-mining-running.png" alt="Mining running" width="180" />
+  <img src="docs/screenshots/android/05-stats.png" alt="Statistics" width="180" />
+</p>
 
 ---
 

@@ -8,5 +8,6 @@ Guides for building and running XMRig Miner across platforms.
 | [Platforms](platforms.md) | Android, iOS, Web, Desktop, WearOS, watchOS |
 | [Developer fee](dev-fee.md) | 1% time-based fee and where it is implemented |
 | [iOS](ios.md) | Sideload build: static library + Xcode |
+| [Screenshots](screenshots/README.md) | Android UI captures (S21+) |
 
 Agent-facing notes stay at the repo root: [AGENTS.md](../AGENTS.md), [CLAUDE.md](../CLAUDE.md).
