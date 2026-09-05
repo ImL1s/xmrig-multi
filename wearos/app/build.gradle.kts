@@ -12,8 +12,8 @@ android {
         applicationId = "com.iml1s.xmrigminer"
         minSdk = 30
         targetSdk = 34
-        versionCode = 1
-        versionName = "1.0.0"
+        versionCode = 22
+        versionName = "2.2.0"
     }
 
     signingConfigs {
