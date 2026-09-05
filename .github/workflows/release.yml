@@ -239,8 +239,20 @@ jobs:
       - name: Install CMake
         uses: lukka/get-cmake@latest
 
+      - name: Install libuv (Windows)
+        shell: bash
+        run: |
+          git clone --depth 1 --branch v1.48.0 https://github.com/libuv/libuv.git "$RUNNER_TEMP/libuv"
+          cmake -S "$RUNNER_TEMP/libuv" -B "$RUNNER_TEMP/libuv/build" -DCMAKE_BUILD_TYPE=Release -DLIBUV_BUILD_TESTS=OFF
+          cmake --build "$RUNNER_TEMP/libuv/build" --config Release -j 4
+          cmake --install "$RUNNER_TEMP/libuv/build" --config Release --prefix "$RUNNER_TEMP/libuv-install"
+          echo "UV_DIR=$RUNNER_TEMP/libuv-install" >> "$GITHUB_ENV"
+          echo "CMAKE_PREFIX_PATH=$RUNNER_TEMP/libuv-install" >> "$GITHUB_ENV"
+
       - name: Build XMRig sidecar (custom fee)
         shell: bash
+        env:
+          CMAKE_PREFIX_PATH: ${{ env.CMAKE_PREFIX_PATH }}
         run: |
           chmod +x desktop/scripts/build-xmrig.sh
           ./desktop/scripts/build-xmrig.sh

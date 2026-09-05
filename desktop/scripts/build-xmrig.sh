@@ -182,6 +182,19 @@ else
     CMAKE_ARGS+=(-DWITH_TLS=ON)
 fi
 
+if [[ -n "${CMAKE_PREFIX_PATH:-}" ]]; then
+    CMAKE_ARGS+=(-DCMAKE_PREFIX_PATH="${CMAKE_PREFIX_PATH}")
+fi
+if [[ -n "${UV_DIR:-}" ]]; then
+    CMAKE_ARGS+=(-DUV_INCLUDE_DIR="${UV_DIR}/include" -DUV_LIBRARY="${UV_DIR}/lib/uv.lib")
+    # Linux/mac install layout
+    if [ -f "${UV_DIR}/lib/libuv.a" ]; then
+        CMAKE_ARGS+=(-DUV_LIBRARY="${UV_DIR}/lib/libuv.a")
+    elif [ -f "${UV_DIR}/lib/uv.lib" ]; then
+        CMAKE_ARGS+=(-DUV_LIBRARY="${UV_DIR}/lib/uv.lib")
+    fi
+fi
+
 cmake .. "${CMAKE_ARGS[@]}"
 
 JOBS=$(sysctl -n hw.ncpu 2>/dev/null || nproc 2>/dev/null || echo 4)
