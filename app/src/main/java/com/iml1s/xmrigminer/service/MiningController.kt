@@ -43,7 +43,10 @@ class MiningController @Inject constructor(
         if (!config.isValid() || config.walletAddress.isBlank()) {
             val message = when {
                 config.walletAddress.isBlank() -> "配置無效：錢包地址未設置"
-                config.poolUrl.isBlank() -> "配置無效：礦池地址未設置"
+                config.poolUrl.isBlank() ->
+                    if (config.soloDaemon) "配置無效：節點 RPC 地址未設置" else "配置無效：礦池地址未設置"
+                config.soloDaemon && config.getCoin() != com.iml1s.xmrigminer.data.model.CoinType.MONERO ->
+                    "Solo 僅支援 Monero"
                 else -> "配置無效，請檢查設置"
             }
             return MiningStartResult.InvalidConfig(message)
@@ -51,8 +54,14 @@ class MiningController @Inject constructor(
 
         stop(resetStats = false)
 
+        val networkType = if (config.soloDaemon) {
+            // LAN monerod may have no validated Internet capability (#15).
+            NetworkType.NOT_REQUIRED
+        } else {
+            NetworkType.CONNECTED
+        }
         val miningConstraints = Constraints.Builder()
-            .setRequiredNetworkType(NetworkType.CONNECTED)
+            .setRequiredNetworkType(networkType)
             .build()
 
         val miningRequest = OneTimeWorkRequestBuilder<MiningWorker>()

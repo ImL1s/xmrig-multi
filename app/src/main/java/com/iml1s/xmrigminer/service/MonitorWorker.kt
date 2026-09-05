@@ -7,12 +7,14 @@ import android.os.BatteryManager
 import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
+import com.iml1s.xmrigminer.data.repository.ConfigRepository
 import com.iml1s.xmrigminer.data.repository.StatsRepository
 import com.iml1s.xmrigminer.util.CpuMonitor
 import com.iml1s.xmrigminer.util.NetworkMonitor
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
 import timber.log.Timber
 
 /**
@@ -26,7 +28,8 @@ class MonitorWorker @AssistedInject constructor(
     @Assisted params: WorkerParameters,
     private val statsRepository: StatsRepository,
     private val miningController: MiningController,
-    private val networkMonitor: NetworkMonitor
+    private val networkMonitor: NetworkMonitor,
+    private val configRepository: ConfigRepository
 ) : CoroutineWorker(context, params) {
 
     companion object {
@@ -91,6 +94,7 @@ class MonitorWorker @AssistedInject constructor(
         val temp = getBatteryTemperature()
         val isCharging = isDeviceCharging()
         val isConnected = networkMonitor.isConnected()
+        val soloDaemon = configRepository.getConfig().first().soloDaemon
 
         if (temp > MAX_TEMPERATURE) {
             pauseMining("Temperature too high (${temp}°C)")
@@ -100,7 +104,8 @@ class MonitorWorker @AssistedInject constructor(
             pauseMining("Battery too low ($level%)")
             return
         }
-        if (!isConnected) {
+        // Solo / LAN monerod may lack NET_CAPABILITY_INTERNET (#15).
+        if (!soloDaemon && !isConnected) {
             pauseMining("No network connection")
         }
     }

@@ -14,6 +14,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.iml1s.xmrigminer.data.model.CoinType
+import com.iml1s.xmrigminer.data.model.MiningConfig
 import com.iml1s.xmrigminer.data.model.Pool
 import com.iml1s.xmrigminer.native.XmrigNativeCapabilities
 
@@ -112,16 +113,18 @@ private fun ConfigContent(
             onCoinTypeChanged = { onEvent(ConfigUiEvent.CoinTypeChanged(it)) }
         )
 
-        // Pool Selection
+        // Pool / Solo Selection
         PoolSelectionCard(
-            pools = state.filteredPools,  // 使用過濾後的礦池列表
+            pools = state.filteredPools,
             selectedPool = state.selectedPool,
             currentPoolUrl = state.config.poolUrl,
             useTls = state.config.useTls,
+            soloDaemon = state.config.soloDaemon,
             coinType = state.selectedCoinType,
             onPoolSelected = { onEvent(ConfigUiEvent.PoolSelected(it)) },
             onCustomUrlChanged = { onEvent(ConfigUiEvent.CustomPoolUrlChanged(it)) },
-            onTlsToggled = { onEvent(ConfigUiEvent.TlsToggled(it)) }
+            onTlsToggled = { onEvent(ConfigUiEvent.TlsToggled(it)) },
+            onSoloDaemonToggled = { onEvent(ConfigUiEvent.SoloDaemonToggled(it)) }
         )
 
         // Wallet Configuration
@@ -130,6 +133,7 @@ private fun ConfigContent(
             workerName = state.config.workerName,
             validationError = state.validationError,
             coinType = state.selectedCoinType,
+            showWorkerName = !state.config.soloDaemon,
             onWalletAddressChanged = { onEvent(ConfigUiEvent.WalletAddressChanged(it)) },
             onWorkerNameChanged = { onEvent(ConfigUiEvent.WorkerNameChanged(it)) }
         )
@@ -246,13 +250,15 @@ private fun PoolSelectionCard(
     selectedPool: Pool?,
     currentPoolUrl: String,
     useTls: Boolean,
+    soloDaemon: Boolean,
     coinType: CoinType,
     onPoolSelected: (Pool) -> Unit,
     onCustomUrlChanged: (String) -> Unit,
-    onTlsToggled: (Boolean) -> Unit
+    onTlsToggled: (Boolean) -> Unit,
+    onSoloDaemonToggled: (Boolean) -> Unit
 ) {
     var expanded by remember { mutableStateOf(false) }
-    var showCustomUrl by remember { mutableStateOf(selectedPool == null) }
+    var showCustomUrl by remember { mutableStateOf(selectedPool == null || soloDaemon) }
 
     Card(
         modifier = Modifier.fillMaxWidth()
@@ -262,127 +268,172 @@ private fun PoolSelectionCard(
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Text(
-                text = "Mining Pool",
+                text = if (soloDaemon) "Solo / Daemon" else "Mining Pool",
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.primary
             )
 
-            // Pool Dropdown
-            ExposedDropdownMenuBox(
-                expanded = expanded,
-                onExpandedChange = { expanded = it }
-            ) {
-                OutlinedTextField(
-                    value = selectedPool?.name ?: "Custom Pool",
-                    onValueChange = {},
-                    readOnly = true,
-                    label = { Text("Select Pool") },
-                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .menuAnchor()
-                )
-
-                ExposedDropdownMenu(
-                    expanded = expanded,
-                    onDismissRequest = { expanded = false }
+            if (coinType == CoinType.MONERO) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    pools.forEach { pool ->
-                        DropdownMenuItem(
-                            text = {
-                                Column {
-                                    Text(pool.name)
-                                    Text(
-                                        text = "${pool.description} • Fee: ${pool.fee}",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-                            },
-                            onClick = {
-                                onPoolSelected(pool)
-                                showCustomUrl = false
-                                expanded = false
-                            }
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Solo mining (monerod)")
+                        Text(
+                            text = "Connect to your node RPC (default port 18081). Needs synced unrestricted RPC on LAN.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
-                    
-                    Divider()
-                    
-                    DropdownMenuItem(
-                        text = { Text("Custom Pool URL") },
-                        onClick = {
-                            showCustomUrl = true
-                            expanded = false
-                        }
+                    Switch(
+                        checked = soloDaemon,
+                        onCheckedChange = onSoloDaemonToggled
                     )
                 }
             }
 
-            // Custom URL Input
-            if (showCustomUrl) {
+            if (soloDaemon) {
                 OutlinedTextField(
                     value = currentPoolUrl,
                     onValueChange = onCustomUrlChanged,
-                    label = { Text("Custom Pool URL") },
-                    placeholder = { Text("pool.example.com:3333") },
+                    label = { Text("Node RPC URL") },
+                    placeholder = { Text(MiningConfig.DEFAULT_SOLO_DAEMON_URL) },
                     leadingIcon = { Icon(Icons.Default.Link, null) },
                     modifier = Modifier.fillMaxWidth(),
-                    singleLine = true
+                    singleLine = true,
+                    supportingText = {
+                        Text("Use the PC/LAN IP running monerod, not 127.0.0.1 on the phone unless the node is on-device.")
+                    }
                 )
-            }
-
-            // TLS Toggle
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text("Use TLS/SSL")
-                    Text(
-                        text = if (XmrigNativeCapabilities.TLS_ENABLED) {
-                            "Encrypted connection to mining pool"
-                        } else {
-                            "Unavailable: packaged XMRig is built without TLS"
-                        },
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-                Switch(
-                    checked = useTls,
-                    enabled = XmrigNativeCapabilities.TLS_ENABLED || useTls,
-                    onCheckedChange = onTlsToggled
-                )
-            }
-
-            // Pool Info
-            selectedPool?.let { pool ->
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
                     color = MaterialTheme.colorScheme.secondaryContainer,
                     shape = MaterialTheme.shapes.small
                 ) {
-                    Column(
+                    Text(
+                        text = "Phone hashrate is lottery-only vs network difficulty. TLS to the daemon is unavailable in this Android build.",
                         modifier = Modifier.padding(12.dp),
-                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer
+                    )
+                }
+            } else {
+                // Pool Dropdown
+                ExposedDropdownMenuBox(
+                    expanded = expanded,
+                    onExpandedChange = { expanded = it }
+                ) {
+                    OutlinedTextField(
+                        value = selectedPool?.name ?: "Custom Pool",
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text("Select Pool") },
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .menuAnchor()
+                    )
+
+                    ExposedDropdownMenu(
+                        expanded = expanded,
+                        onDismissRequest = { expanded = false }
                     ) {
-                        Text(
-                            text = "Pool Information",
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSecondaryContainer
+                        pools.forEach { pool ->
+                            DropdownMenuItem(
+                                text = {
+                                    Column {
+                                        Text(pool.name)
+                                        Text(
+                                            text = "${pool.description} • Fee: ${pool.fee}",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                },
+                                onClick = {
+                                    onPoolSelected(pool)
+                                    showCustomUrl = false
+                                    expanded = false
+                                }
+                            )
+                        }
+
+                        Divider()
+
+                        DropdownMenuItem(
+                            text = { Text("Custom Pool URL") },
+                            onClick = {
+                                showCustomUrl = true
+                                expanded = false
+                            }
                         )
+                    }
+                }
+
+                if (showCustomUrl) {
+                    OutlinedTextField(
+                        value = currentPoolUrl,
+                        onValueChange = onCustomUrlChanged,
+                        label = { Text("Custom Pool URL") },
+                        placeholder = { Text("pool.example.com:3333") },
+                        leadingIcon = { Icon(Icons.Default.Link, null) },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true
+                    )
+                }
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Use TLS/SSL")
                         Text(
-                            text = pool.getUrl(useTls),
+                            text = if (XmrigNativeCapabilities.TLS_ENABLED) {
+                                "Encrypted connection to mining pool"
+                            } else {
+                                "Unavailable: packaged XMRig is built without TLS"
+                            },
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSecondaryContainer
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
-                        Text(
-                            text = "Fee: ${pool.fee}",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSecondaryContainer
-                        )
+                    }
+                    Switch(
+                        checked = useTls,
+                        enabled = XmrigNativeCapabilities.TLS_ENABLED || useTls,
+                        onCheckedChange = onTlsToggled
+                    )
+                }
+
+                selectedPool?.let { pool ->
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        color = MaterialTheme.colorScheme.secondaryContainer,
+                        shape = MaterialTheme.shapes.small
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(12.dp),
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Text(
+                                text = "Pool Information",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSecondaryContainer
+                            )
+                            Text(
+                                text = pool.getUrl(useTls),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSecondaryContainer
+                            )
+                            Text(
+                                text = "Fee: ${pool.fee}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSecondaryContainer
+                            )
+                        }
                     }
                 }
             }
@@ -396,6 +447,7 @@ private fun WalletConfigCard(
     workerName: String,
     validationError: String?,
     coinType: CoinType,
+    showWorkerName: Boolean,
     onWalletAddressChanged: (String) -> Unit,
     onWorkerNameChanged: (String) -> Unit
 ) {
@@ -442,15 +494,17 @@ private fun WalletConfigCard(
                 }
             )
 
-            OutlinedTextField(
-                value = workerName,
-                onValueChange = onWorkerNameChanged,
-                label = { Text("Worker Name") },
-                placeholder = { Text("android") },
-                leadingIcon = { Icon(Icons.Default.Devices, null) },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true
-            )
+            if (showWorkerName) {
+                OutlinedTextField(
+                    value = workerName,
+                    onValueChange = onWorkerNameChanged,
+                    label = { Text("Worker Name") },
+                    placeholder = { Text("android") },
+                    leadingIcon = { Icon(Icons.Default.Devices, null) },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+            }
         }
     }
 }

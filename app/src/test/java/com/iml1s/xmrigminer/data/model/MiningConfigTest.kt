@@ -152,5 +152,52 @@ class MiningConfigTest {
             .jsonObject["pools"]!!.jsonArray[0].jsonObject
         assertEquals("gulf.moneroocean.stream:10128", pool["url"]!!.jsonPrimitive.content)
         assertFalse(pool["tls"]!!.jsonPrimitive.boolean)
+        assertNull(pool["daemon"])
+        assertTrue(pool["keepalive"]!!.jsonPrimitive.boolean)
+    }
+
+    @Test
+    fun `solo daemon JSON uses daemon true keepalive false and monero coin`() {
+        val config = MiningConfig(
+            poolUrl = "192.168.1.10:18081",
+            walletAddress = "solo_wallet",
+            workerName = "android",
+            soloDaemon = true,
+            useTls = true, // must be forced off in JSON
+            coinType = "MONERO"
+        )
+        val pool = Json.parseToJsonElement(config.toJson())
+            .jsonObject["pools"]!!.jsonArray[0].jsonObject
+        assertEquals("192.168.1.10:18081", pool["url"]!!.jsonPrimitive.content)
+        assertEquals("solo_wallet", pool["user"]!!.jsonPrimitive.content)
+        assertEquals("x", pool["pass"]!!.jsonPrimitive.content)
+        assertEquals("monero", pool["coin"]!!.jsonPrimitive.content)
+        assertTrue(pool["daemon"]!!.jsonPrimitive.boolean)
+        assertFalse(pool["keepalive"]!!.jsonPrimitive.boolean)
+        assertFalse(pool["tls"]!!.jsonPrimitive.boolean)
+    }
+
+    @Test
+    fun `soloDaemon invalid when coin is not Monero`() {
+        val config = MiningConfig(
+            poolUrl = MiningConfig.DEFAULT_SOLO_DAEMON_URL,
+            walletAddress = "wallet",
+            soloDaemon = true,
+            coinType = "WOWNERO"
+        )
+        assertFalse(config.isValid())
+    }
+
+    @Test
+    fun `pool mode JSON does not include daemon field`() {
+        val config = MiningConfig(
+            poolUrl = "pool.supportxmr.com:3333",
+            walletAddress = "wallet",
+            soloDaemon = false
+        )
+        val pool = Json.parseToJsonElement(config.toJson())
+            .jsonObject["pools"]!!.jsonArray[0].jsonObject
+        assertNull(pool["daemon"])
+        assertTrue(pool["keepalive"]!!.jsonPrimitive.boolean)
     }
 }

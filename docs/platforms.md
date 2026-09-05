@@ -19,6 +19,30 @@ Compile steps: [building.md](building.md). iOS sideload: [ios.md](ios.md).
 
 ---
 
+## Android Solo mining (monerod)
+
+XMRig Multi can solo-mine **Monero** by talking to a user-run `monerod` over unrestricted JSON-RPC (`daemon: true`), not a Stratum pool.
+
+1. In **Mining Configuration**, enable **Solo mining (monerod)** (Monero only).
+2. Set **Node RPC URL** to your node, e.g. `192.168.1.10:18081` (use the PC/LAN IP — `127.0.0.1` on the phone is the phone itself).
+3. Save, then start mining.
+
+Example monerod flags for LAN access (synced node, unrestricted RPC):
+
+```bash
+monerod --rpc-bind-ip 0.0.0.0 --confirm-external-bind --rpc-bind-port 18081
+```
+
+Notes:
+
+- Phone hashrate vs network difficulty is lottery-only; solo is for learning / already running a node.
+- This Android XMRig build has **no TLS**; use plaintext HTTP RPC (`18081`), not HTTPS.
+- Pool mode is unchanged when Solo is off.
+
+Refs: [XMRig pool `daemon`](https://xmrig.com/docs/miner/config/pool), [Monero XMRig solo guide](https://docs.getmonero.org/interacting/mining/guides/solo/xmrig-solo/).
+
+---
+
 ## Desktop Application (macOS/Windows/Linux)
 
 Built with **Tauri 2.0** for native performance with minimal bundle size.
