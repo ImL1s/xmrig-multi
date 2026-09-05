@@ -27,6 +27,14 @@ object LeakCanarySetup {
                         "(github.com/ImL1s/xmrig-android/issues/3)."
                 ) {
                     manufacturer.equals("Nothing", ignoreCase = true)
+                } +
+                AndroidReferenceMatchers.instanceFieldLeak(
+                    className = "android.content.res.ResourcesImpl",
+                    fieldName = "mAppContext",
+                    description = "Same ResourcesImpl.mAppContext OEM retention as above when " +
+                        "reported as an instance field rather than a static field."
+                ) {
+                    manufacturer.equals("Nothing", ignoreCase = true)
                 }
         )
     }
