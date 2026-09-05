@@ -1,5 +1,5 @@
 /**
- * XMRig Web Miner - Application Logic
+ * XMRig Multi Web - Application Logic
  * Handles UI interactions and miner control.
  */
 

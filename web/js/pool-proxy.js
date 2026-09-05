@@ -1,5 +1,5 @@
 /**
- * XMRig Web Miner - Pool Proxy (Stratum over WebSocket)
+ * XMRig Multi Web - Pool Proxy (Stratum over WebSocket)
  * Handles communication with the mining pool via a WebSocket proxy.
  */
 

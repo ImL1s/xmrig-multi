@@ -1,6 +1,6 @@
-# AGENTS.md - Development Guidelines for XMRig Miner
+# AGENTS.md - Development Guidelines for XMRig Multi
 
-This document provides comprehensive development guidelines for the XMRig Miner cross-platform mining application. Follow these guidelines to maintain code quality, consistency, and architectural integrity across Android, iOS, Web, Desktop, WearOS, and watchOS platforms.
+This document provides comprehensive development guidelines for the XMRig Multi cross-platform mining application. Follow these guidelines to maintain code quality, consistency, and architectural integrity across Android, iOS, Web, Desktop, WearOS, and watchOS platforms.
 
 Human-facing build and platform notes live in [docs/README.md](docs/README.md).
 

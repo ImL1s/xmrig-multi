@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">XMRig Miner</string>
+    <string name="app_name">XMRig Multi</string>
     <string name="tile_name">Mining Stats</string>
     <string name="tile_description">View XMRig mining stats at a glance</string>
 </resources>

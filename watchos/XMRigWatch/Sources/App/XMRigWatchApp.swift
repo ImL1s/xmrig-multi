@@ -1,7 +1,7 @@
 import SwiftUI
 import WatchConnectivity
 
-/// XMRig Miner Watch App
+/// XMRig Multi Watch App
 /// Stats viewer only - Apple prohibits mining apps
 @main
 struct XMRigWatchApp: App {

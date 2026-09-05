@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Cross-platform Monero (XMR) / Wownero (WOW) / DERO mining application with six targets:
+**XMRig Multi** — Cross-platform Monero (XMR) / Wownero (WOW) / DERO mining application with six targets:
 - **Android**: Native Kotlin/Compose app with XMRig 6.21.0 (C++ via NDK)
 - **iOS**: SwiftUI native miner (sideload-only, Apple bans mining apps)
 - **Web**: Browser-based RandomX.js miner with Vite

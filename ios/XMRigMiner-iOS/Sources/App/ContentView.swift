@@ -28,7 +28,7 @@ struct ContentView: View {
                 )
                 .background(Color(.systemGroupedBackground))
             }
-            .navigationTitle("XMRig Miner")
+            .navigationTitle("XMRig Multi")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {

@@ -1,4 +1,4 @@
-# Building XMRig Miner for iOS
+# Building XMRig Multi for iOS
 
 Sideload-only. Apple App Store prohibits cryptocurrency mining apps.
 

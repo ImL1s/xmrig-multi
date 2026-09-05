@@ -1,6 +1,6 @@
-# Contributing to XMRig Miner
+# Contributing to XMRig Multi
 
-First off, thank you for considering contributing to XMRig Miner! 🎉
+First off, thank you for considering contributing to XMRig Multi! 🎉
 
 ## How Can I Contribute?
 

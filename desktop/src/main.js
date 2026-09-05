@@ -1,4 +1,4 @@
-// XMRig Miner Desktop - Frontend
+// XMRig Multi Desktop - Frontend
 import { invoke } from '@tauri-apps/api/core';
 
 // DOM Elements
@@ -46,7 +46,7 @@ let isMining = false;
 
 // Initialize app
 async function init() {
-    log('Initializing XMRig Miner Desktop...');
+    log('Initializing XMRig Multi Desktop...');
     await loadSystemInfo();
     setupEventListeners();
     updatePoolOptions();

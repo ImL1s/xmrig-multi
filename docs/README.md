@@ -1,6 +1,6 @@
 # Documentation
 
-Guides for building and running **XMRig Miner** across Android, iOS, Web, Desktop, WearOS, and watchOS.
+Guides for building and running **XMRig Multi** across Android, iOS, Web, Desktop, WearOS, and watchOS.
 
 | Doc | Description |
 |-----|-------------|
@@ -12,4 +12,4 @@ Guides for building and running **XMRig Miner** across Android, iOS, Web, Deskto
 
 Agent-facing notes stay at the repo root: [AGENTS.md](../AGENTS.md), [CLAUDE.md](../CLAUDE.md).
 
-The GitHub repo slug remains `xmrig-android`; the product name is **XMRig Miner**.
+The GitHub repo slug remains `xmrig-android`; the product display name is **XMRig Multi**.

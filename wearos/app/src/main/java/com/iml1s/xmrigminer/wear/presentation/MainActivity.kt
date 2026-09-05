@@ -19,7 +19,7 @@ import androidx.wear.compose.foundation.lazy.ScalingLazyColumn
 import androidx.wear.compose.foundation.lazy.rememberScalingLazyListState
 
 /**
- * XMRig Miner WearOS - Companion App
+ * XMRig Multi WearOS - Companion App
  *
  * Features:
  * - View mining stats from phone

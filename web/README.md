@@ -1,6 +1,6 @@
-# XMRig Miner — Web
+# XMRig Multi — Web
 
-基於 [randomx.js](https://github.com/l1mey112/randomx.js) 的網頁版 Monero 礦工（**XMRig Miner** 網頁端）。
+基於 [randomx.js](https://github.com/l1mey112/randomx.js) 的網頁版 Monero 礦工（**XMRig Multi** 網頁端）。
 
 > ⚠️ **注意**：網頁挖礦效能較低（約 15-25 H/s），僅供展示和學習用途。
 

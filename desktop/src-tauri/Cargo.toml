@@ -1,8 +1,8 @@
 [package]
 name = "xmrig-miner-desktop"
 version = "1.0.0"
-description = "XMRig Miner desktop (Tauri) — Monero / Wownero / DERO"
-authors = ["XMRig Miner"]
+description = "XMRig Multi desktop (Tauri) — Monero / Wownero / DERO"
+authors = ["XMRig Multi"]
 edition = "2021"
 
 [build-dependencies]

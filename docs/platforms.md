@@ -1,6 +1,6 @@
-# XMRig Miner — Multi-Platform Support
+# XMRig Multi — Multi-Platform Support
 
-Cross-platform **Monero (XMR) / Wownero (WOW) / DERO** mining application (**XMRig Miner**). The repository slug on GitHub is still `xmrig-android`.
+Cross-platform **Monero (XMR) / Wownero (WOW) / DERO** mining application (**XMRig Multi**). The repository slug on GitHub is still `xmrig-android`.
 
 ## Supported Platforms
 
@@ -51,9 +51,9 @@ npm run tauri:build
 
 ### Output
 
-- **macOS**: `target/release/bundle/dmg/XMRig Miner.dmg`
-- **Windows**: `target/release/bundle/nsis/XMRig Miner Setup.exe`
-- **Linux**: `target/release/bundle/appimage/XMRig Miner.AppImage`
+- **macOS**: `target/release/bundle/dmg/XMRig Multi.dmg`
+- **Windows**: `target/release/bundle/nsis/XMRig Multi Setup.exe`
+- **Linux**: `target/release/bundle/appimage/XMRig Multi.AppImage`
 
 ---
 
@@ -78,7 +78,7 @@ Companion app for Android smartwatches running Wear OS 3.0+.
 ### Requirements
 
 - Wear OS 3.0+ (API 30+)
-- Main XMRig Miner app installed on phone
+- Main XMRig Multi app installed on phone
 - Phone and watch paired
 - Matching application IDs (including debug `.debug` suffix) so Wearable Data Layer can route
 
