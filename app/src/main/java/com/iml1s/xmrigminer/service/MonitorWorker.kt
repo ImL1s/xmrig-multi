@@ -120,7 +120,9 @@ class MonitorWorker @AssistedInject constructor(
 
     private suspend fun pauseMining(reason: String) {
         Timber.w("Pausing mining: $reason")
-        miningController.stop(resetStats = false)
+        // Notify before stop(): canceling this MonitorWorker can resume with
+        // CancellationException and skip any code after miningController.stop().
         com.iml1s.xmrigminer.util.NotificationHelper.showWarning(context, reason)
+        miningController.stop(resetStats = false)
     }
 }
