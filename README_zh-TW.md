@@ -11,7 +11,7 @@
 
 | 平台 | 狀態 | 挖礦 | 說明 |
 |------|------|------|------|
-| **Android** | ✅ checkout 含 assets 備援 | 原生 XMRig | `./gradlew :app:assembleDebug` |
+| **Android** | ✅ checkout 含 assets 備援 | 原生 XMRig | 礦池 + Monero Solo（`monerod`）；`./gradlew :app:assembleDebug` |
 | **iOS** | ⚠️ tracked `.a` 為上游 donate | 原生 XMRig | App Store 禁止上架；要本倉庫費用須重建 |
 | **Web** | ✅ Demo | RandomX.js | 需要本機 WebSocket proxy |
 | **Desktop** | ⚠️ Linux 二進位已提交 | 原生 XMRig | macOS/Windows：`desktop/scripts/build-xmrig.sh` |
@@ -67,6 +67,7 @@ npm run tauri:dev
 
 - 多幣種：Monero (XMR)、Wownero (WOW)、DERO
 - 多礦池：MoneroOcean、SupportXMR、HashVault、2Miners 等
+- Android Solo：連自架 `monerod` RPC（`daemon: true`）挖 Monero — 見 [docs/platforms.md](docs/platforms.md#android-solo-mining-monerod)
 - 即時算力（10s / 60s / 15m）、接受/拒絕份額
 - CPU 溫度與電池狀態（行動裝置）
 - Android 8+ 無法讀系統 CPU 使用率（介面會顯示 0）；更舊版本才讀 `/proc/stat`

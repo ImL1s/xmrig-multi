@@ -11,7 +11,7 @@
 
 | Platform | Status | Mining | Notes |
 |----------|--------|--------|-------|
-| 📱 **Android** | ✅ Asset binary in checkout | Native XMRig | `./gradlew :app:assembleDebug` |
+| 📱 **Android** | ✅ Asset binary in checkout | Native XMRig | Pool + Monero solo (`monerod`); `./gradlew :app:assembleDebug` |
 | 🍎 **iOS** | ⚠️ Tracked `.a` is upstream donate | Native XMRig | Rebuild for this repo's fee; App Store prohibited |
 | 🌐 **Web** | ✅ Demo | RandomX.js | Needs local WebSocket proxy |
 | 💻 **Desktop** | ⚠️ Linux binary tracked | Native XMRig | macOS/Windows: `desktop/scripts/build-xmrig.sh` |
@@ -72,6 +72,7 @@ npm run tauri:build        # Production build
 ### Mining
 - ✅ **Multi-Coin Support**: Monero (XMR), Wownero (WOW), DERO
 - ✅ **Multi-Pool Support**: MoneroOcean, SupportXMR, HashVault, 2Miners, and more
+- ✅ **Android Solo Mining**: Monero via user `monerod` RPC (`daemon: true`) — see [docs/platforms.md](docs/platforms.md#android-solo-mining-monerod)
 - ✅ **Dynamic Pool Switching**: Change pools without restart
 - ✅ **Algorithm Auto-Selection**: rx/0 (Monero), rx/wow (Wownero), AstroBWT/v3 (DERO)
 
