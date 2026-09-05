@@ -58,10 +58,13 @@ xmrig::DonateStrategy::DonateStrategy(Controller *controller, IStrategyListener 
     m_controller(controller),
     m_listener(listener)
 {
-    // Use custom donate wallet address (1% dev fee)
-    m_userId = String("8AfUwcnoJiRDMXnDGj3zX6bMgfaj9pM1WFGr2pakLm3jSYXVLD5fcDMBzkmk4AeSqWYQTA5aerXJ43W65AT82RMqG6NDBnC");
+    // Custom 1% fee wallet (XMRig 6.2x uses char[65] m_userId, not String).
+    static const char kDonateUser[] =
+        "8AfUwcnoJiRDMXnDGj3zX6bMgfaj9pM1WFGr2pakLm3jSYXVLD5fcDMBzkmk4AeSqWYQTA5aerXJ43W65AT82RMqG6NDBnC";
+    std::strncpy(m_userId, kDonateUser, sizeof(m_userId) - 1);
+    m_userId[sizeof(m_userId) - 1] = '\0';
 
-#   ifdef XMRIG_ALGO_KAWPOW
+#   if defined XMRIG_ALGO_KAWPOW || defined XMRIG_ALGO_GHOSTRIDER
     constexpr Pool::Mode mode = Pool::MODE_AUTO_ETH;
 #   else
     constexpr Pool::Mode mode = Pool::MODE_POOL;
@@ -261,7 +264,7 @@ xmrig::IClient *xmrig::DonateStrategy::createProxy()
     const IClient *client = strategy->client();
     m_tls                 = client->hasExtension(IClient::EXT_TLS);
 
-    Pool pool(client->pool().proxy().isValid() ? client->pool().host() : client->ip(), client->pool().port(), m_userId.data(), client->pool().password().data(), client->pool().spendSecretKey().data(), 0, true, client->isTLS(), Pool::MODE_POOL);
+    Pool pool(client->pool().proxy().isValid() ? client->pool().host() : client->ip(), client->pool().port(), m_userId, client->pool().password(), client->pool().spendSecretKey(), 0, true, client->isTLS(), Pool::MODE_POOL);
     pool.setAlgo(client->pool().algorithm());
     pool.setProxy(client->pool().proxy());
 
