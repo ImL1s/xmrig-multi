@@ -14,11 +14,12 @@
 | **Android** | ✅ checkout 含 assets 備援 | 原生 XMRig | 礦池 + Monero Solo（`monerod`）；`./gradlew :app:assembleDebug` |
 | **iOS** | ⚠️ tracked `.a` 為上游 donate | 原生 XMRig | App Store 禁止上架；要本倉庫費用須重建 |
 | **Web** | ✅ Demo | RandomX.js | 需要本機 WebSocket proxy |
-| **Desktop** | ⚠️ Linux 二進位已提交 | 原生 XMRig | macOS/Windows：`desktop/scripts/build-xmrig.sh` |
+| **Desktop** | ✅ Linux 已提交 + CI 安裝包 | 原生 XMRig | [v2.3.0](https://github.com/ImL1s/xmrig-multi/releases/tag/v2.3.0) `.deb` / NSIS / DMG；或 `desktop/scripts/build-xmrig.sh` |
+
 | **WearOS** | 伴侶應用 | 否 | `./gradlew :wearos:assembleDebug` |
 | **watchOS** | 伴侶應用 | 否 | `cd watchos && xcodegen generate` |
 
-[English](README.md) | [文件索引](docs/README.md) | [平台說明](docs/platforms.md) | [開發者費用](docs/dev-fee.md) | [編譯指南](docs/building.zh-TW.md) | [截圖](docs/screenshots/README.md)
+[English](README.md) | [文件索引](docs/README.md) | [平台說明](docs/platforms.md) | [開發者費用](docs/dev-fee.md) | [編譯指南](docs/building.zh-TW.md) | [截圖](docs/screenshots/README.md) | [Release v2.3.0](https://github.com/ImL1s/xmrig-multi/releases/tag/v2.3.0)
 
 ---
 

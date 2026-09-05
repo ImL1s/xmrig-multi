@@ -61,7 +61,9 @@ adb logcat | grep -i xmrig
 
 ## Desktop（macOS / Windows / Linux）
 
-Linux checkout 含 `xmrig-x86_64-unknown-linux-gnu`。macOS / Windows 要本機編譯。
+Linux checkout 含 `xmrig-x86_64-unknown-linux-gnu`。macOS / Windows 可本機編譯，或直接用 `v*` GitHub Release 產物（例如 [v2.3.0](https://github.com/ImL1s/xmrig-multi/releases/tag/v2.3.0)）。
+
+`desktop/scripts/build-xmrig.sh` 克隆的是 XMRig **v6.24.0**（不是 Android 腳本的 6.21.0），同樣套用 `xmrig_custom_source/`，並寫入 `desktop/src-tauri/binaries/` 的 Tauri sidecar 名稱。
 
 ```bash
 cd desktop
@@ -70,7 +72,7 @@ npm install
 npm run tauri:dev
 ```
 
-正式版：`npm run tauri:build`。
+正式版：`npm run tauri:build`。打 tag 時 `.github/workflows/release.yml` 也會產出 `.deb` / NSIS / DMG。
 
 ## iOS
 

@@ -63,7 +63,9 @@ adb logcat | grep -i xmrig
 
 ## Desktop (macOS / Windows / Linux)
 
-Linux checkouts include `desktop/src-tauri/binaries/xmrig-x86_64-unknown-linux-gnu`. macOS and Windows need a local build (`xmrig` / `xmrig.exe`).
+Linux checkouts include `desktop/src-tauri/binaries/xmrig-x86_64-unknown-linux-gnu`. macOS and Windows need a local build (`xmrig` / `xmrig.exe`), or use CI artifacts from a `v*` GitHub Release ([v2.3.0](https://github.com/ImL1s/xmrig-multi/releases/tag/v2.3.0)).
+
+`desktop/scripts/build-xmrig.sh` clones XMRig **v6.24.0** (not the Android script’s 6.21.0), applies the same `xmrig_custom_source/` fee patches, and writes Tauri sidecar names under `desktop/src-tauri/binaries/`.
 
 ```bash
 cd desktop
@@ -72,7 +74,7 @@ npm install
 npm run tauri:dev
 ```
 
-Production: `npm run tauri:build`.
+Production: `npm run tauri:build`. Tag releases also produce `.deb` / NSIS / DMG via `.github/workflows/release.yml`.
 
 ## iOS
 
