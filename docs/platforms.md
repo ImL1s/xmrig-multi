@@ -27,12 +27,15 @@ XMRig Multi can solo-mine **Monero** by talking to a user-run `monerod` over unr
 2. Set **Node RPC URL** to your node, e.g. `192.168.1.10:18081` (use the PC/LAN IP — `127.0.0.1` on the phone is the phone itself).
 3. Save, then start mining.
 
-Example monerod flags for LAN access (synced node, unrestricted RPC):
+Example monerod flags for **trusted LAN** access (synced node, unrestricted RPC):
 
 ```bash
-monerod --rpc-bind-ip 0.0.0.0 --confirm-external-bind --rpc-bind-port 18081
+# Prefer binding the LAN NIC IP, or firewall-allowlist only the phone.
+# Do NOT expose unrestricted RPC on a public IP without a host firewall / VPN.
+monerod --rpc-bind-ip 192.168.1.10 --confirm-external-bind --rpc-bind-port 18081
 ```
 
+If you must use `0.0.0.0`, restrict with a host firewall (allow only the phone’s IP to TCP 18081). Unrestricted plaintext RPC is a full node control plane.
 Notes:
 
 - Phone hashrate vs network difficulty is lottery-only; solo is for learning / already running a node.

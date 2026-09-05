@@ -282,7 +282,7 @@ private fun PoolSelectionCard(
                     Column(modifier = Modifier.weight(1f)) {
                         Text("Solo mining (monerod)")
                         Text(
-                            text = "Connect to your node RPC (default port 18081). Needs synced unrestricted RPC on LAN.",
+                            text = "Use your PC/LAN IP for monerod. Prefer binding that LAN IP (or firewall-allowlist the phone); do not expose unrestricted RPC on a public IP.",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
