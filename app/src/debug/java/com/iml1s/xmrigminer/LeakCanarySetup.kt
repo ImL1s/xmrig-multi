@@ -24,7 +24,7 @@ object LeakCanarySetup {
                     description = "ResourcesImpl keeps a static Context on some OEM builds " +
                         "(Nothing / Android 16). Same library-leak pattern as LeakCanary's " +
                         "built-in ResourcesImpl.mAppContext exclusions; ~1KB retained " +
-                        "(github.com/ImL1s/xmrig-android/issues/3)."
+                        "(github.com/ImL1s/xmrig-multi/issues/3)."
                 ) {
                     manufacturer.equals("Nothing", ignoreCase = true)
                 } +

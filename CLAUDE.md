@@ -88,7 +88,7 @@ Native Layer (JNI → C++ XMRig)
 ### Directory Structure
 
 ```
-xmrig-android/
+xmrig-multi/
 ├── docs/                          # Building, platforms, fee guides
 ├── app/                           # Android app
 │   ├── src/main/java/.../

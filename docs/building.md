@@ -19,8 +19,8 @@ A **normal git clone already contains some miner artifacts**:
 ## Clone
 
 ```bash
-git clone https://github.com/ImL1s/xmrig-android.git
-cd xmrig-android
+git clone https://github.com/ImL1s/xmrig-multi.git
+cd xmrig-multi
 ```
 
 ## Android

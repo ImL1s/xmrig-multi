@@ -1,13 +1,13 @@
 # XMRig Multi — Multi-Platform
 
-[![Android CI](https://github.com/ImL1s/xmrig-android/actions/workflows/android-ci.yml/badge.svg)](https://github.com/ImL1s/xmrig-android/actions/workflows/android-ci.yml)
-[![Web Miner CI](https://github.com/ImL1s/xmrig-android/actions/workflows/web-miner-ci.yml/badge.svg)](https://github.com/ImL1s/xmrig-android/actions/workflows/web-miner-ci.yml)
-[![Release](https://github.com/ImL1s/xmrig-android/actions/workflows/release.yml/badge.svg)](https://github.com/ImL1s/xmrig-android/actions/workflows/release.yml)
+[![Android CI](https://github.com/ImL1s/xmrig-multi/actions/workflows/android-ci.yml/badge.svg)](https://github.com/ImL1s/xmrig-multi/actions/workflows/android-ci.yml)
+[![Web Miner CI](https://github.com/ImL1s/xmrig-multi/actions/workflows/web-miner-ci.yml/badge.svg)](https://github.com/ImL1s/xmrig-multi/actions/workflows/web-miner-ci.yml)
+[![Release](https://github.com/ImL1s/xmrig-multi/actions/workflows/release.yml/badge.svg)](https://github.com/ImL1s/xmrig-multi/actions/workflows/release.yml)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 
 **XMRig Multi** is a cross-platform Monero / Wownero / DERO miner by ImL1s: native XMRig on Android, iOS (sideload), and Desktop; RandomX.js in the browser; WearOS / watchOS companions for stats.
 
-> The GitHub repository is still named `xmrig-android` for history and clone URLs. The product display name is **XMRig Multi**.
+> Repository: [`ImL1s/xmrig-multi`](https://github.com/ImL1s/xmrig-multi). Product display name: **XMRig Multi**.
 
 | Platform | Status | Mining | Notes |
 |----------|--------|--------|-------|
@@ -161,7 +161,7 @@ Native Layer (JNI → C++ XMRig)
 ## Project Structure
 
 ```
-xmrig-android/
+xmrig-multi/
 ├── docs/                   # Build, platforms, fee guides
 ├── app/                    # Android app
 │   ├── src/main/java/      # Kotlin source
@@ -196,3 +196,4 @@ XMRig is licensed under GPLv3: https://github.com/xmrig/xmrig
 - Mining consumes significant power and may cause device heating.
 - Not for distribution on App Store / Google Play (mining apps are prohibited).
 - Use responsibly and at your own risk.
+

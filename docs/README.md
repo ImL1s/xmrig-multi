@@ -12,4 +12,4 @@ Guides for building and running **XMRig Multi** across Android, iOS, Web, Deskto
 
 Agent-facing notes stay at the repo root: [AGENTS.md](../AGENTS.md), [CLAUDE.md](../CLAUDE.md).
 
-The GitHub repo slug remains `xmrig-android`; the product display name is **XMRig Multi**.
+GitHub repository: [`ImL1s/xmrig-multi`](https://github.com/ImL1s/xmrig-multi). Product display name: **XMRig Multi**.

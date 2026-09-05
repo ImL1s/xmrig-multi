@@ -47,8 +47,8 @@ Enhancement suggestions are welcome! Please:
 
 ```bash
 # Clone
-git clone https://github.com/ImL1s/xmrig-android.git
-cd xmrig-android
+git clone https://github.com/ImL1s/xmrig-multi.git
+cd xmrig-multi
 
 # Optional native rebuild (requires ANDROID_NDK_HOME). Skip this if you
 # only want the documented Gradle build; checkout already has assets/xmrig_arm64
