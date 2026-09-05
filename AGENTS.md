@@ -381,7 +381,7 @@ struct AppState {
 ## File Organization
 
 ```
-xmrig-android/
+xmrig-multi/
 ├── docs/                   # Building, platforms, fee guides
 ├── app/                    # Android application
 │   ├── src/main/java/.../  # Source code by feature

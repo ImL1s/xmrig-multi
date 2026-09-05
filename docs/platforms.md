@@ -1,6 +1,6 @@
 # XMRig Multi — Multi-Platform Support
 
-Cross-platform **Monero (XMR) / Wownero (WOW) / DERO** mining application (**XMRig Multi**). The repository slug on GitHub is still `xmrig-android`.
+Cross-platform **Monero (XMR) / Wownero (WOW) / DERO** mining application (**XMRig Multi**). GitHub repository: [`ImL1s/xmrig-multi`](https://github.com/ImL1s/xmrig-multi).
 
 ## Supported Platforms
 
@@ -218,8 +218,8 @@ Sideload steps: [ios.md](ios.md).
 ### Quick Start
 
 ```bash
-git clone https://github.com/ImL1s/xmrig-android.git
-cd xmrig-android
+git clone https://github.com/ImL1s/xmrig-multi.git
+cd xmrig-multi
 
 # Desktop
 cd desktop && npm install && npm run tauri:dev
