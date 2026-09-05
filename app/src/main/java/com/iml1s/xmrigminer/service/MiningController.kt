@@ -17,6 +17,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.json.Json
 import timber.log.Timber
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -67,18 +68,20 @@ class MiningController @Inject constructor(
             .setRequiredNetworkType(networkType)
             .build()
 
-        val monitorInput = Data.Builder()
+        val launchSnapshot = Data.Builder()
             .putBoolean(MonitorWorker.KEY_SOLO_DAEMON, soloDaemon)
+            .putString(MiningWorker.KEY_CONFIG_SNAPSHOT, Json.encodeToString(config))
             .build()
 
         val miningRequest = OneTimeWorkRequestBuilder<MiningWorker>()
             .setConstraints(miningConstraints)
+            .setInputData(launchSnapshot)
             .addTag("mining")
             .build()
 
         val monitorRequest = OneTimeWorkRequestBuilder<MonitorWorker>()
             .setConstraints(miningConstraints)
-            .setInputData(monitorInput)
+            .setInputData(launchSnapshot)
             .addTag("monitor")
             .build()
 

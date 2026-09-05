@@ -94,8 +94,6 @@ class MonitorWorker @AssistedInject constructor(
         val level = intent?.getIntExtra(BatteryManager.EXTRA_LEVEL, 100) ?: 100
         val temp = getBatteryTemperature()
         val isCharging = isDeviceCharging()
-        val isConnected = networkMonitor.isConnected()
-
         if (temp > MAX_TEMPERATURE) {
             pauseMining("Temperature too high (${temp}°C)")
             return
@@ -104,9 +102,18 @@ class MonitorWorker @AssistedInject constructor(
             pauseMining("Battery too low ($level%)")
             return
         }
-        // Use launch-time snapshot (#15 / Codex P2): do not re-read DataStore mid-run.
-        if (!soloDaemonAtLaunch && !isConnected) {
-            pauseMining("No network connection")
+        // Launch-time solo snapshot (#15 / Codex P2): do not re-read DataStore mid-run.
+        // Solo: require any transport (LAN OK without NET_CAPABILITY_INTERNET).
+        // Pool: require validated Internet.
+        val networkOk = if (soloDaemonAtLaunch) {
+            networkMonitor.hasNetworkTransport()
+        } else {
+            networkMonitor.isConnected()
+        }
+        if (!networkOk) {
+            pauseMining(
+                if (soloDaemonAtLaunch) "No network transport" else "No network connection"
+            )
         }
     }
 
