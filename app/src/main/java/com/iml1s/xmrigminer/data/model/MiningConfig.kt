@@ -24,26 +24,33 @@ data class MiningConfig(
     val retries: Int = 5,
     val retryPause: Int = 5,
     val printTime: Int = 10,
-    val coinType: String = "MONERO"
+    val coinType: String = "MONERO",
+    /** When true, XMRig uses monerod JSON-RPC (`daemon: true`) instead of a Stratum pool. Monero only. */
+    val soloDaemon: Boolean = false
 ) {
     fun getCoin(): CoinType = CoinType.fromString(coinType)
 
     fun toJson(logFile: String? = null): String {
         val coin = getCoin()
+        val solo = soloDaemon && coin == CoinType.MONERO
         val pool = buildJsonObject {
-            when (coin) {
-                CoinType.WOWNERO -> put("coin", "wownero")
-                CoinType.DERO -> {
+            when {
+                solo -> put("coin", "monero")
+                coin == CoinType.WOWNERO -> put("coin", "wownero")
+                coin == CoinType.DERO -> {
                     put("coin", "dero")
                     put("algo", "astrobwt/v3")
                 }
-                CoinType.MONERO -> Unit
+                else -> Unit
             }
             put("url", poolUrl)
             put("user", walletAddress)
-            put("pass", workerName)
-            put("keepalive", true)
-            put("tls", useTls)
+            put("pass", if (solo) "x" else workerName)
+            put("keepalive", !solo)
+            put("tls", if (solo) false else useTls)
+            if (solo) {
+                put("daemon", true)
+            }
         }
         val root = buildJsonObject {
             put("autosave", false)
@@ -81,10 +88,13 @@ data class MiningConfig(
         return walletAddress.isNotBlank() &&
                poolUrl.isNotBlank() &&
                threads > 0 &&
-               maxCpuUsage in 10..100
+               maxCpuUsage in 10..100 &&
+               (!soloDaemon || getCoin() == CoinType.MONERO)
     }
 
     companion object {
+        const val DEFAULT_SOLO_DAEMON_URL = "127.0.0.1:18081"
+
         // 預設礦池 URL 依幣種
         fun getDefaultPoolUrl(coinType: CoinType): String {
             return when (coinType) {

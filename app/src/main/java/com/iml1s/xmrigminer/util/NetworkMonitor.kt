@@ -26,7 +26,32 @@ class NetworkMonitor @Inject constructor(
     }
     
     /**
-     * Check if device is connected to any network
+     * Check if device has a network transport (Wi‑Fi/cellular/ethernet),
+     * even without a validated Internet capability (LAN-only nodes).
+     */
+    fun hasNetworkTransport(): Boolean {
+        return try {
+            val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
+                ?: return false
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                val network = cm.activeNetwork ?: return false
+                val capabilities = cm.getNetworkCapabilities(network) ?: return false
+                capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) ||
+                    capabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) ||
+                    capabilities.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET) ||
+                    capabilities.hasTransport(NetworkCapabilities.TRANSPORT_VPN)
+            } else {
+                @Suppress("DEPRECATION")
+                cm.activeNetworkInfo?.isConnected == true
+            }
+        } catch (e: Exception) {
+            Timber.w(e, "Failed to check network transport")
+            false
+        }
+    }
+
+    /**
+     * Check if device is connected to any network with Internet capability
      */
     fun isConnected(): Boolean {
         return try {

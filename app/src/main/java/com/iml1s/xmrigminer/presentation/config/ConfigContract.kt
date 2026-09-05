@@ -27,6 +27,7 @@ sealed interface ConfigUiEvent {
     data class MaxCpuUsageChanged(val usage: Int) : ConfigUiEvent
     data class TlsToggled(val enabled: Boolean) : ConfigUiEvent
     data class CustomPoolUrlChanged(val url: String) : ConfigUiEvent
+    data class SoloDaemonToggled(val enabled: Boolean) : ConfigUiEvent
     data object SaveConfig : ConfigUiEvent
     data object ResetToDefaults : ConfigUiEvent
 }

@@ -8,6 +8,7 @@ import androidx.work.CoroutineWorker
 import androidx.work.ForegroundInfo
 import androidx.work.WorkerParameters
 import com.iml1s.xmrigminer.R
+import com.iml1s.xmrigminer.data.model.MiningConfig
 import com.iml1s.xmrigminer.data.repository.ConfigRepository
 import com.iml1s.xmrigminer.data.repository.StatsRepository
 import com.iml1s.xmrigminer.native.XmrigBinaryResolver
@@ -29,6 +30,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.json.Json
 import timber.log.Timber
 import java.io.File
 import android.os.Process as AndroidProcess
@@ -47,6 +49,7 @@ class MiningWorker @AssistedInject constructor(
 
     companion object {
         const val WORK_NAME = "mining_work"
+        const val KEY_CONFIG_SNAPSHOT = "config_snapshot"
         const val NOTIFICATION_ID = 1001
         const val CHANNEL_ID = "xmrig_mining"
     }
@@ -71,7 +74,7 @@ class MiningWorker @AssistedInject constructor(
     }
 
     private suspend fun startMining() = coroutineScope {
-        val config = configRepository.getConfig().first()
+        val config = resolveLaunchConfig()
 
         if (config.useTls && !XmrigNativeCapabilities.TLS_ENABLED) {
             throw IllegalStateException(XmrigNativeCapabilities.TLS_UNSUPPORTED_MESSAGE)
@@ -79,7 +82,8 @@ class MiningWorker @AssistedInject constructor(
         if (!config.isValid()) {
             val errorMsg = when {
                 config.walletAddress.isBlank() -> "錢包地址未設置"
-                config.poolUrl.isBlank() -> "礦池地址未設置"
+                config.poolUrl.isBlank() ->
+                    if (config.soloDaemon) "節點 RPC 地址未設置" else "礦池地址未設置"
                 config.threads <= 0 -> "線程數無效"
                 config.maxCpuUsage !in 10..100 -> "CPU使用率設置無效"
                 else -> "配置無效"
@@ -97,7 +101,11 @@ class MiningWorker @AssistedInject constructor(
             threads = config.threads
         )
 
-        Timber.i("Starting XMRig: ${args.joinToString(" ")}")
+        Timber.i(
+            "Starting XMRig (soloDaemon=%s): %s",
+            config.soloDaemon,
+            args.joinToString(" ")
+        )
 
         process = ProcessBuilder(args).apply {
             directory(applicationContext.filesDir)
@@ -127,6 +135,19 @@ class MiningWorker @AssistedInject constructor(
         if (isStopped) {
             stopMining()
         }
+    }
+
+    private suspend fun resolveLaunchConfig(): MiningConfig {
+        val snapshot = inputData.getString(KEY_CONFIG_SNAPSHOT)
+        if (!snapshot.isNullOrBlank()) {
+            return try {
+                Json.decodeFromString(MiningConfig.serializer(), snapshot)
+            } catch (e: Exception) {
+                Timber.w(e, "Invalid config snapshot; falling back to DataStore")
+                configRepository.getConfig().first()
+            }
+        }
+        return configRepository.getConfig().first()
     }
 
     private fun resolveBinary(): String {

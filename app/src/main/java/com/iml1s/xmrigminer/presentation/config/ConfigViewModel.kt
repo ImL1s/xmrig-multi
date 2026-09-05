@@ -70,6 +70,7 @@ class ConfigViewModel @Inject constructor(
             is ConfigUiEvent.MaxCpuUsageChanged -> handleMaxCpuUsageChanged(event.usage)
             is ConfigUiEvent.TlsToggled -> handleTlsToggled(event.enabled)
             is ConfigUiEvent.CustomPoolUrlChanged -> handleCustomPoolUrlChanged(event.url)
+            is ConfigUiEvent.SoloDaemonToggled -> handleSoloDaemonToggled(event.enabled)
             is ConfigUiEvent.SaveConfig -> handleSaveConfig()
             is ConfigUiEvent.ResetToDefaults -> handleResetToDefaults()
         }
@@ -79,19 +80,25 @@ class ConfigViewModel @Inject constructor(
         val state = _uiState.value as? ConfigUiState.Success ?: return
         val filteredPools = availablePools.filter { it.getCoinType() == coinType }
         val defaultPool = filteredPools.firstOrNull()
-        val defaultPoolUrl = defaultPool?.getUrl(currentConfig.useTls)
-            ?: MiningConfig.getDefaultPoolUrl(coinType)
+        val enablingSolo = currentConfig.soloDaemon && coinType == CoinType.MONERO
+        val defaultPoolUrl = when {
+            enablingSolo -> currentConfig.poolUrl.ifBlank { MiningConfig.DEFAULT_SOLO_DAEMON_URL }
+            else -> defaultPool?.getUrl(currentConfig.useTls)
+                ?: MiningConfig.getDefaultPoolUrl(coinType)
+        }
 
         val newConfig = currentConfig.copy(
             coinType = coinType.name,
             poolUrl = defaultPoolUrl,
-            walletAddress = ""  // 清空錢包地址，因為不同幣種格式不同
+            walletAddress = "",  // 清空錢包地址，因為不同幣種格式不同
+            soloDaemon = enablingSolo,
+            useTls = if (enablingSolo) false else currentConfig.useTls
         )
 
         updateConfig(newConfig, state.copy(
             selectedCoinType = coinType,
             filteredPools = filteredPools,
-            selectedPool = defaultPool,
+            selectedPool = if (enablingSolo) null else defaultPool,
             validationError = null
         ))
     }
@@ -100,7 +107,8 @@ class ConfigViewModel @Inject constructor(
         val state = _uiState.value as? ConfigUiState.Success ?: return
         val newConfig = currentConfig.copy(
             poolUrl = pool.getUrl(currentConfig.useTls),
-            coinType = pool.coin
+            coinType = pool.coin,
+            soloDaemon = false
         )
         updateConfig(newConfig, state.copy(selectedPool = pool))
     }
@@ -157,6 +165,46 @@ class ConfigViewModel @Inject constructor(
         val state = _uiState.value as? ConfigUiState.Success ?: return
         val newConfig = currentConfig.copy(poolUrl = url)
         updateConfig(newConfig, state.copy(selectedPool = null))
+    }
+
+    private fun handleSoloDaemonToggled(enabled: Boolean) {
+        val state = _uiState.value as? ConfigUiState.Success ?: return
+        if (enabled && state.selectedCoinType != CoinType.MONERO) {
+            viewModelScope.launch {
+                _uiEffect.send(
+                    ConfigUiEffect.ShowError("Solo / daemon mining is Monero-only in this release")
+                )
+            }
+            return
+        }
+        val newConfig = if (enabled) {
+            currentConfig.copy(
+                soloDaemon = true,
+                useTls = false,
+                coinType = CoinType.MONERO.name,
+                poolUrl = when {
+                    currentConfig.poolUrl.contains("18081") -> currentConfig.poolUrl
+                    else -> MiningConfig.DEFAULT_SOLO_DAEMON_URL
+                }
+            )
+        } else {
+            val restored = availablePools
+                .filter { it.getCoinType() == CoinType.MONERO }
+                .firstOrNull()
+            currentConfig.copy(
+                soloDaemon = false,
+                poolUrl = restored?.getUrl(false)
+                    ?: MiningConfig.getDefaultPoolUrl(CoinType.MONERO)
+            )
+        }
+        val selectedPool = if (enabled) {
+            null
+        } else {
+            availablePools.find {
+                it.url == newConfig.poolUrl || it.sslUrl == newConfig.poolUrl
+            }
+        }
+        updateConfig(newConfig, state.copy(selectedPool = selectedPool))
     }
 
     private fun handleSaveConfig() {

@@ -1,11 +1,14 @@
 package com.iml1s.xmrigminer.service
 
 import androidx.work.Constraints
+import androidx.work.Data
 import androidx.work.ExistingWorkPolicy
 import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkInfo
 import androidx.work.WorkManager
+import com.iml1s.xmrigminer.data.model.CoinType
+import com.iml1s.xmrigminer.data.model.MiningConfig
 import com.iml1s.xmrigminer.data.repository.ConfigRepository
 import com.iml1s.xmrigminer.data.repository.StatsRepository
 import com.iml1s.xmrigminer.native.XmrigNativeCapabilities
@@ -15,6 +18,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.json.Json
 import timber.log.Timber
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -43,7 +47,10 @@ class MiningController @Inject constructor(
         if (!config.isValid() || config.walletAddress.isBlank()) {
             val message = when {
                 config.walletAddress.isBlank() -> "配置無效：錢包地址未設置"
-                config.poolUrl.isBlank() -> "配置無效：礦池地址未設置"
+                config.poolUrl.isBlank() ->
+                    if (config.soloDaemon) "配置無效：節點 RPC 地址未設置" else "配置無效：礦池地址未設置"
+                config.soloDaemon && config.getCoin() != CoinType.MONERO ->
+                    "Solo 僅支援 Monero"
                 else -> "配置無效，請檢查設置"
             }
             return MiningStartResult.InvalidConfig(message)
@@ -51,17 +58,31 @@ class MiningController @Inject constructor(
 
         stop(resetStats = false)
 
+        val soloDaemon = config.soloDaemon
+        val networkType = if (soloDaemon) {
+            // LAN monerod may have no validated Internet capability (#15).
+            NetworkType.NOT_REQUIRED
+        } else {
+            NetworkType.CONNECTED
+        }
         val miningConstraints = Constraints.Builder()
-            .setRequiredNetworkType(NetworkType.CONNECTED)
+            .setRequiredNetworkType(networkType)
+            .build()
+
+        val launchSnapshot = Data.Builder()
+            .putBoolean(MonitorWorker.KEY_SOLO_DAEMON, soloDaemon)
+            .putString(MiningWorker.KEY_CONFIG_SNAPSHOT, Json.encodeToString(MiningConfig.serializer(), config))
             .build()
 
         val miningRequest = OneTimeWorkRequestBuilder<MiningWorker>()
             .setConstraints(miningConstraints)
+            .setInputData(launchSnapshot)
             .addTag("mining")
             .build()
 
         val monitorRequest = OneTimeWorkRequestBuilder<MonitorWorker>()
             .setConstraints(miningConstraints)
+            .setInputData(launchSnapshot)
             .addTag("monitor")
             .build()
 
@@ -75,7 +96,7 @@ class MiningController @Inject constructor(
             ExistingWorkPolicy.REPLACE,
             monitorRequest
         )
-        Timber.i("Mining and monitoring work enqueued")
+        Timber.i("Mining and monitoring work enqueued (soloDaemon=%s)", soloDaemon)
         return MiningStartResult.Started
     }
 

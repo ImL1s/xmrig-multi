@@ -37,6 +37,7 @@ class ConfigRepository @Inject constructor(
         val COIN_TYPE = stringPreferencesKey("coin_type")
         val DONATE_LEVEL = intPreferencesKey("donate_level")
         val CUSTOM_ARGS = stringPreferencesKey("custom_args")
+        val SOLO_DAEMON = booleanPreferencesKey("solo_daemon")
     }
 
     fun getConfig(): Flow<MiningConfig> = context.dataStore.data.map { prefs ->
@@ -51,7 +52,8 @@ class ConfigRepository @Inject constructor(
             autoReconnect = prefs[Keys.AUTO_RECONNECT] ?: true,
             donateLevel = prefs[Keys.DONATE_LEVEL] ?: 1,
             customArgs = prefs[Keys.CUSTOM_ARGS] ?: "",
-            coinType = prefs[Keys.COIN_TYPE] ?: "MONERO"
+            coinType = prefs[Keys.COIN_TYPE] ?: "MONERO",
+            soloDaemon = prefs[Keys.SOLO_DAEMON] ?: false
         )
     }
 
@@ -67,6 +69,7 @@ class ConfigRepository @Inject constructor(
             prefs[Keys.COIN_TYPE] = config.coinType
             prefs[Keys.DONATE_LEVEL] = config.donateLevel
             prefs[Keys.CUSTOM_ARGS] = config.customArgs
+            prefs[Keys.SOLO_DAEMON] = config.soloDaemon
         }
     }
 
