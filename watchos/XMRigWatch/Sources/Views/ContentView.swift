@@ -56,7 +56,7 @@ struct ContentView: View {
                 }
                 .padding()
             }
-            .navigationTitle("XMRig")
+            .navigationTitle("XMRig Multi")
             .navigationBarTitleDisplayMode(.inline)
         }
     }

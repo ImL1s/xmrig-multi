@@ -46,7 +46,7 @@ fun MiningScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("XMRig Miner") },
+                title = { Text("XMRig Multi") },
                 actions = {
                     IconButton(onClick = onNavigateToStats) {
                         Icon(

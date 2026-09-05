@@ -1,13 +1,13 @@
-# XMRig Miner — 跨平台
+# XMRig Multi — 跨平台
 
 [![Android CI](https://github.com/ImL1s/xmrig-android/actions/workflows/android-ci.yml/badge.svg)](https://github.com/ImL1s/xmrig-android/actions/workflows/android-ci.yml)
 [![Web Miner CI](https://github.com/ImL1s/xmrig-android/actions/workflows/web-miner-ci.yml/badge.svg)](https://github.com/ImL1s/xmrig-android/actions/workflows/web-miner-ci.yml)
 [![Release](https://github.com/ImL1s/xmrig-android/actions/workflows/release.yml/badge.svg)](https://github.com/ImL1s/xmrig-android/actions/workflows/release.yml)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 
-跨平台 **Monero (XMR) / Wownero (WOW) / DERO** 挖礦：Android／iOS（sideload）／Desktop 走原生 XMRig，瀏覽器走 RandomX.js，WearOS／watchOS 為統計伴侶應用。
+**XMRig Multi** 是 ImL1s 的跨平台門羅幣／Wownero／DERO 挖礦應用：Android／iOS（sideload）／Desktop 走原生 XMRig，瀏覽器走 RandomX.js，WearOS／watchOS 為統計伴侶應用。
 
-> GitHub 倉庫仍名為 `xmrig-android`（歷史與 clone URL）。產品顯示名稱為 **XMRig Miner**。
+> GitHub 倉庫仍名為 `xmrig-android`（歷史與 clone URL）。產品顯示名稱為 **XMRig Multi**。
 
 | 平台 | 狀態 | 挖礦 | 說明 |
 |------|------|------|------|

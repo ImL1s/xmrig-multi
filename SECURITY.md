@@ -9,7 +9,7 @@
 
 ## Reporting a Vulnerability
 
-If you discover a security vulnerability in XMRig Miner, please report it responsibly:
+If you discover a security vulnerability in XMRig Multi, please report it responsibly:
 
 1. **Do NOT** open a public issue
 2. Email the maintainer directly at: [Create an email or use GitHub Security Advisories]

@@ -32,11 +32,11 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: com.iml1s.xmrigminer.watchkitapp
         SDKROOT: watchos
         TARGETED_DEVICE_FAMILY: "4"
-        INFOPLIST_KEY_CFBundleDisplayName: XMRig
+        INFOPLIST_KEY_CFBundleDisplayName: XMRig Multi Multi
         CODE_SIGN_ENTITLEMENTS: XMRigWatch/XMRigWatch.entitlements
     info:
       properties:
-        CFBundleDisplayName: XMRig
+        CFBundleDisplayName: XMRig Multi
         WKApplication: true
         WKCompanionAppBundleIdentifier: com.iml1s.xmrigminer
     dependencies:

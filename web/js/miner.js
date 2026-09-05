@@ -1,5 +1,5 @@
 /**
- * XMRig Web Miner - Core Miner Controller
+ * XMRig Multi Web - Core Miner Controller
  * Manages mining workers and pool connection.
  */
 

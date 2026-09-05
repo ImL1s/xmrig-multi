@@ -1,5 +1,5 @@
 /**
- * XMRig Web Miner - Mining Worker
+ * XMRig Multi Web - Mining Worker
  * Performs real RandomX hashing in a background thread.
  */
 

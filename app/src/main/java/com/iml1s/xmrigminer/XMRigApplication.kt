@@ -37,7 +37,7 @@ class XMRigApplication : Application(), Configuration.Provider {
 
         createNotificationChannel()
         wearStatsSyncer.start()
-        Timber.i("XMRig Miner Application started")
+        Timber.i("XMRig Multi Application started")
     }
 
     private fun createNotificationChannel() {

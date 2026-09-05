@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">XMRig Miner</string>
+    <string name="app_name">XMRig Multi</string>
     
     <!-- Mining Screen -->
     <string name="mining_title">挖礦管理</string>
