@@ -17,6 +17,24 @@ Cross-platform **Monero (XMR) / Wownero (WOW) / DERO** mining application (**XMR
 
 Compile steps: [building.md](building.md). iOS sideload: [ios.md](ios.md).
 
+## Releases (GitHub Actions)
+
+Tag `v*` (e.g. `v2.3.0`) runs [`.github/workflows/release.yml`](../.github/workflows/release.yml) and publishes a GitHub Release with:
+
+| Artifact | Source |
+|----------|--------|
+| `xmrig-multi-android-*.apk` | `:app:assembleRelease` |
+| `xmrig-multi-wearos-*.apk` | `:wearos:assembleRelease` |
+| `xmrig-multi-web-*.zip` | `web` Vite `dist/` |
+| `xmrig-multi-web-proxy-*.zip` | `web/proxy` (no `node_modules`) |
+| `xmrig-multi-desktop-linux-*.deb` | Tauri + tracked Linux XMRig sidecar |
+| `xmrig-multi-desktop-windows-*-setup.exe` | Tauri NSIS (best-effort; builds XMRig in CI) |
+| `xmrig-multi-desktop-macos-*.dmg` | Tauri DMG (best-effort; builds XMRig in CI) |
+
+**Version alignment:** Android/Wear `versionName`, Desktop (`package.json` / `tauri.conf.json` / `Cargo.toml`), Web (`package.json`), iOS/watchOS (`MARKETING_VERSION`) should match the tag (without `v`). iOS/watchOS binaries are **not** CI artifacts (sideload only).
+
+Windows/macOS desktop jobs use `continue-on-error`; Android + Web + Linux deb are required for the release to publish.
+
 ---
 
 ## Android Solo mining (monerod)

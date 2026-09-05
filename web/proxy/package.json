@@ -1,6 +1,6 @@
 {
     "name": "xmrig-ws-proxy",
-    "version": "1.0.0",
+    "version": "2.3.0",
     "description": "WebSocket-to-Stratum proxy for XMRig Multi (web)",
     "main": "server.js",
   "scripts": {

@@ -278,7 +278,7 @@
 					"$(SRCROOT)/../XMRigCore/output",
 					"$(SRCROOT)/../XMRigCore/libs/libuv-1.48.0/build-ios",
 				);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 2.3.0;
 				OTHER_LDFLAGS = (
 					"-lc++",
 					"-lz",
@@ -311,7 +311,7 @@
 					"$(SRCROOT)/../XMRigCore/output",
 					"$(SRCROOT)/../XMRigCore/libs/libuv-1.48.0/build-ios",
 				);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 2.3.0;
 				OTHER_LDFLAGS = (
 					"-lc++",
 					"-lz",
