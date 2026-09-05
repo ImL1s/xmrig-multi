@@ -7,12 +7,14 @@ import android.os.BatteryManager
 import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
+import com.iml1s.xmrigminer.data.model.MiningConfig
 import com.iml1s.xmrigminer.data.repository.StatsRepository
 import com.iml1s.xmrigminer.util.CpuMonitor
 import com.iml1s.xmrigminer.util.NetworkMonitor
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import kotlinx.coroutines.delay
+import kotlinx.serialization.json.Json
 import timber.log.Timber
 
 /**
@@ -38,6 +40,10 @@ class MonitorWorker @AssistedInject constructor(
     }
 
     private val cpuMonitor = CpuMonitor()
+    private val launchConfig: MiningConfig? by lazy {
+        val snapshot = inputData.getString(MiningWorker.KEY_CONFIG_SNAPSHOT) ?: return@lazy null
+        runCatching { Json.decodeFromString(MiningConfig.serializer(), snapshot) }.getOrNull()
+    }
     private val soloDaemonAtLaunch: Boolean by lazy {
         inputData.getBoolean(KEY_SOLO_DAEMON, false)
     }
@@ -103,18 +109,26 @@ class MonitorWorker @AssistedInject constructor(
             return
         }
         // Launch-time solo snapshot (#15 / Codex P2): do not re-read DataStore mid-run.
-        // Solo: require any transport (LAN OK without NET_CAPABILITY_INTERNET).
+        // Solo LAN: require any transport (OK without NET_CAPABILITY_INTERNET).
+        // Solo loopback: on-device monerod needs no Wi-Fi/cellular.
         // Pool: require validated Internet.
-        val networkOk = if (soloDaemonAtLaunch) {
-            networkMonitor.hasNetworkTransport()
-        } else {
-            networkMonitor.isConnected()
+        val networkOk = when {
+            !soloDaemonAtLaunch -> networkMonitor.isConnected()
+            isLoopbackDaemonEndpoint(launchConfig?.poolUrl) -> true
+            else -> networkMonitor.hasNetworkTransport()
         }
         if (!networkOk) {
             pauseMining(
                 if (soloDaemonAtLaunch) "No network transport" else "No network connection"
             )
         }
+    }
+
+    private fun isLoopbackDaemonEndpoint(poolUrl: String?): Boolean {
+        if (poolUrl.isNullOrBlank()) return false
+        val host = poolUrl.substringBefore('/').substringBefore(':').trim().lowercase()
+            .removePrefix("[").removeSuffix("]")
+        return host == "127.0.0.1" || host == "localhost" || host == "::1"
     }
 
     private fun isDeviceCharging(): Boolean {
