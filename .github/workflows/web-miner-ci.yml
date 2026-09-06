@@ -28,6 +28,7 @@ on:
       - 'shared/gpu-capability/**'
       - 'shared/energy-ledger/**'
       - 'shared/electricity-tariff/**'
+      - 'shared/ambient-clock/**'
       - 'app/src/main/assets/pools.json'
       - 'desktop/src/generated-pool-configs.json'
       - 'desktop/src/main.js'
@@ -51,6 +52,7 @@ on:
       - 'shared/p2pool-connect/**'
       - 'shared/desktop-optimize/**'
       - 'shared/energy-ledger/**'
+      - 'shared/ambient-clock/**'
       - 'shared/cpu-topology/**'
       - 'shared/thermal-policy/**'
       - 'shared/power-policy/**'
@@ -206,6 +208,10 @@ jobs:
       - name: Electricity tariff calculator (#71)
         working-directory: .
         run: node --test shared/electricity-tariff/test/*.test.js
+
+      - name: Ambient clock policy (#74)
+        working-directory: .
+        run: node --test shared/ambient-clock/test/*.test.js
 
       - name: Build for Production
         run: npm run build

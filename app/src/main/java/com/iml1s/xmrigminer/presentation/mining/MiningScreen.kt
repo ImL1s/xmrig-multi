@@ -34,6 +34,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.GridOn
 import androidx.compose.material.icons.filled.Memory
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.filled.Thermostat
@@ -93,7 +94,8 @@ import com.iml1s.xmrigminer.presentation.theme.Space
 fun MiningScreen(
     viewModel: MiningViewModel = hiltViewModel(),
     onNavigateToConfig: () -> Unit = {},
-    onNavigateToStats: () -> Unit = {}
+    onNavigateToStats: () -> Unit = {},
+    onNavigateToAmbient: () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
@@ -123,6 +125,9 @@ fun MiningScreen(
                     )
                 },
                 actions = {
+                    IconButton(onClick = onNavigateToAmbient) {
+                        Icon(Icons.Default.Schedule, contentDescription = "Ambient clock")
+                    }
                     IconButton(onClick = onNavigateToStats) {
                         Icon(Icons.Default.BarChart, contentDescription = "挖礦統計")
                     }
