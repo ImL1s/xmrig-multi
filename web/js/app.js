@@ -99,6 +99,24 @@ class App {
             this.setProxyStatus(diag.userMessage, true);
             this.log(`代理診斷 [${diag.layer}]: ${diag.userMessage}`);
         };
+        this.miner.onRuntimeFailure = (detail) => {
+            const hints = (detail.actionHints || []).join(' / ');
+            this.log(`執行環境失敗 [${detail.code}]: ${detail.message}${hints ? ` — ${hints}` : ''}`);
+            alert(`無法挖礦：${detail.message}${hints ? `\n\n建議：${hints}` : ''}`);
+            this.unlockMiningControls();
+        };
+
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'hidden') {
+                this.log('頁面隱藏 — 瀏覽器可能節流 workers（非原生同等持續算力）');
+            }
+        });
+        window.addEventListener('pagehide', () => {
+            if (this.miner?.isMining) {
+                this.log('pagehide — stopping mining to avoid leaked workers');
+                this.stopMining();
+            }
+        });
 
         await this.loadDeploymentConfig();
 
@@ -395,8 +413,7 @@ class App {
         if (this.dom.testProxyBtn) this.dom.testProxyBtn.disabled = true;
     }
 
-    stopMining() {
-        this.miner.stop();
+    unlockMiningControls() {
         this.dom.startBtn.disabled = false;
         this.dom.stopBtn.disabled = true;
         this.dom.walletAddress.readOnly = false;
@@ -405,6 +422,11 @@ class App {
         this.dom.customProxyUrl.disabled = false;
         this.dom.threads.disabled = false;
         if (this.dom.testProxyBtn) this.dom.testProxyBtn.disabled = false;
+    }
+
+    stopMining() {
+        this.miner.stop();
+        this.unlockMiningControls();
     }
 
     updateUI(stats) {
