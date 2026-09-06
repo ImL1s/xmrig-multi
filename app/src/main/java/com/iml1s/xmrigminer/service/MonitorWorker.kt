@@ -24,6 +24,8 @@ import timber.log.Timber
  * One-shot worker that polls device health while mining is active.
  * Cancelled together with [MiningWorker]; cancellation runs MiningWorker's finally block
  * which destroys the XMRig process.
+ *
+ * Thermal (#38) and power (#39) policies drive pause/throttle decisions.
  */
 @HiltWorker
 class MonitorWorker @AssistedInject constructor(
@@ -38,8 +40,6 @@ class MonitorWorker @AssistedInject constructor(
         const val WORK_NAME = "monitor_work"
         const val KEY_SOLO_DAEMON = "solo_daemon"
         const val CHECK_INTERVAL = 5000L
-        const val MAX_TEMPERATURE = 45f
-        const val MIN_BATTERY_LEVEL = 20
         private const val DAEMON_PROBE_TIMEOUT_MS = 1500
     }
 
@@ -52,8 +52,20 @@ class MonitorWorker @AssistedInject constructor(
         inputData.getBoolean(KEY_SOLO_DAEMON, false)
     }
 
+    private var thermalState = ThermalPolicy.State(
+        phase = ThermalPolicy.Phase.ALLOWED,
+        sinceMs = System.currentTimeMillis(),
+        permanentThreads = null
+    )
+    private var powerIntent = PowerPolicy.armSession(PowerPolicy.Intent())
+    private var lastSoftThrottleNotifyMs = 0L
+
     override suspend fun doWork(): Result {
         Timber.i("MonitorWorker started")
+        thermalState = thermalState.copy(
+            permanentThreads = launchConfig?.threads,
+            sinceMs = System.currentTimeMillis()
+        )
         try {
             while (!isStopped) {
                 updateBatteryStats()
@@ -74,7 +86,7 @@ class MonitorWorker @AssistedInject constructor(
             val batteryManager = context.getSystemService(Context.BATTERY_SERVICE) as? BatteryManager
             val level = batteryManager?.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY) ?: 100
             statsRepository.updateBatteryLevel(level)
-            statsRepository.updateChargingState(isDeviceCharging())
+            statsRepository.updateChargingState(isEffectivelyPlugged())
         } catch (e: Exception) {
             Timber.w(e, "Failed to update battery stats")
         }
@@ -82,7 +94,8 @@ class MonitorWorker @AssistedInject constructor(
 
     private fun updateThermalStats() {
         try {
-            statsRepository.updateTemperature(getBatteryTemperature())
+            val reading = readBatteryTemperature()
+            statsRepository.updateTemperature(reading.tempC ?: 0f)
         } catch (e: Exception) {
             Timber.w(e, "Failed to update thermal stats")
         }
@@ -100,21 +113,72 @@ class MonitorWorker @AssistedInject constructor(
     }
 
     private suspend fun checkCriticalConditions() {
-        val intent = context.registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
-        val level = intent?.getIntExtra(BatteryManager.EXTRA_LEVEL, 100) ?: 100
-        val temp = getBatteryTemperature()
-        val isCharging = isDeviceCharging()
-        if (temp > MAX_TEMPERATURE) {
-            // #43: thermal is a policy pause — cancel retries, do not auto-restart.
-            pauseMining("Temperature too high (${temp}°C)", code = "thermal")
-            return
+        val now = System.currentTimeMillis()
+        val battIntent = context.registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
+        val powerObs = buildPowerObservation(battIntent, now)
+        val thermalObs = buildThermalObservation(battIntent, now)
+
+        val thermalDecision = ThermalPolicy.evaluate(
+            observations = listOf(thermalObs),
+            state = thermalState,
+            nowMs = now,
+            userStopped = false
+        )
+        thermalState = thermalDecision.nextState
+
+        when (thermalDecision.phase) {
+            ThermalPolicy.Phase.CRITICAL, ThermalPolicy.Phase.PAUSED -> {
+                val reason = thermalDecision.reasons.firstOrNull()
+                    ?: "Thermal policy pause"
+                pauseMining(reason, code = "thermal")
+                return
+            }
+            ThermalPolicy.Phase.SOFT_THROTTLE -> {
+                if (now - lastSoftThrottleNotifyMs > 60_000L) {
+                    lastSoftThrottleNotifyMs = now
+                    val msg = buildString {
+                        append(thermalDecision.reasons.firstOrNull() ?: "Thermal soft throttle")
+                        thermalDecision.effectiveThreads?.let {
+                            append(" — effective threads $it")
+                            thermalState.permanentThreads?.let { p -> append(" (permanent $p unchanged)") }
+                        }
+                        thermalDecision.resumeWhen?.let { append(" — resume: $it") }
+                    }
+                    com.iml1s.xmrigminer.util.NotificationHelper.showWarning(context, msg)
+                    Timber.w("Thermal soft throttle: %s", msg)
+                }
+            }
+            ThermalPolicy.Phase.ALLOWED -> Unit
         }
-        if (level < MIN_BATTERY_LEVEL && !isCharging) {
-            pauseMining("Battery too low ($level%)", code = "battery")
-            return
+
+        val powerVerdict = PowerPolicy.evaluate(
+            observation = powerObs,
+            intent = powerIntent,
+            config = androidRuntimePowerDefaults(),
+            nowMs = now
+        )
+        powerIntent = powerVerdict.nextIntent
+
+        when (powerVerdict.kind) {
+            PowerPolicy.Kind.USER_STOPPED,
+            PowerPolicy.Kind.PAUSED -> {
+                val reason = powerVerdict.reasons.firstOrNull() ?: "Power policy pause"
+                pauseMining(reason, code = "battery")
+                return
+            }
+            PowerPolicy.Kind.WAITING -> {
+                // Charge-to-target / schedule wait — pause session, keep stats (#39).
+                val reason = powerVerdict.reasons.firstOrNull() ?: "Power policy waiting"
+                pauseMining(reason, code = "battery")
+                return
+            }
+            PowerPolicy.Kind.UNAVAILABLE -> {
+                Timber.w("Power policy unavailable: %s", powerVerdict.reasons)
+            }
+            PowerPolicy.Kind.ALLOWED -> Unit
         }
+
         // Launch-time solo snapshot (#15 / Codex P2): do not re-read DataStore mid-run.
-        // Solo: RPC readiness probe (not TCP-only) (#44). Pool: require validated Internet.
         val networkOk = if (soloDaemonAtLaunch) {
             daemonStillReachable(launchConfig?.poolUrl)
         } else {
@@ -127,10 +191,6 @@ class MonitorWorker @AssistedInject constructor(
                 "No network connection"
             }
             val cfg = launchConfig
-            // #43: transient network loss with autoReconnect → leave MiningWorker alive
-            // so XMRig/native retries apply; only hard-stop when autoReconnect is off
-            // or classification says pause/fatal. Solo LAN probe failure stays a pause
-            // (daemon may be intentional offline) unless autoReconnect is on.
             val classification = ReconnectPolicy.classify(
                 code = "network",
                 message = reason
@@ -151,6 +211,97 @@ class MonitorWorker @AssistedInject constructor(
         }
     }
 
+    private fun buildThermalObservation(intent: Intent?, nowMs: Long): ThermalPolicy.Observation {
+        if (intent == null) {
+            return ThermalPolicy.Observation(
+                source = ThermalPolicy.Source.BATTERY,
+                celsius = null,
+                timestampMs = nowMs,
+                quality = ThermalPolicy.Quality.UNKNOWN,
+                note = "Battery intent unavailable"
+            )
+        }
+        val hasTemp = intent.hasExtra(BatteryManager.EXTRA_TEMPERATURE)
+        val raw = intent.getIntExtra(BatteryManager.EXTRA_TEMPERATURE, Int.MIN_VALUE)
+        if (!hasTemp || raw == Int.MIN_VALUE) {
+            return ThermalPolicy.normalizeBatteryTemp(
+                rawCelsius = null,
+                timestampMs = nowMs,
+                nowMs = nowMs,
+                suspectZero = true
+            )
+        }
+        val tempC = raw / 10f
+        return ThermalPolicy.normalizeBatteryTemp(
+            rawCelsius = tempC,
+            timestampMs = nowMs,
+            nowMs = nowMs,
+            suspectZero = tempC == 0f && raw == 0
+        )
+    }
+
+    private fun buildPowerObservation(intent: Intent?, nowMs: Long): PowerPolicy.Observation {
+        if (intent == null) {
+            return PowerPolicy.Observation(
+                quality = PowerPolicy.Quality.FAILED,
+                note = "Battery intent unavailable",
+                timestampMs = nowMs
+            )
+        }
+        val status = when (intent.getIntExtra(BatteryManager.EXTRA_STATUS, -1)) {
+            BatteryManager.BATTERY_STATUS_CHARGING -> PowerPolicy.ChargingStatus.CHARGING
+            BatteryManager.BATTERY_STATUS_FULL -> PowerPolicy.ChargingStatus.FULL
+            BatteryManager.BATTERY_STATUS_NOT_CHARGING -> PowerPolicy.ChargingStatus.NOT_CHARGING
+            BatteryManager.BATTERY_STATUS_DISCHARGING -> PowerPolicy.ChargingStatus.DISCHARGING
+            else -> PowerPolicy.ChargingStatus.UNKNOWN
+        }
+        val pluggedFlag = intent.getIntExtra(BatteryManager.EXTRA_PLUGGED, 0)
+        val externalPower = pluggedFlag != 0
+        val source = when (pluggedFlag) {
+            BatteryManager.BATTERY_PLUGGED_AC -> PowerPolicy.PowerSource.AC
+            BatteryManager.BATTERY_PLUGGED_USB -> PowerPolicy.PowerSource.USB
+            BatteryManager.BATTERY_PLUGGED_WIRELESS -> PowerPolicy.PowerSource.WIRELESS
+            0 -> null
+            else -> PowerPolicy.PowerSource.UNKNOWN
+        }
+        val level = intent.getIntExtra(BatteryManager.EXTRA_LEVEL, -1)
+        val scale = intent.getIntExtra(BatteryManager.EXTRA_SCALE, 100).coerceAtLeast(1)
+        val soc = if (level >= 0) ((level * 100f) / scale).toInt().coerceIn(0, 100) else null
+
+        val batteryManager = context.getSystemService(Context.BATTERY_SERVICE) as? BatteryManager
+        val currentUa = batteryManager?.getIntProperty(BatteryManager.BATTERY_PROPERTY_CURRENT_NOW)
+        // Android CURRENT_NOW: negative = discharging on most devices (µA).
+        val flowMa = currentUa?.let { it / 1000 }
+
+        return PowerPolicy.Observation(
+            platformHasBattery = true,
+            batteryApiAvailable = true,
+            externalPowerPresent = externalPower,
+            powerSource = source,
+            chargingStatus = status,
+            socPercent = soc,
+            netBatteryFlowMa = flowMa,
+            quality = PowerPolicy.Quality.OK,
+            timestampMs = nowMs
+        )
+    }
+
+    private fun readBatteryTemperature(): TempReading {
+        val intent = context.registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
+            ?: return TempReading(null, suspectZero = true)
+        if (!intent.hasExtra(BatteryManager.EXTRA_TEMPERATURE)) {
+            return TempReading(null, suspectZero = true)
+        }
+        val raw = intent.getIntExtra(BatteryManager.EXTRA_TEMPERATURE, 0)
+        return TempReading(raw / 10f, suspectZero = raw == 0)
+    }
+
+    private fun isEffectivelyPlugged(): Boolean {
+        val intent = context.registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
+            ?: return false
+        return intent.getIntExtra(BatteryManager.EXTRA_PLUGGED, 0) != 0
+    }
+
     /**
      * Mid-run check: require parseable endpoint + successful get_info readiness.
      * Syncing mid-run is tolerated; hard RPC/TCP failures are not (#44).
@@ -167,19 +318,6 @@ class MonitorWorker @AssistedInject constructor(
         return probe.readyToMine || probe.code == "syncing"
     }
 
-    private fun isDeviceCharging(): Boolean {
-        val intent = context.registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
-        val status = intent?.getIntExtra(BatteryManager.EXTRA_STATUS, -1) ?: -1
-        return status == BatteryManager.BATTERY_STATUS_CHARGING ||
-            status == BatteryManager.BATTERY_STATUS_FULL
-    }
-
-    private fun getBatteryTemperature(): Float {
-        val intent = context.registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
-        val temp = intent?.getIntExtra(BatteryManager.EXTRA_TEMPERATURE, 0) ?: 0
-        return temp / 10f
-    }
-
     private suspend fun pauseMining(reason: String, code: String? = null) {
         Timber.w("Pausing mining: $reason (code=%s)", code)
         // Notify before stop(): canceling this MonitorWorker can resume with
@@ -187,4 +325,19 @@ class MonitorWorker @AssistedInject constructor(
         com.iml1s.xmrigminer.util.NotificationHelper.showWarning(context, reason)
         miningController.stop(resetStats = false)
     }
+
+    /**
+     * Runtime profile until settings UI exposes PowerPolicy.DEFAULTS (#39).
+     * Keeps prior battery-mining behavior (min 20%, no AC-only / charge-first).
+     */
+    private fun androidRuntimePowerDefaults() = PowerPolicy.Defaults(
+        requireExternalPower = false,
+        pauseOnUnplug = false,
+        chargeToPercentBeforeMine = null,
+        minBatteryPercent = 20,
+        resumeBatteryPercent = 30,
+        pauseOnNetDischargeWhilePlugged = false
+    )
+
+    private data class TempReading(val tempC: Float?, val suspectZero: Boolean)
 }

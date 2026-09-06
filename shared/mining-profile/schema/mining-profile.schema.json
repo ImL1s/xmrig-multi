@@ -114,16 +114,35 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "requireCharging": { "type": ["boolean", "null"] },
-        "minBatteryPercent": { "type": ["integer", "null"], "minimum": 0, "maximum": 100 }
+        "requireExternalPower": { "type": ["boolean", "null"] },
+        "requireCharging": { "type": ["boolean", "null"], "description": "Legacy alias; prefer requireExternalPower" },
+        "pauseOnUnplug": { "type": ["boolean", "null"] },
+        "chargeToPercentBeforeMine": { "type": ["integer", "null"], "minimum": 0, "maximum": 100 },
+        "minBatteryPercent": { "type": ["integer", "null"], "minimum": 0, "maximum": 100 },
+        "resumeBatteryPercent": { "type": ["integer", "null"], "minimum": 0, "maximum": 100 },
+        "pauseOnNetDischargeWhilePlugged": { "type": ["boolean", "null"] },
+        "preferUnmetered": { "type": ["boolean", "null"] },
+        "idleAfterMs": { "type": ["integer", "null"], "minimum": 0 },
+        "maxSessionMs": { "type": ["integer", "null"], "minimum": 0 }
       }
     },
     "thermal": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "throttleCelsius": { "type": ["number", "null"] },
-        "resumeCelsius": { "type": ["number", "null"] }
+        "throttleCelsius": { "type": ["number", "null"], "description": "Legacy soft alias" },
+        "resumeCelsius": { "type": ["number", "null"] },
+        "batterySoftC": { "type": ["number", "null"] },
+        "batteryPauseC": { "type": ["number", "null"] },
+        "batteryCriticalC": { "type": ["number", "null"] },
+        "batteryResumeC": { "type": ["number", "null"] },
+        "cpuSoftC": { "type": ["number", "null"] },
+        "cpuPauseC": { "type": ["number", "null"] },
+        "cpuCriticalC": { "type": ["number", "null"] },
+        "cpuResumeC": { "type": ["number", "null"] },
+        "minHoldMs": { "type": ["integer", "null"], "minimum": 0 },
+        "cooldownMs": { "type": ["integer", "null"], "minimum": 0 },
+        "allowResumeAfterCooldown": { "type": ["boolean", "null"] }
       }
     },
     "locks": {
