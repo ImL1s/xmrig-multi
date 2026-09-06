@@ -1,9 +1,10 @@
 package com.iml1s.xmrigminer.data.hardware
 
 /**
- * Auto-tune service skeleton (#34).
- * Full measured search lives in shared/auto-tune (JS contract); Android applies
- * accepted results and refuses stale fingerprints.
+ * Auto-tune service skeleton (#34/#128).
+ * Full measured search lives in shared/auto-tune (JS contract). Android must not
+ * invent synthetic H/s as measured — use [uncalibratedSuggestion] until a native
+ * offline benchmark adapter is wired and user-accepted.
  */
 object AutoTuneService {
 

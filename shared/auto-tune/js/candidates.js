@@ -36,15 +36,17 @@ export function buildCandidates(opts = {}) {
         if (max >= 2) threadSet.add(Math.max(1, Math.floor(max / 2)));
         if (max >= 3) threadSet.add(max - 1);
         threadSet.add(max);
-        if (goal === 'quiet' || goal === 'power') {
-            // Prefer lower thread counts
+        if ((goal === 'quiet' || goal === 'power') && max >= 2) {
+            // Prefer lower thread counts — never delete the sole 1-core candidate (#128).
             threadSet.delete(max);
-            if (max >= 2) threadSet.add(Math.max(1, Math.floor(max * 0.35)));
+            threadSet.add(Math.max(1, Math.floor(max * 0.35)));
         }
         if (goal === 'max_sustained') {
             threadSet.add(max);
             if (max >= 2) threadSet.add(max - 1);
         }
+        // Guarantee at least one legal thread count.
+        if (threadSet.size === 0) threadSet.add(1);
     }
 
     const modeSet = new Set();
