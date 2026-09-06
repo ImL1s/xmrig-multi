@@ -103,31 +103,154 @@ enum GlanceSnapshotStore {
 
     /// Human label — never claims live when stale/offline.
     static func presentation(for snap: Snapshot) -> (title: String, hashrate: String?, live: Bool) {
-        if snap.clockOnly {
-            return ("Clock", nil, false)
-        }
-        let live = snap.syncQuality == "live"
-        let statusTitle: String = {
-            switch snap.status {
-            case "mining": return "Mining"
-            case "paused": return "Paused"
-            case "waiting": return "Waiting"
-            default: return "Stopped"
-            }
-        }()
-        let title = live ? statusTitle : "\(statusTitle) · snapshot"
-        let hs: String? = {
-            if snap.syncQuality == "offline" && snap.lastUpdatedAtMs <= 0 { return nil }
-            if !live && snap.hashrateHs <= 0 { return nil }
-            let value = String(format: "%.1f H/s", snap.hashrateHs)
-            return live ? value : "\(value) (not live)"
-        }()
-        return (title, hs, live)
+        let view = GlancePresentation.make(
+            status: snap.status,
+            hashrateHs: snap.hashrateHs,
+            syncQuality: snap.syncQuality,
+            lastUpdatedAtMs: snap.lastUpdatedAtMs,
+            sessionId: snap.sessionId,
+            osIsStale: false,
+            now: Date(),
+            clockOnly: snap.clockOnly,
+            liveActivityTtlSeconds: staleAfterMs / 1000.0
+        )
+        return (view.title, view.hashrateText, view.isLive)
     }
 
     static func nextMinuteAlignedDate(from date: Date = Date()) -> Date {
         let ms = date.timeIntervalSince1970 * 1000
         let delay = 60_000 - ms.truncatingRemainder(dividingBy: 60_000)
         return date.addingTimeInterval(delay / 1000.0)
+    }
+}
+
+/// Shared Live Activity / glance freshness presenter (#132).
+/// `syncQuality == "live"` alone is never enough — OS `isStale` and TTL must agree.
+enum GlancePresentation {
+    /// Live Activity staleDate offset used by GlanceLiveActivityController.
+    static let liveActivityTtlSeconds: TimeInterval = 90
+
+    struct ViewData: Equatable {
+        var title: String
+        var qualityLabel: String
+        var hashrateText: String?
+        var compactHashrate: String
+        var iconSystemName: String
+        var isLive: Bool
+        var accessibilityText: String
+    }
+
+    static func make(
+        status: String,
+        hashrateHs: Double,
+        syncQuality: String,
+        lastUpdatedAtMs: Double,
+        sessionId: String?,
+        osIsStale: Bool,
+        now: Date = Date(),
+        clockOnly: Bool = false,
+        expectedSessionId: String? = nil,
+        liveActivityTtlSeconds: TimeInterval = liveActivityTtlSeconds
+    ) -> ViewData {
+        if clockOnly {
+            return ViewData(
+                title: "Clock",
+                qualityLabel: "CLOCK",
+                hashrateText: nil,
+                compactHashrate: "—",
+                iconSystemName: "clock",
+                isLive: false,
+                accessibilityText: "Clock only — not mining"
+            )
+        }
+
+        let sessionOk: Bool = {
+            guard let expected = expectedSessionId, !expected.isEmpty else { return true }
+            return sessionId == expected
+        }()
+
+        let ageSeconds: Double? = {
+            guard lastUpdatedAtMs > 0 else { return nil }
+            let sample = lastUpdatedAtMs / 1000.0
+            let nowSec = now.timeIntervalSince1970
+            if sample > nowSec + 5 {
+                // Future timestamp — conservative: treat as not live.
+                return Double.greatestFiniteMagnitude
+            }
+            return nowSec - sample
+        }()
+
+        let withinTtl = ageSeconds.map { $0 >= 0 && $0 < liveActivityTtlSeconds } ?? false
+        let qualityLive = syncQuality == "live"
+        let isLive = !osIsStale && qualityLive && withinTtl && sessionOk
+
+        let base: String = {
+            switch status {
+            case "mining": return "Mining"
+            case "paused": return "Paused"
+            case "waiting": return "Waiting"
+            default: return "Stopped"
+            }
+        }()
+
+        let title: String
+        let qualityLabel: String
+        if osIsStale {
+            title = "\(base) · stale"
+            qualityLabel = "STALE"
+        } else if isLive {
+            title = base
+            qualityLabel = "LIVE"
+        } else if syncQuality == "offline" {
+            title = "\(base) · offline"
+            qualityLabel = "OFFLINE"
+        } else {
+            title = "\(base) · snapshot"
+            qualityLabel = syncQuality.uppercased()
+        }
+
+        let hashrateText: String?
+        let compact: String
+        if syncQuality == "offline" && lastUpdatedAtMs <= 0 {
+            hashrateText = nil
+            compact = "—"
+        } else if isLive {
+            hashrateText = String(format: "%.1f H/s", hashrateHs)
+            compact = String(format: "%.0f", hashrateHs)
+        } else if hashrateHs > 0 {
+            hashrateText = String(format: "%.1f H/s (not live)", hashrateHs)
+            compact = "—"
+        } else {
+            hashrateText = nil
+            compact = "—"
+        }
+
+        return ViewData(
+            title: title,
+            qualityLabel: qualityLabel,
+            hashrateText: hashrateText,
+            compactHashrate: compact,
+            iconSystemName: isLive ? "bolt.fill" : "bolt.slash",
+            isLive: isLive,
+            accessibilityText: "\(title), \(hashrateText ?? "no hashrate"), \(qualityLabel)"
+        )
+    }
+
+    static func make(
+        state: MiningGlanceAttributes.ContentState,
+        osIsStale: Bool,
+        now: Date = Date(),
+        expectedSessionId: String? = nil
+    ) -> ViewData {
+        make(
+            status: state.status,
+            hashrateHs: state.hashrateHs,
+            syncQuality: state.syncQuality,
+            lastUpdatedAtMs: state.lastUpdatedAtMs,
+            sessionId: state.sessionId,
+            osIsStale: osIsStale,
+            now: now,
+            expectedSessionId: expectedSessionId
+        )
     }
 }

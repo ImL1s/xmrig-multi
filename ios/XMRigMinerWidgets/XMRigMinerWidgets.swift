@@ -80,67 +80,56 @@ struct MiningStandByWidget: Widget {
 struct MiningLiveActivity: Widget {
     var body: some WidgetConfiguration {
         ActivityConfiguration(for: MiningGlanceAttributes.self) { context in
-            LiveActivityBanner(state: context.state)
+            let view = GlancePresentation.make(state: context.state, osIsStale: context.isStale)
+            LiveActivityBanner(presentation: view)
                 .padding()
+                .accessibilityLabel(view.accessibilityText)
         } dynamicIsland: { context in
+            let view = GlancePresentation.make(state: context.state, osIsStale: context.isStale)
             DynamicIsland {
                 DynamicIslandExpandedRegion(.leading) {
-                    Text(liveTitle(context.state))
+                    Text(view.title)
                 }
                 DynamicIslandExpandedRegion(.trailing) {
-                    Text(hashrateLabel(context.state) ?? "—")
+                    Text(view.hashrateText ?? "—")
                         .monospacedDigit()
                 }
                 DynamicIslandExpandedRegion(.bottom) {
-                    Text(context.state.syncQuality.uppercased())
+                    Text(view.qualityLabel)
                         .font(.caption2)
                 }
             } compactLeading: {
-                Image(systemName: context.state.syncQuality == "live" ? "bolt.fill" : "bolt.slash")
+                Image(systemName: view.iconSystemName)
             } compactTrailing: {
-                Text(String(format: "%.0f", context.state.hashrateHs))
+                Text(view.compactHashrate)
                     .monospacedDigit()
             } minimal: {
-                Image(systemName: context.state.syncQuality == "live" ? "bolt.fill" : "bolt.slash")
+                Image(systemName: view.iconSystemName)
             }
         }
     }
 }
 
 struct LiveActivityBanner: View {
-    let state: MiningGlanceAttributes.ContentState
+    let presentation: GlancePresentation.ViewData
 
     var body: some View {
         HStack {
             VStack(alignment: .leading, spacing: 4) {
-                Text(liveTitle(state)).font(.headline)
-                if let hs = hashrateLabel(state) {
+                Text(presentation.title).font(.headline)
+                if let hs = presentation.hashrateText {
                     Text(hs).font(.title3.monospacedDigit())
                 }
-                Text(state.syncQuality.uppercased())
+                Text(presentation.qualityLabel)
                     .font(.caption2)
                     .foregroundStyle(.secondary)
             }
             Spacer()
+            Image(systemName: presentation.iconSystemName)
         }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(presentation.accessibilityText)
     }
-}
-
-private func liveTitle(_ state: MiningGlanceAttributes.ContentState) -> String {
-    let base: String
-    switch state.status {
-    case "mining": base = "Mining"
-    case "paused": base = "Paused"
-    case "waiting": base = "Waiting"
-    default: base = "Stopped"
-    }
-    return state.syncQuality == "live" ? base : "\(base) · snapshot"
-}
-
-private func hashrateLabel(_ state: MiningGlanceAttributes.ContentState) -> String? {
-    if state.syncQuality == "offline" { return nil }
-    let value = String(format: "%.1f H/s", state.hashrateHs)
-    return state.syncQuality == "live" ? value : "\(value) (not live)"
 }
 
 struct GlanceWidgetView: View {
