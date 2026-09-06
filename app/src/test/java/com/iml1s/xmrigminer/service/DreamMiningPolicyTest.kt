@@ -63,4 +63,20 @@ class DreamMiningPolicyTest {
         assertEquals("android.settings.DREAM_SETTINGS", DreamSettingsGuide.ACTION_DREAM_SETTINGS)
         assertTrue(DreamSettingsGuide.BODY.contains("Preview never mines"))
     }
+
+    @Test
+    fun `session latch blocks dream mine when stopped`() {
+        MiningSessionLatch.latchUserStop()
+        assertTrue(MiningSessionLatch.isUserStopped())
+        val d = DreamMiningPolicy.decide(
+            phase = DreamMiningPolicy.Phase.DREAMING,
+            userOptedInClockAndMine = true,
+            powerAllows = true,
+            runtimeEligible = true,
+            userStopped = MiningSessionLatch.isUserStopped()
+        )
+        assertFalse(d.mayRequestMine)
+        MiningSessionLatch.armSession()
+        assertFalse(MiningSessionLatch.isUserStopped())
+    }
 }
