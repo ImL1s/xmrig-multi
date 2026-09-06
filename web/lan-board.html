@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>XMRig Multi — LAN board (read-only)</title>
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 1.5rem; background: #111; color: #eee; }
+    .card { border: 1px solid #333; padding: 1rem; margin: 0.5rem 0; border-radius: 8px; }
+    .muted { color: #999; font-size: 0.9rem; }
+    h1 { font-size: 1.25rem; }
+  </style>
+</head>
+<body>
+  <h1>LAN miner board (read-only)</h1>
+  <p class="muted">
+    Demo surface for #80 — no RandomX, no unauthenticated XMRig HTTP.
+    Pairing and aggregation use <code>shared/lan-dashboard</code>.
+  </p>
+  <div id="summary" class="card muted">Loading fixture…</div>
+  <div id="cards"></div>
+  <script type="module">
+    import { aggregateBoard, presentDeviceCard } from './js/lan-board.js';
+    const now = Date.now();
+    const devices = [
+      {
+        deviceId: 'desk-1',
+        algorithm: 'rx/0',
+        hashrateHs: 4500,
+        status: 'mining',
+        meterId: 'home-meter',
+        powerW: 120,
+        costFiat: 0.4,
+        walletId: 'w1',
+        poolId: 'supportxmr',
+        creditedFiat: 2.1,
+        lastUpdatedAtMs: now - 5_000,
+        reachable: true,
+        paired: true
+      },
+      {
+        deviceId: 'phone-old',
+        algorithm: 'rx/0',
+        hashrateHs: 0,
+        status: 'clock',
+        lastUpdatedAtMs: now - 120_000,
+        reachable: false,
+        paired: true
+      }
+    ];
+    const agg = aggregateBoard(devices);
+    document.getElementById('summary').textContent =
+      `rx/0 ${agg.hashrateByAlgo['rx/0'] || 0} H/s · power ${agg.powerW ?? 'unknown'} W · credited ${agg.creditedFiat}`;
+    const root = document.getElementById('cards');
+    for (const d of devices) {
+      const view = presentDeviceCard(d, now);
+      const el = document.createElement('div');
+      el.className = 'card';
+      el.innerHTML = `<strong>${view.title}</strong><div>${view.hashrateLabel || '—'}</div><div class="muted">${view.note}</div>`;
+      root.appendChild(el);
+    }
+  </script>
+</body>
+</html>

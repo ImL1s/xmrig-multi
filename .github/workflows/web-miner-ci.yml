@@ -34,6 +34,7 @@ on:
       - 'shared/desktop-idle-policy/**'
       - 'shared/ios-glance/**'
       - 'shared/quick-controls/**'
+      - 'shared/lan-dashboard/**'
       - 'app/src/main/assets/pools.json'
       - 'desktop/src/generated-pool-configs.json'
       - 'desktop/src/main.js'
@@ -63,6 +64,7 @@ on:
       - 'shared/desktop-idle-policy/**'
       - 'shared/ios-glance/**'
       - 'shared/quick-controls/**'
+      - 'shared/lan-dashboard/**'
       - 'shared/cpu-topology/**'
       - 'shared/thermal-policy/**'
       - 'shared/power-policy/**'
@@ -242,6 +244,10 @@ jobs:
       - name: Quick controls command protocol (#79)
         working-directory: .
         run: node --test shared/quick-controls/test/*.test.js
+
+      - name: LAN dashboard pairing / aggregate (#80)
+        working-directory: .
+        run: node --test shared/lan-dashboard/test/*.test.js
 
       - name: Build for Production
         run: npm run build
