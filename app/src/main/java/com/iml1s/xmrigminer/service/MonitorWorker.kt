@@ -145,47 +145,63 @@ class MonitorWorker @AssistedInject constructor(
             }
             ThermalPolicy.Phase.SOFT_THROTTLE -> {
                 val requested = thermalDecision.effectiveThreads
-                if (thermalDecision.action == ThermalPolicy.Action.THROTTLE &&
+                val currentGen = miningController.currentSessionGeneration()
+                if (currentGen != sessionGenerationAtLaunch) {
+                    Timber.w(
+                        "Ignore stale soft-throttle tick gen=%s launch=%s",
+                        currentGen,
+                        sessionGenerationAtLaunch
+                    )
+                } else if (thermalDecision.action == ThermalPolicy.Action.THROTTLE &&
                     requested != null &&
                     requested != lastAppliedSoftThreads
                 ) {
                     softThrottlePending = true
-                    val applied = miningController.applyRuntimeThreadOverride(
-                        requested,
-                        thermalDecision.reasons.firstOrNull() ?: "soft throttle"
-                    )
-                    val outcome = if (applied == requested) {
-                        ThermalLoadActuator.Outcome(
-                            status = ThermalLoadActuator.Status.APPLIED,
-                            requestedThreads = requested,
-                            appliedThreads = applied,
-                            message = "Throttle applied via relaunch"
-                        )
-                    } else {
-                        ThermalLoadActuator.Outcome(
-                            status = ThermalLoadActuator.Status.UNSUPPORTED,
-                            requestedThreads = requested,
-                            appliedThreads = applied,
-                            message = "Engine could not apply soft throttle — pausing safely",
-                            shouldPauseSafely = true
-                        )
+                    if (requested <= 0) {
+                        softThrottlePending = false
+                        pauseMining("Invalid throttle threads", code = "thermal_throttle")
+                        return
                     }
-                    when (outcome.status) {
-                        ThermalLoadActuator.Status.APPLIED -> {
-                            lastAppliedSoftThreads = outcome.appliedThreads
+                    val permanent = thermalState.permanentThreads
+                    if (permanent != null && requested >= permanent) {
+                        softThrottlePending = false
+                    } else {
+                        val enqueued = miningController.requestRuntimeThreadOverride(
+                            requested,
+                            thermalDecision.reasons.firstOrNull() ?: "soft throttle"
+                        )
+                        if (enqueued == null) {
                             softThrottlePending = false
-                            thermalState = thermalState.copy(effectiveThreads = outcome.appliedThreads)
+                            pauseMining(
+                                "Engine could not enqueue soft throttle — pausing safely",
+                                code = "thermal_throttle"
+                            )
+                            return
+                        }
+                        // PENDING until WorkManager reports active worker (#125).
+                        val verified = miningController.verifyRuntimeThreadOverride(enqueued)
+                        if (verified) {
+                            lastAppliedSoftThreads = enqueued
+                            softThrottlePending = false
+                            thermalState = thermalState.copy(effectiveThreads = enqueued)
                             com.iml1s.xmrigminer.util.NotificationHelper.showWarning(
                                 context,
-                                "Thermal throttle applied: ${outcome.appliedThreads} threads"
+                                "Thermal throttle applied: $enqueued threads"
                             )
-                        }
-                        else -> {
-                            softThrottlePending = false
-                            if (outcome.shouldPauseSafely) {
-                                pauseMining(outcome.message, code = "thermal_throttle")
+                            lastSoftThrottleNotifyMs = now
+                        } else {
+                            Timber.i("Thermal throttle PENDING worker readback for %s threads", enqueued)
+                            if (lastSoftThrottleNotifyMs > 0L &&
+                                now - lastSoftThrottleNotifyMs > 15_000L
+                            ) {
+                                softThrottlePending = false
+                                pauseMining(
+                                    "Thermal throttle timeout — worker not active",
+                                    code = "thermal_throttle"
+                                )
                                 return
                             }
+                            if (lastSoftThrottleNotifyMs == 0L) lastSoftThrottleNotifyMs = now
                         }
                     }
                 } else if (now - lastSoftThrottleNotifyMs > 60_000L) {
@@ -204,15 +220,25 @@ class MonitorWorker @AssistedInject constructor(
             }
             ThermalPolicy.Phase.ALLOWED -> {
                 if (thermalDecision.action == ThermalPolicy.Action.RESUME &&
-                    lastAppliedSoftThreads != null
+                    lastAppliedSoftThreads != null &&
+                    miningController.currentSessionGeneration() == sessionGenerationAtLaunch
                 ) {
-                    val restored = miningController.clearRuntimeThreadOverride("thermal resume")
-                    if (restored != null) {
+                    val target = thermalState.permanentThreads
+                    if (target == null) {
                         lastAppliedSoftThreads = null
                         softThrottlePending = false
                     } else {
-                        pauseMining("Failed to restore permanent threads", code = "thermal_resume")
-                        return
+                        val enqueued = miningController.requestClearRuntimeThreadOverride("thermal resume")
+                        if (enqueued == null) {
+                            pauseMining("Failed to restore permanent threads", code = "thermal_resume")
+                            return
+                        }
+                        if (miningController.verifyRuntimeThreadOverride(enqueued)) {
+                            lastAppliedSoftThreads = null
+                            softThrottlePending = false
+                        } else {
+                            Timber.i("Thermal resume PENDING worker readback")
+                        }
                     }
                 }
             }
