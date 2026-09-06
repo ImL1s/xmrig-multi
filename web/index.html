@@ -181,15 +181,21 @@
                   <option value="custom">自訂 WebSocket 代理…</option>
                 </select>
                 <p class="field__hint" id="pool-hint">
-                  預設礦池需要本機 WebSocket-to-Stratum 代理（<code>web/proxy</code>）在 ws://localhost:3333 執行。
+                  礦池流量經由下方 WebSocket 代理轉送。正式 HTTPS 部署請用 deployment.json 的 wss，勿依賴訪客本機 localhost。
                 </p>
               </div>
 
-              <div class="field" id="custom-proxy-group" hidden>
-                <label for="custom-proxy-url">WebSocket 代理 URL</label>
-                <input type="text" id="custom-proxy-url" placeholder="wss://proxy.example.com"
-                  spellcheck="false" autocomplete="off" aria-describedby="proxy-hint proxy-error">
+              <div class="field" id="proxy-group">
+                <label for="custom-proxy-url">WebSocket 代理 URL（必填）</label>
+                <input type="text" id="custom-proxy-url"
+                  placeholder="wss://your-proxy.example/ws 或本機 ws://127.0.0.1:3333"
+                  spellcheck="false" autocomplete="off"
+                  aria-describedby="proxy-hint proxy-error proxy-status">
                 <p class="field__hint" id="proxy-hint">須支援 Stratum-over-WebSocket；公開部署請使用 wss://。</p>
+                <div class="proxy-actions">
+                  <button type="button" id="test-proxy-btn" class="btn btn-secondary">測試連線</button>
+                  <span id="proxy-status" class="proxy-status" aria-live="polite"></span>
+                </div>
                 <p class="field-error" id="proxy-error" role="alert" data-visible="false">
                   <svg aria-hidden="true" focusable="false">
                     <use href="#i-alert" />

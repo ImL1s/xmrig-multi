@@ -841,6 +841,30 @@ select option:disabled {
  * Narrow screens
  * ------------------------------------------------------------------ */
 
+.proxy-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  align-items: center;
+  margin-top: var(--sp-2);
+}
+
+.proxy-actions .btn {
+  flex: 0 0 auto;
+  min-height: var(--touch-target);
+  padding: var(--sp-2) var(--sp-3);
+  font-size: 0.82rem;
+}
+
+.proxy-status {
+  font-size: 0.82rem;
+  color: var(--ink-dim);
+}
+
+.proxy-status.error {
+  color: var(--halt-ink);
+}
+
 @media (max-width: 480px) {
   .shell {
     padding: var(--sp-2) var(--sp-3) var(--sp-6);

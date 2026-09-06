@@ -47,7 +47,7 @@ class PoolProxy {
             const code = event.code;
             console.log(`WebSocket closed. Code: ${code}, Reason: ${reason}`);
             this.isConnected = false;
-            if (this.onClose) this.onClose();
+            if (this.onClose) this.onClose({ code, reason });
         };
 
         this.socket.onerror = (error) => {

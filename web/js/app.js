@@ -5,7 +5,8 @@
  *  - the status panel reflects the miner's actual state, not the state we hoped for (#48/#54);
  *  - unknown numbers render as unknown rather than as zero (#54, via ./format.js);
  *  - capability gates from ./engine-capabilities.js decide what can start (#26–#29);
- *  - failures are reported next to the field that caused them, not in a modal alert (#58).
+ *  - failures are reported next to the field that caused them, not in a modal alert (#58);
+ *  - proxy is explicit (#50); WASM/COI preflight fail-closed lives in miner.js (#51).
  */
 
 import Miner from './miner.js';
@@ -28,12 +29,16 @@ import {
     shareSuccessRate,
     uptime
 } from './format.js';
-
-const DEFAULT_LOCAL_PROXY = 'ws://localhost:3333';
+import {
+    diagnoseProxyFailure,
+    resolveProxyEndpoint,
+    testProxyHandshake
+} from './proxy-config.js';
 
 class App {
     constructor() {
         this.miner = new Miner();
+        this.deployment = { allowDevLocalhostDefault: true };
         this.dom = {
             // setup
             coinSelect: document.getElementById('coin-select'),
@@ -42,9 +47,12 @@ class App {
             walletHint: document.getElementById('wallet-hint'),
             walletError: document.getElementById('wallet-error'),
             poolSelect: document.getElementById('pool-select'),
-            customProxyGroup: document.getElementById('custom-proxy-group'),
+            proxyGroup: document.getElementById('proxy-group'),
             customProxyUrl: document.getElementById('custom-proxy-url'),
+            proxyHint: document.getElementById('proxy-hint'),
             proxyError: document.getElementById('proxy-error'),
+            proxyStatus: document.getElementById('proxy-status'),
+            testProxyBtn: document.getElementById('test-proxy-btn'),
             threads: document.getElementById('threads'),
             workerName: document.getElementById('worker-name'),
             capabilityList: document.getElementById('capability-list'),
@@ -114,20 +122,66 @@ class App {
         this.init();
     }
 
-    init() {
+    async init() {
         this.renderCapabilities();
 
         this.dom.startBtn.addEventListener('click', () => this.startMining());
         this.dom.stopBtn.addEventListener('click', () => this.stopMining());
         this.dom.coinSelect.addEventListener('change', () => this.onCoinSelectChange());
         this.dom.poolSelect.addEventListener('change', () => this.onPoolSelectChange());
+        this.dom.testProxyBtn?.addEventListener('click', () => this.onTestProxy());
+        this.dom.customProxyUrl?.addEventListener('change', () => {
+            this.saveSettings();
+            this.refreshProxyHint();
+            this.refreshSummary();
+        });
 
         // Keep the launch summary honest while the user is still typing.
         ['walletAddress', 'customProxyUrl', 'threads', 'workerName'].forEach((key) => {
-            this.dom[key].addEventListener('input', () => this.refreshSummary());
+            this.dom[key]?.addEventListener('input', () => this.refreshSummary());
         });
         this.dom.walletAddress.addEventListener('input', () => this.clearFieldError(this.dom.walletError));
-        this.dom.customProxyUrl.addEventListener('input', () => this.clearFieldError(this.dom.proxyError));
+        this.dom.customProxyUrl.addEventListener('input', () => {
+            this.clearFieldError(this.dom.proxyError);
+            this.setProxyStatus('');
+        });
+
+        this.miner.onLog = (msg) => this.log(msg);
+        this.miner.onStatsUpdate = (stats) => this.updateUI(stats);
+        this.miner.onProxyFailure = (detail) => {
+            const diag = diagnoseProxyFailure({
+                ...detail,
+                pageProtocol: window.location.protocol,
+                proxyUrl: this.dom.customProxyUrl?.value
+            });
+            this.setProxyStatus(diag.userMessage, true);
+            this.showFieldError(this.dom.proxyError, this.dom.customProxyUrl, diag.userMessage);
+            this.setState('fault', '連線失敗', diag.userMessage);
+            this.log(`代理診斷 [${diag.layer}]: ${diag.userMessage}`, 'error');
+            this.setSetupEnabled(true);
+        };
+        this.miner.onRuntimeFailure = (detail) => {
+            const hints = (detail.actionHints || []).join(' / ');
+            const message = `${detail.message}${hints ? ` — ${hints}` : ''}`;
+            this.log(`執行環境失敗 [${detail.code}]: ${message}`, 'error');
+            this.dom.startNote.textContent = message;
+            this.setState('fault', '無法啟動', detail.message);
+            this.setSetupEnabled(true);
+        };
+
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'hidden') {
+                this.log('頁面隱藏 — 瀏覽器可能節流 workers（非原生同等持續算力）', 'warn');
+            }
+        });
+        window.addEventListener('pagehide', () => {
+            if (this.miner?.isMining) {
+                this.log('pagehide — stopping mining to avoid leaked workers', 'warn');
+                this.stopMining();
+            }
+        });
+
+        await this.loadDeploymentConfig();
 
         // Model first, then options, then apply — do not let render overwrite saved threads (#47).
         const cores = navigator.hardwareConcurrency || 4;
@@ -136,15 +190,13 @@ class App {
         this.settingsPersistable = loaded.ok;
         this.renderThreadOptions(cores);
         this.applySettingsModel(this.settingsModel);
+        this.ensureProxyField();
         for (const w of loaded.warnings || []) {
             this.log(`設定: ${w}`, 'warn');
         }
         if (!loaded.ok) {
             this.log(`設定載入降級: ${loaded.error}`, 'warn');
         }
-
-        this.miner.onLog = (msg) => this.log(msg);
-        this.miner.onStatsUpdate = (stats) => this.updateUI(stats);
 
         this.onCoinSelectChange();
         this.onPoolSelectChange();
@@ -155,6 +207,81 @@ class App {
             .map(([k]) => k)
             .join(', ');
         this.log(`Web Miner 就緒 — 可啟動幣種: ${supported || '無'}（能力閘門 #26）`);
+    }
+
+    async loadDeploymentConfig() {
+        try {
+            const res = await fetch(`${import.meta.env.BASE_URL}deployment.json`, { cache: 'no-store' });
+            if (res.ok) {
+                const json = await res.json();
+                this.deployment = { ...this.deployment, ...json };
+                this.log('部署設定已載入 (proxy source file)');
+            }
+        } catch {
+            this.log('部署設定 deployment.json 不可用 — 僅使用頁面/使用者輸入', 'warn');
+        }
+    }
+
+    ensureProxyField() {
+        if (!this.dom.customProxyUrl) return;
+        if (this.dom.proxyGroup) this.dom.proxyGroup.hidden = false;
+        if (this.dom.customProxyUrl.value.trim()) {
+            this.refreshProxyHint();
+            return;
+        }
+        const resolved = resolveProxyEndpoint(window.location, this.deployment, '');
+        if (resolved.ok && resolved.url) {
+            this.dom.customProxyUrl.value = resolved.url;
+            this.log(`代理預填來源: ${resolved.source} (${resolved.kind})`);
+        } else {
+            this.setProxyStatus(resolved.error || '請設定 WebSocket 代理', true);
+        }
+        this.refreshProxyHint(resolved);
+    }
+
+    refreshProxyHint(resolved) {
+        const r = resolved || resolveProxyEndpoint(
+            window.location,
+            this.deployment,
+            this.dom.customProxyUrl?.value || ''
+        );
+        if (this.dom.proxyHint) {
+            const trust = r.trustNotice || this.deployment.trustNotice || '';
+            this.dom.proxyHint.textContent =
+                `來源: ${r.source || 'user'} / ${r.kind || 'user'}. ${trust}`.trim();
+        }
+    }
+
+    setProxyStatus(text, isError = false) {
+        if (!this.dom.proxyStatus) return;
+        this.dom.proxyStatus.textContent = text || '';
+        this.dom.proxyStatus.classList.toggle('error', Boolean(isError));
+    }
+
+    async onTestProxy() {
+        const resolved = resolveProxyEndpoint(
+            window.location,
+            this.deployment,
+            this.dom.customProxyUrl.value.trim()
+        );
+        if (!resolved.ok || !resolved.url) {
+            this.setProxyStatus(resolved.error || '缺少代理 URL', true);
+            this.showFieldError(
+                this.dom.proxyError,
+                this.dom.customProxyUrl,
+                resolved.error || '缺少代理 URL'
+            );
+            return;
+        }
+        this.clearFieldError(this.dom.proxyError);
+        this.setProxyStatus('測試中…');
+        this.log(`測試代理握手（不傳送錢包）: ${resolved.url}`);
+        const result = await testProxyHandshake(resolved.url);
+        this.setProxyStatus(result.userMessage, !result.ok);
+        this.log(result.ok
+            ? `代理握手成功 (${result.ms}ms)`
+            : `代理握手失敗 [${result.layer}]: ${result.userMessage}`,
+        result.ok ? 'info' : 'error');
     }
 
     // -- Step 1: capability report -----------------------------------------
@@ -261,9 +388,10 @@ class App {
     }
 
     onPoolSelectChange() {
-        const isCustom = this.dom.poolSelect.value === 'custom';
-        this.dom.customProxyGroup.hidden = !isCustom;
+        // Proxy field stays visible for all pool presets (#50).
+        if (this.dom.proxyGroup) this.dom.proxyGroup.hidden = false;
         this.clearFieldError(this.dom.proxyError);
+        this.refreshProxyHint();
         this.refreshSummary();
     }
 
@@ -324,13 +452,20 @@ class App {
 
     /** Endpoint the miner will actually dial, distinguished from the pool it routes to. */
     describeEndpoint() {
+        const resolved = resolveProxyEndpoint(
+            window.location,
+            this.deployment,
+            this.dom.customProxyUrl.value.trim()
+        );
+        if (!resolved.ok || !resolved.url) {
+            return { text: resolved.error || '尚未填寫代理 URL', known: false };
+        }
         if (this.dom.poolSelect.value === 'custom') {
-            const url = this.dom.customProxyUrl.value.trim();
-            return url ? { text: url, known: true } : { text: '尚未填寫代理 URL', known: false };
+            return { text: resolved.url, known: true };
         }
         const option = this.dom.poolSelect.options[this.dom.poolSelect.selectedIndex];
         const poolName = (option?.textContent || this.dom.poolSelect.value).trim();
-        return { text: `${DEFAULT_LOCAL_PROXY} → ${poolName}`, known: true };
+        return { text: `${resolved.url} → ${poolName}`, known: true };
     }
 
     refreshSummary() {
@@ -406,17 +541,32 @@ class App {
             return;
         }
 
-        let proxyUrl;
-        let poolKey;
-        if (isCustomProxy) {
-            proxyUrl = this.dom.customProxyUrl.value.trim();
-            poolKey = null;
-        } else {
-            proxyUrl = DEFAULT_LOCAL_PROXY;
-            poolKey = poolSelection;
+        const resolved = resolveProxyEndpoint(
+            window.location,
+            this.deployment,
+            this.dom.customProxyUrl.value.trim()
+        );
+        if (!resolved.ok || !resolved.url) {
+            this.showFieldError(
+                this.dom.proxyError,
+                this.dom.customProxyUrl,
+                resolved.error || '請設定 WebSocket 代理 URL'
+            );
+            this.setProxyStatus(resolved.error || '缺少代理', true);
+            this.log(`拒絕啟動: ${resolved.error || 'missing proxy'}`, 'error');
+            return;
         }
 
-        if (!proxyUrl.startsWith('ws://') && !proxyUrl.startsWith('wss://')) {
+        if (resolved.requiresRemoteConfirm) {
+            const notice = resolved.trustNotice
+                || '此為遠端代理：錢包登入會經過第三方。確認信任後才繼續。';
+            if (!window.confirm(notice)) {
+                this.log('使用者取消遠端代理確認', 'warn');
+                return;
+            }
+        }
+
+        if (!resolved.url.startsWith('ws://') && !resolved.url.startsWith('wss://')) {
             this.showFieldError(
                 this.dom.proxyError,
                 this.dom.customProxyUrl,
@@ -427,17 +577,19 @@ class App {
 
         const config = {
             walletAddress,
-            pool: poolKey,
+            pool: isCustomProxy ? null : poolSelection,
             coin: coinSelection,
             threads: parseInt(this.dom.threads.value, 10),
             workerName: this.dom.workerName.value.trim() || 'web-worker',
             password: this.dom.workerName.value.trim() || 'x',
-            proxy: proxyUrl
+            proxy: resolved.url
         };
 
         this.saveSettings();
+        this.refreshProxyHint(resolved);
         this.log(`開始挖礦 ${coinConfig.name} (${coinConfig.symbol})`);
         this.log(`連線: ${this.describeEndpoint().text}`);
+        this.log(`代理: ${resolved.url} [${resolved.source}/${resolved.kind}]`);
         this.miner.start(config);
 
         this.setSetupEnabled(false);
@@ -461,6 +613,7 @@ class App {
         this.dom.poolSelect.disabled = !enabled;
         this.dom.customProxyUrl.disabled = !enabled;
         this.dom.threads.disabled = !enabled;
+        if (this.dom.testProxyBtn) this.dom.testProxyBtn.disabled = !enabled;
         if (enabled) this.refreshSummary();
     }
 
@@ -535,7 +688,8 @@ class App {
 
     showFieldError(errorEl, inputEl, message) {
         if (!errorEl) return;
-        errorEl.querySelector('span').textContent = message;
+        const span = errorEl.querySelector('span');
+        if (span) span.textContent = message;
         errorEl.dataset.visible = 'true';
         if (inputEl) {
             inputEl.setAttribute('aria-invalid', 'true');
@@ -547,7 +701,8 @@ class App {
     clearFieldError(errorEl) {
         if (!errorEl || errorEl.dataset.visible !== 'true') return;
         errorEl.dataset.visible = 'false';
-        errorEl.querySelector('span').textContent = '';
+        const span = errorEl.querySelector('span');
+        if (span) span.textContent = '';
         const described = document.querySelector(`[aria-describedby~="${errorEl.id}"]`);
         described?.removeAttribute('aria-invalid');
     }

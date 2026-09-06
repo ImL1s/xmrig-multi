@@ -5,6 +5,7 @@
 
 import { randomx_init_cache } from './lib/randomx.js';
 import PoolProxy from './pool-proxy.js';
+import { runMiningPreflight, validateSeedHash } from './runtime-preflight.js';
 
 class Miner {
     constructor() {
@@ -12,6 +13,8 @@ class Miner {
         this.proxy = new PoolProxy();
         this.config = null;
         this.isMining = false;
+        this.readyWorkers = 0;
+        this.generation = 0;
 
         this.stats = {
             hashrate: 0,
@@ -21,11 +24,16 @@ class Miner {
             startTime: null,
             uptime: 0,
             currentJob: null,
-            isMining: false
+            isMining: false,
+            preflight: null,
+            workersReady: 0,
+            workersTotal: 0
         };
 
         this.onLog = null;
         this.onStatsUpdate = null;
+        this.onProxyFailure = null;
+        this.onRuntimeFailure = null;
         this.hashCount = 0;
         this.lastStatsTime = null;
 
@@ -39,11 +47,19 @@ class Miner {
 
     setupProxyHandlers() {
         this.proxy.onOpen = () => this.log('Connected to pool proxy');
-        this.proxy.onClose = () => {
+        this.proxy.onClose = (detail = {}) => {
             this.log('Pool connection closed');
+            if (this.onProxyFailure && detail.code) {
+                this.onProxyFailure({ code: detail.code, message: detail.reason });
+            }
             this.stop();
         };
-        this.proxy.onError = (err) => this.log('Proxy error: ' + err.message);
+        this.proxy.onError = (err) => {
+            this.log('Proxy error: ' + err.message);
+            if (this.onProxyFailure) {
+                this.onProxyFailure({ message: err.message });
+            }
+        };
 
         this.proxy.onJob = (job) => {
             this.stats.currentJob = job;
@@ -69,8 +85,26 @@ class Miner {
     start(config) {
         if (this.isMining) return;
 
+        const preflight = runMiningPreflight();
+        this.stats.preflight = preflight;
+        if (!preflight.ok) {
+            this.log(`Preflight failed [${preflight.code}]: ${preflight.message}`);
+            for (const hint of preflight.actionHints) this.log(`Hint: ${hint}`);
+            this.stats.isMining = false;
+            this.updateStats();
+            if (this.onRuntimeFailure) {
+                this.onRuntimeFailure(preflight);
+            }
+            return;
+        }
+        this.log('Preflight OK (secure + COI + SAB + WASM + Worker)');
+
         this.config = config;
         this.isMining = true;
+        this.generation += 1;
+        this.readyWorkers = 0;
+        this.stats.workersReady = 0;
+        this.stats.workersTotal = config.threads || 1;
         this.stats.startTime = Date.now();
         this.stats.totalHashes = 0;
         this.hashCount = 0;
@@ -81,11 +115,24 @@ class Miner {
         this.log(`Pool: ${config.pool}`);
         this.log(`Threads: ${config.threads}`);
 
-        // Default proxy - use local proxy if none provided
-        const proxyUrl = config.proxy || 'ws://localhost:3333';
+        const proxyUrl = config.proxy;
+        if (!proxyUrl || (!proxyUrl.startsWith('ws://') && !proxyUrl.startsWith('wss://'))) {
+            this.log('Proxy URL required — refusing implicit localhost default (#50)');
+            this.failRuntime({
+                code: 'missing_proxy',
+                message: 'Proxy URL required'
+            });
+            return;
+        }
         this.proxy.connect(proxyUrl, config);
 
         this.startStatsTimer();
+    }
+
+    failRuntime(detail) {
+        this.log(`Runtime failure [${detail.code || 'unknown'}]: ${detail.message}`);
+        if (this.onRuntimeFailure) this.onRuntimeFailure(detail);
+        this.stop();
     }
 
     /**
@@ -113,26 +160,46 @@ class Miner {
      * 處理新 Job
      */
     handleJob(job) {
+        if (!this.isMining) return;
         this.log(`New job received: ID ${job.job_id.substring(0, 8)}, diff ${job.target}`);
 
-        // Check if cache needs update (seed changed)
-        const seed = job.seed_hash || 'default';
+        const seedCheck = validateSeedHash(job.seed_hash);
+        if (!seedCheck.ok) {
+            this.failRuntime(seedCheck);
+            return;
+        }
+        const seed = seedCheck.seed;
 
         if (seed !== this.currentSeed) {
             this.updateCache(seed);
         }
 
-        // Initialize workers if needed
+        if (!this.rxCache) {
+            this.failRuntime({ code: 'cache_missing', message: 'RandomX cache not ready' });
+            return;
+        }
+
         if (this.workers.length === 0) {
             this.initWorkers();
         }
 
-        // Update all workers with the new job
+        // Only dispatch jobs after at least one worker reports initialized.
+        if (this.readyWorkers < 1) {
+            this.log(`Waiting for worker readiness (${this.readyWorkers}/${this.stats.workersTotal}) before hashing`);
+            this._pendingJob = job;
+            return;
+        }
+
+        this.dispatchJob(job);
+    }
+
+    dispatchJob(job) {
         this.workers.forEach((w, idx) => {
             try {
                 w.postMessage({ type: 'job', data: job });
             } catch (e) {
                 this.log(`Error sending job to worker ${idx}: ${e.message}`);
+                this.failRuntime({ code: 'worker_post_failed', message: e.message });
             }
         });
     }
@@ -141,21 +208,23 @@ class Miner {
         this.log('Updating RandomX cache for seed: ' + seedHex.substring(0, 16));
         this.currentSeed = seedHex;
 
-        // Convert hex string to Uint8Array (32 bytes for RandomX)
         const seedBytes = this.hexToBytes(seedHex);
 
-        // RandomX init cache
-        // We use {shared: true} so multiple workers can use the same memory
         try {
             this.rxCache = randomx_init_cache(seedBytes, { shared: true });
+            this.readyWorkers = 0;
+            this.stats.workersReady = 0;
 
-            // If workers already exist, update them (this implementation recreates them for simplicity)
             if (this.workers.length > 0) {
                 this.terminateWorkers();
                 this.initWorkers();
             }
         } catch (err) {
-            this.log('Cache init error: ' + err.message);
+            this.failRuntime({
+                code: 'cache_init_failed',
+                message: err.message || String(err),
+                actionHints: ['Lower threads', 'Retry after freeing memory', 'Confirm COOP/COEP headers']
+            });
         }
     }
 
@@ -174,37 +243,53 @@ class Miner {
         if (!this.rxCache) return;
 
         const count = this.config.threads || 1;
+        this.stats.workersTotal = count;
+        this.readyWorkers = 0;
+        this.stats.workersReady = 0;
         this.log(`Initializing ${count} workers...`);
 
+        const gen = this.generation;
         for (let i = 0; i < count; i++) {
-            // In Vite, we import worker using new URL syntax
             const worker = new Worker(new URL('./worker.js', import.meta.url), {
                 type: 'module'
             });
 
-            worker.onmessage = (e) => this.handleWorkerMessage(e.data);
-
-            // Catch worker loading errors
-            worker.onerror = (err) => {
-                this.log(`Worker ${i} error event: type=${err.type}, message=${err.message}, filename=${err.filename}, lineno=${err.lineno}, colno=${err.colno}`);
-                // Try JSON stringify if it's an object
-                try { this.log(`Worker ${i} error details: ${JSON.stringify(err)}`); } catch (e) { }
+            worker.onmessage = (e) => {
+                if (gen !== this.generation) return;
+                this.handleWorkerMessage(e.data);
             };
 
-            // Send cache handle to worker
-            // Note: DataCloneError diagnosis removed as COOP/COEP fixed it.
+            worker.onerror = (err) => {
+                this.log(`Worker ${i} error event: ${err.message || err.type}`);
+                this.failRuntime({
+                    code: 'worker_error',
+                    message: err.message || `Worker ${i} failed to load`,
+                    actionHints: ['Retry', 'Lower threads', 'Check module worker support']
+                });
+            };
+
             try {
                 worker.postMessage({ type: 'init', data: this.rxCache.handle });
             } catch (e) {
                 this.log(`PostMessage Error (Worker ${i}): ${e.name} - ${e.message}`);
+                this.failRuntime({
+                    code: 'worker_post_failed',
+                    message: `${e.name}: ${e.message}`,
+                    actionHints: ['Confirm crossOriginIsolated', 'Confirm COOP/COEP']
+                });
+                return;
             }
             this.workers.push(worker);
         }
+        this.updateStats();
     }
 
     terminateWorkers() {
         this.workers.forEach(w => w.terminate());
         this.workers = [];
+        this.readyWorkers = 0;
+        this.stats.workersReady = 0;
+        this._pendingJob = null;
     }
 
     handleWorkerMessage(msg) {
@@ -218,10 +303,22 @@ class Miner {
                 this.proxy.submit(msg.job_id, msg.nonce, msg.result);
                 break;
             case 'error':
-                this.log('Worker error: ' + msg.message);
+                this.failRuntime({
+                    code: 'worker_compute_error',
+                    message: msg.message || 'worker error',
+                    actionHints: ['Retry', 'Lower threads']
+                });
                 break;
             case 'initialized':
-                this.log('Worker initialized successfully');
+                this.readyWorkers += 1;
+                this.stats.workersReady = this.readyWorkers;
+                this.log(`Worker initialized (${this.readyWorkers}/${this.stats.workersTotal})`);
+                this.updateStats();
+                if (this._pendingJob && this.readyWorkers >= 1) {
+                    const job = this._pendingJob;
+                    this._pendingJob = null;
+                    this.dispatchJob(job);
+                }
                 break;
         }
     }
