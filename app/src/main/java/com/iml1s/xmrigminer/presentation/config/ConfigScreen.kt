@@ -196,6 +196,17 @@ private fun ConfigContent(
             onMaxCpuUsageChanged = { onEvent(ConfigUiEvent.MaxCpuUsageChanged(it)) }
         )
 
+        PowerPolicyCard(
+            requireExternalPower = state.config.requireExternalPower,
+            pauseOnUnplug = state.config.pauseOnUnplug,
+            chargeBeforeMine = state.config.chargeToPercentBeforeMine != null,
+            pauseOnNetDischarge = state.config.pauseOnNetDischargeWhilePlugged,
+            onRequireExternalPower = { onEvent(ConfigUiEvent.RequireExternalPowerToggled(it)) },
+            onPauseOnUnplug = { onEvent(ConfigUiEvent.PauseOnUnplugToggled(it)) },
+            onChargeBeforeMine = { onEvent(ConfigUiEvent.ChargeBeforeMineToggled(it)) },
+            onPauseOnNetDischarge = { onEvent(ConfigUiEvent.PauseOnNetDischargeToggled(it)) }
+        )
+
         // Save Button
         Button(
             onClick = { onEvent(ConfigUiEvent.SaveConfig) },
@@ -769,5 +780,51 @@ private fun MiningSettingsCard(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun PowerPolicyCard(
+    requireExternalPower: Boolean,
+    pauseOnUnplug: Boolean,
+    chargeBeforeMine: Boolean,
+    pauseOnNetDischarge: Boolean,
+    onRequireExternalPower: (Boolean) -> Unit,
+    onPauseOnUnplug: (Boolean) -> Unit,
+    onChargeBeforeMine: (Boolean) -> Unit,
+    onPauseOnNetDischarge: (Boolean) -> Unit
+) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Text(
+                text = "Charging / power",
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.primary
+            )
+            Text(
+                text = "Saved settings are applied at Start and by the monitor (#126).",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            PowerToggleRow("Require external power", requireExternalPower, onRequireExternalPower)
+            PowerToggleRow("Pause when unplugged", pauseOnUnplug, onPauseOnUnplug)
+            PowerToggleRow("Charge to 50% before mining", chargeBeforeMine, onChargeBeforeMine)
+            PowerToggleRow("Pause on weak charger (net discharge)", pauseOnNetDischarge, onPauseOnNetDischarge)
+        }
+    }
+}
+
+@Composable
+private fun PowerToggleRow(label: String, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(text = label, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+        Switch(checked = checked, onCheckedChange = onCheckedChange)
     }
 }

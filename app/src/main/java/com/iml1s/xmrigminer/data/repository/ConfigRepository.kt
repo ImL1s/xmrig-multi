@@ -41,10 +41,18 @@ class ConfigRepository @Inject constructor(
         val SOLO_DAEMON = booleanPreferencesKey("solo_daemon")
         val RANDOMX_MODE = stringPreferencesKey("randomx_mode")
         val RANDOMX_MODE_LOCKED = booleanPreferencesKey("randomx_mode_locked")
+        val REQUIRE_EXTERNAL_POWER = booleanPreferencesKey("require_external_power")
+        val PAUSE_ON_UNPLUG = booleanPreferencesKey("pause_on_unplug")
+        val CHARGE_TO_PERCENT = intPreferencesKey("charge_to_percent_before_mine")
+        val CHARGE_TO_PERCENT_ENABLED = booleanPreferencesKey("charge_to_percent_enabled")
+        val MIN_BATTERY_PERCENT = intPreferencesKey("min_battery_percent")
+        val RESUME_BATTERY_PERCENT = intPreferencesKey("resume_battery_percent")
+        val PAUSE_ON_NET_DISCHARGE = booleanPreferencesKey("pause_on_net_discharge")
     }
 
     fun getConfig(): Flow<MiningConfig> = context.dataStore.data.map { prefs ->
         val defaultThreads = MiningConfig.defaultThreads()
+        val chargeEnabled = prefs[Keys.CHARGE_TO_PERCENT_ENABLED] ?: false
         MiningConfig(
             poolUrl = prefs[Keys.POOL_URL] ?: ConfigRepositoryDefaults.POOL_URL,
             walletAddress = prefs[Keys.WALLET_ADDRESS] ?: "",
@@ -59,7 +67,17 @@ class ConfigRepository @Inject constructor(
             coinType = prefs[Keys.COIN_TYPE] ?: "MONERO",
             soloDaemon = prefs[Keys.SOLO_DAEMON] ?: false,
             randomxMode = MiningConfig.normalizeRandomxMode(prefs[Keys.RANDOMX_MODE] ?: "auto"),
-            randomxModeLocked = prefs[Keys.RANDOMX_MODE_LOCKED] ?: false
+            randomxModeLocked = prefs[Keys.RANDOMX_MODE_LOCKED] ?: false,
+            requireExternalPower = prefs[Keys.REQUIRE_EXTERNAL_POWER] ?: false,
+            pauseOnUnplug = prefs[Keys.PAUSE_ON_UNPLUG] ?: false,
+            chargeToPercentBeforeMine = if (chargeEnabled) {
+                prefs[Keys.CHARGE_TO_PERCENT] ?: 50
+            } else {
+                null
+            },
+            minBatteryPercent = prefs[Keys.MIN_BATTERY_PERCENT] ?: 20,
+            resumeBatteryPercent = prefs[Keys.RESUME_BATTERY_PERCENT] ?: 30,
+            pauseOnNetDischargeWhilePlugged = prefs[Keys.PAUSE_ON_NET_DISCHARGE] ?: false
         )
     }
 
@@ -79,6 +97,13 @@ class ConfigRepository @Inject constructor(
             prefs[Keys.SOLO_DAEMON] = config.soloDaemon
             prefs[Keys.RANDOMX_MODE] = MiningConfig.normalizeRandomxMode(config.randomxMode)
             prefs[Keys.RANDOMX_MODE_LOCKED] = config.randomxModeLocked
+            prefs[Keys.REQUIRE_EXTERNAL_POWER] = config.requireExternalPower
+            prefs[Keys.PAUSE_ON_UNPLUG] = config.pauseOnUnplug
+            prefs[Keys.CHARGE_TO_PERCENT_ENABLED] = config.chargeToPercentBeforeMine != null
+            prefs[Keys.CHARGE_TO_PERCENT] = config.chargeToPercentBeforeMine ?: 50
+            prefs[Keys.MIN_BATTERY_PERCENT] = config.minBatteryPercent
+            prefs[Keys.RESUME_BATTERY_PERCENT] = config.resumeBatteryPercent
+            prefs[Keys.PAUSE_ON_NET_DISCHARGE] = config.pauseOnNetDischargeWhilePlugged
         }
     }
 
