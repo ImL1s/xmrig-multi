@@ -68,6 +68,16 @@ class MiningWorker @AssistedInject constructor(
             if (isStopped) {
                 Result.success()
             } else {
+                val runtimeFailure = MiningRuntimePolicy.classifyThrowable(e)
+                if (runtimeFailure != null) {
+                    val msg = MiningRuntimePolicy.messageFor(
+                        runtimeFailure,
+                        MiningRuntimePolicy.StartPath.USER_VISIBLE
+                    )
+                    Timber.w("System-limited mining stop [%s]: %s", msg.code, msg.message)
+                    // Never WorkManager-retry quota / FGS-start denial (#61).
+                    return@withContext Result.failure()
+                }
                 // #43: only retry transient failures when autoReconnect is on.
                 // Auth / TLS / config failures must not create a WorkManager reconnect storm.
                 val config = runCatching { resolveLaunchConfig() }.getOrNull()
