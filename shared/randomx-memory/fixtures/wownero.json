@@ -1,12 +1,14 @@
 {
   "id": "wow-own-constants",
-  "description": "Wownero must not reuse Monero 2080 MiB dataset",
+  "description": "Wownero shares XMRig 6.21.0 dataset (~2080 MiB) but uses 1 MiB scratchpad — not Monero's 2 MiB",
   "algorithm": "rx/wow",
   "threads": 2,
   "numaNodes": 1,
-  "availableBytes": 4294967296,
-  "totalBytes": 8589934592,
+  "availableBytes": 8589934592,
+  "totalBytes": 17179869184,
   "processLimitBytes": null,
-  "expectedDatasetMiB": 256,
-  "expectedScratchpadMiBPerThread": 1
+  "expectedDatasetMiB": 2080,
+  "expectedScratchpadMiBPerThread": 1,
+  "engineVersion": "6.21.0",
+  "engineDatasetBasePlusExtraBytes": 2181038016
 }

@@ -47,8 +47,10 @@ export function selectRandomXMode(input = {}) {
     }
 
     if (input.allocationFailed) {
-        const lightEst = estimateMemory({ ...input, algorithm: algoId, mode: 'light' });
+        // OOM retry must use the same evaluateMode / hard-limit gate as first launch (#129).
+        // Never return ok:true when light still exceeds processLimitBytes.
         if (locked && requested === 'fast') {
+            const lightEst = estimateMemory({ ...input, algorithm: algoId, mode: 'light' });
             return {
                 ok: false,
                 mode: requested,
@@ -64,19 +66,31 @@ export function selectRandomXMode(input = {}) {
                 retryHint: 'Switch to light mode and retry once — do not loop forever'
             };
         }
+        reasons.push('Previous allocation/OS pressure failure — evaluating light retry');
+        const trial = evaluateMode(algoId, 'light', input, reasons);
+        const confirmedSoft =
+            trial.requiresSoftConfirm && input.confirmSoftOverride && !trial.hardBlocked;
+        const permitted = trial.ok || confirmedSoft;
+        if (permitted && confirmedSoft) {
+            reasons.push('User confirmed soft-budget override for light retry');
+        }
         return {
-            ok: true,
-            mode: locked ? requested : 'light',
-            appliedMode: 'light',
-            blocked: false,
+            ok: permitted,
+            mode: locked ? requested : permitted ? 'light' : requested,
+            appliedMode: permitted ? 'light' : null,
+            blocked: !permitted,
             reasons: [
-                'Previous allocation/OS pressure failure — retrying light mode once',
-                'Will not infinite-restart on OOM'
+                ...reasons,
+                permitted
+                    ? 'light retry permitted'
+                    : 'light retry blocked — free memory, lower threads, or device unsupported'
             ],
-            estimate: lightEst,
-            requiresSoftConfirm: false,
-            fallbackApplied: !locked,
-            retryHint: 'Retry light once after freeing memory'
+            estimate: trial.estimate,
+            requiresSoftConfirm: !permitted && trial.requiresSoftConfirm,
+            fallbackApplied: permitted && !locked,
+            retryHint: permitted
+                ? 'Retry light once after freeing memory'
+                : 'Free memory or lower threads — light also blocked by hard/soft gate'
         };
     }
 

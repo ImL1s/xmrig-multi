@@ -1,8 +1,10 @@
 package com.iml1s.xmrigminer.data.hardware
 
+import com.iml1s.xmrigminer.data.model.MiningConfig
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -56,7 +58,7 @@ class RandomXMemoryBudgetTest {
     }
 
     @Test
-    fun `allocation failure retries light once`() {
+    fun `allocation failure retries light once when RAM allows`() {
         val sel = RandomXMemoryBudget.select(
             requestedMode = "auto",
             threads = 4,
@@ -69,11 +71,53 @@ class RandomXMemoryBudgetTest {
     }
 
     @Test
-    fun `wownero uses own dataset constants`() {
-        assertTrue(RandomXMemoryBudget.RX_WOW.datasetMiB != RandomXMemoryBudget.RX0.datasetMiB)
+    fun `allocation failure with 64MiB hard limit stays blocked`() {
+        val mib = RandomXMemoryBudget.MIB
+        val normal = RandomXMemoryBudget.select(
+            requestedMode = "auto",
+            threads = 1,
+            availableBytes = 64 * mib,
+            processLimitBytes = 64 * mib
+        )
+        assertTrue(normal.blocked)
+        assertFalse(normal.ok)
+
+        val oom = RandomXMemoryBudget.select(
+            requestedMode = "auto",
+            threads = 1,
+            availableBytes = 64 * mib,
+            processLimitBytes = 64 * mib,
+            allocationFailed = true
+        )
+        assertTrue(oom.blocked)
+        assertFalse(oom.ok)
+        assertNull(oom.appliedMode)
+        assertEquals(false, oom.estimate.fitsHardLimit)
+    }
+
+    @Test
+    fun `wownero dataset matches XMRig 6210 base plus extra ceil`() {
+        assertEquals(RandomXMemoryBudget.RX0.datasetMiB, RandomXMemoryBudget.RX_WOW.datasetMiB)
+        assertTrue(RandomXMemoryBudget.RX_WOW.scratchpadMiB != RandomXMemoryBudget.RX0.scratchpadMiB)
+        assertTrue(
+            RandomXMemoryBudget.ENGINE_DATASET_MIB * RandomXMemoryBudget.MIB >=
+                RandomXMemoryBudget.ENGINE_DATASET_BASE_PLUS_EXTRA_BYTES
+        )
         val est = RandomXMemoryBudget.estimate(algorithm = "wownero", mode = "fast", threads = 2)
         val dataset = est.components.first { it.name == "dataset" }
-        assertEquals(256 * RandomXMemoryBudget.MIB, dataset.bytes)
+        assertEquals(2080 * RandomXMemoryBudget.MIB, dataset.bytes)
+        assertTrue(dataset.bytes >= RandomXMemoryBudget.ENGINE_DATASET_BASE_PLUS_EXTRA_BYTES)
+
+        val blocked = RandomXMemoryBudget.select(
+            algorithm = "rx/wow",
+            requestedMode = "fast",
+            locked = true,
+            threads = 1,
+            availableBytes = 4L * 1024 * RandomXMemoryBudget.MIB,
+            processLimitBytes = 1024 * RandomXMemoryBudget.MIB
+        )
+        assertTrue(blocked.blocked)
+        assertFalse(blocked.ok)
     }
 
     @Test
@@ -89,5 +133,78 @@ class RandomXMemoryBudgetTest {
         assertFalse(sel.ok)
         assertTrue(sel.blocked)
         assertTrue(sel.reasons.any { it.contains("Hard", ignoreCase = true) })
+    }
+
+    @Test
+    fun `MemoryLaunchGate blocked spy allocates nothing`() {
+        val config = MiningConfig(
+            poolUrl = "pool.supportxmr.com:3333",
+            walletAddress = "4AdUndXHHZ6cfufTMvppY6JwXNouMBzSkbLYfpAV5Usx3skxNgYeYTRj5UzqtReoS44qo9mtmXCqY45DJ852K5Jv2684Rge",
+            randomxMode = "auto",
+            threads = 1,
+            threadsAuto = false
+        )
+        val allocator = MemoryLaunchGate.FakeAllocator()
+        val mib = RandomXMemoryBudget.MIB
+        val verdict = MemoryLaunchGate.evaluate(
+            config = config,
+            observation = MemoryLaunchGate.Observation(
+                availableBytes = 64 * mib,
+                processLimitBytes = 64 * mib
+            ),
+            allocationFailed = true,
+            allocator = allocator
+        )
+        assertFalse(verdict.allowed)
+        assertEquals(0, allocator.cacheCreates)
+        assertEquals(0, allocator.datasetCreates)
+        assertEquals(0, allocator.live)
+    }
+
+    @Test
+    fun `MemoryLaunchGate OOM retry budget is session scoped`() {
+        val config = MiningConfig(
+            poolUrl = "pool.supportxmr.com:3333",
+            walletAddress = "4AdUndXHHZ6cfufTMvppY6JwXNouMBzSkbLYfpAV5Usx3skxNgYeYTRj5UzqtReoS44qo9mtmXCqY45DJ852K5Jv2684Rge",
+            randomxMode = "auto",
+            threads = 1,
+            threadsAuto = false
+        )
+        val budget = MemoryLaunchGate.RetryBudget(1)
+        val obs = MemoryLaunchGate.Observation(availableBytes = 8L * 1024 * RandomXMemoryBudget.MIB)
+        val first = MemoryLaunchGate.evaluate(
+            config, obs, allocationFailed = true, retryBudget = budget, sessionGeneration = 7L
+        )
+        assertTrue(first.allowed)
+        assertEquals("light", first.appliedMode)
+
+        val second = MemoryLaunchGate.evaluate(
+            config, obs, allocationFailed = true, retryBudget = budget, sessionGeneration = 7L
+        )
+        assertFalse(second.allowed)
+        assertTrue(second.reasons.any { it.contains("budget exhausted", ignoreCase = true) })
+
+        val nextGen = MemoryLaunchGate.evaluate(
+            config, obs, allocationFailed = true, retryBudget = budget, sessionGeneration = 8L
+        )
+        assertTrue(nextGen.allowed)
+    }
+
+    @Test
+    fun `MiningConfig resolvedRandomxMode null when hard blocked`() {
+        val config = MiningConfig(
+            poolUrl = "pool.supportxmr.com:3333",
+            walletAddress = "4AdUndXHHZ6cfufTMvppY6JwXNouMBzSkbLYfpAV5Usx3skxNgYeYTRj5UzqtReoS44qo9mtmXCqY45DJ852K5Jv2684Rge",
+            randomxMode = "light",
+            threads = 1,
+            threadsAuto = false
+        )
+        val mib = RandomXMemoryBudget.MIB
+        assertNull(
+            config.resolvedRandomxMode(
+                availableBytes = 64 * mib,
+                processLimitBytes = 64 * mib
+            )
+        )
     }
 }

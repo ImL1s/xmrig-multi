@@ -91,7 +91,9 @@ export function estimateMemory(input = {}) {
     const available = finiteOrNull(input.availableBytes);
     const total = finiteOrNull(input.totalBytes);
     const processLimit = finiteOrNull(input.processLimitBytes);
-    const budgetBase = pickBudgetBase(available, total, processLimit);
+    // Soft budget is host RAM headroom only — never fold processLimit into soft base (#129).
+    // Hard OS/process limit is checked separately via fitsHardLimit (miningBytes only).
+    const budgetBase = pickSoftBudgetBase(available, total);
     const softBudgetBytes = budgetBase == null ? null : Math.floor(budgetBase * softFrac);
 
     const confidence = memoryConfidence(available, total, processLimit, modeReq);
@@ -173,8 +175,8 @@ function finiteOrNull(v) {
     return Math.floor(n);
 }
 
-function pickBudgetBase(available, total, processLimit) {
-    const candidates = [available, total, processLimit].filter((x) => x != null);
+function pickSoftBudgetBase(available, total) {
+    const candidates = [available, total].filter((x) => x != null);
     if (!candidates.length) return null;
     return Math.min(...candidates);
 }

@@ -1,5 +1,6 @@
 package com.iml1s.xmrigminer.service
 
+import android.app.ActivityManager
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
@@ -13,6 +14,7 @@ import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import com.iml1s.xmrigminer.data.daemon.DaemonEndpointParser
 import com.iml1s.xmrigminer.data.daemon.DaemonRpcProbe
+import com.iml1s.xmrigminer.data.hardware.MemoryLaunchGate
 import com.iml1s.xmrigminer.data.model.CoinType
 import com.iml1s.xmrigminer.data.model.MiningConfig
 import com.iml1s.xmrigminer.data.repository.ConfigRepository
@@ -51,6 +53,7 @@ class MiningController @Inject constructor(
     private val sessionGeneration = AtomicLong(0L)
     private val runtimeThreadOverride = AtomicReference<Int?>(null)
     private val lastAppliedThreads = AtomicInteger(0)
+    private val oomRetryBudget = MemoryLaunchGate.RetryBudget(maxRetries = 1)
 
     fun currentSessionGeneration(): Long = sessionGeneration.get()
 
@@ -72,6 +75,9 @@ class MiningController @Inject constructor(
         // Pre-start power gate — waiting must not allocate RandomX (#126).
         val obs = powerObservation ?: readPowerObservation()
         evaluatePowerGate(config, obs)?.let { return it }
+
+        // Pre-start memory gate — hard limit / OOM retry must not allocate (#129).
+        evaluateMemoryGate(config)?.let { return it }
 
         if (config.soloDaemon) {
             val parsed = DaemonEndpointParser.parse(config.poolUrl, allowHttps = false)
@@ -191,6 +197,7 @@ class MiningController @Inject constructor(
         validateStartConfig(config)?.let { return it }
         val obs = powerObservation ?: readPowerObservation()
         evaluatePowerGate(config, obs)?.let { return it }
+        evaluateMemoryGate(config)?.let { return it }
 
         if (config.soloDaemon) {
             val parsed = DaemonEndpointParser.parse(config.poolUrl, allowHttps = false)
@@ -303,6 +310,46 @@ class MiningController @Inject constructor(
             else -> MiningStartResult.InvalidConfig(
                 verdict.reasons.firstOrNull() ?: "Power policy blocked start"
             )
+        }
+    }
+
+    /**
+     * Memory hard/soft gate before enqueue (#129). Blocked → no RandomX allocation.
+     */
+    fun evaluateMemoryGate(
+        config: MiningConfig,
+        observation: MemoryLaunchGate.Observation? = null,
+        allocationFailed: Boolean = false
+    ): MiningStartResult.InvalidConfig? {
+        if (config.getCoin() == CoinType.DERO) return null
+        val mem = observation ?: readMemoryObservation()
+        val verdict = MemoryLaunchGate.evaluate(
+            config = config,
+            observation = mem,
+            allocationFailed = allocationFailed,
+            retryBudget = if (allocationFailed) oomRetryBudget else null,
+            sessionGeneration = sessionGeneration.get()
+        )
+        if (verdict.allowed) return null
+        return MiningStartResult.InvalidConfig(
+            verdict.reasons.firstOrNull()
+                ?: "Memory gate blocked start — free RAM or use light mode"
+        )
+    }
+
+    fun readMemoryObservation(): MemoryLaunchGate.Observation {
+        return try {
+            val am = appContext.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
+            val info = ActivityManager.MemoryInfo()
+            am.getMemoryInfo(info)
+            MemoryLaunchGate.Observation(
+                availableBytes = info.availMem,
+                totalBytes = info.totalMem,
+                processLimitBytes = null
+            )
+        } catch (e: Exception) {
+            Timber.w(e, "Memory observation failed — gate uses unknown available")
+            MemoryLaunchGate.Observation()
         }
     }
 
