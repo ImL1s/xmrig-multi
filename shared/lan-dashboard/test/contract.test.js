@@ -41,8 +41,27 @@ test('pairing rejects expired, replay, wrong host, unbound channel', () => {
       code: '123456',
       nowMs: T0 + 20,
       channelBound: true,
-      clientDeviceId: 'pad-2'
+      clientDeviceId: 'pad-2',
+      expectedHostDeviceId: 'miner-a'
     }).ok,
+    false
+  );
+  assert.equal(
+    completePairing(
+      createPairingChallenge({
+        code: '123456',
+        hostDeviceId: 'miner-a',
+        nowMs: T0,
+        ttlMs: 60_000
+      }),
+      {
+        code: '123456',
+        nowMs: T0 + 10,
+        channelBound: true,
+        clientDeviceId: 'pad-1'
+        // missing expectedHostDeviceId
+      }
+    ).ok,
     false
   );
   assert.equal(

@@ -41,9 +41,11 @@ export function completePairing(challenge, attempt = {}) {
   if (String(attempt.code || '') !== challenge.code) {
     return { ok: false, reason: 'Invalid pairing code' };
   }
+  if (!attempt.expectedHostDeviceId) {
+    return { ok: false, reason: 'expectedHostDeviceId required' };
+  }
   if (
     challenge.hostDeviceId &&
-    attempt.expectedHostDeviceId &&
     challenge.hostDeviceId !== attempt.expectedHostDeviceId
   ) {
     return { ok: false, reason: 'Host device mismatch (wrong miner)' };
