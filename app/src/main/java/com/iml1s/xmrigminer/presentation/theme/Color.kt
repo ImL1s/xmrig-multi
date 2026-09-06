@@ -2,48 +2,61 @@ package com.iml1s.xmrigminer.presentation.theme
 
 import androidx.compose.ui.graphics.Color
 
-// Light Theme Colors
-val md_theme_light_primary = Color(0xFF6750A4)
-val md_theme_light_onPrimary = Color(0xFFFFFFFF)
-val md_theme_light_primaryContainer = Color(0xFFEADDFF)
-val md_theme_light_onPrimaryContainer = Color(0xFF21005D)
+/**
+ * "Kiln" palette — a measurement-console surface rather than a marketing gradient.
+ *
+ * Warm graphite grounds carry an ember brand accent; telemetry uses a cool signal hue so a
+ * running miner never reads as an advertisement. Every foreground token below is checked at
+ * >= 4.5:1 against its own surface so status can be stated in text, icon, and colour together
+ * (#58). Values are mirrored in `web/css/style.css` and `docs/design-system.md`.
+ */
 
-val md_theme_light_secondary = Color(0xFF625B71)
-val md_theme_light_onSecondary = Color(0xFFFFFFFF)
-val md_theme_light_secondaryContainer = Color(0xFFE8DEF8)
-val md_theme_light_onSecondaryContainer = Color(0xFF1D192B)
+// ---- Dark (default) -------------------------------------------------------
 
-val md_theme_light_error = Color(0xFFB3261E)
-val md_theme_light_errorContainer = Color(0xFFF9DEDC)
-val md_theme_light_onError = Color(0xFFFFFFFF)
-val md_theme_light_onErrorContainer = Color(0xFF410E0B)
+val KilnDarkGround = Color(0xFF0E0D0C)
+val KilnDarkSurface = Color(0xFF171614)
+val KilnDarkSurfaceRaised = Color(0xFF201E1B)
+val KilnDarkSurfaceInset = Color(0xFF0A0908)
+val KilnDarkHairline = Color(0xFF322E2A)
+val KilnDarkInk = Color(0xFFF2EDE4)
+val KilnDarkInkDim = Color(0xFFA8A093)
+val KilnDarkInkFaint = Color(0xFF8A8276)
 
-val md_theme_light_background = Color(0xFFFFFBFE)
-val md_theme_light_onBackground = Color(0xFF1C1B1F)
-val md_theme_light_surface = Color(0xFFFFFBFE)
-val md_theme_light_onSurface = Color(0xFF1C1B1F)
-val md_theme_light_surfaceVariant = Color(0xFFE7E0EC)
-val md_theme_light_onSurfaceVariant = Color(0xFF49454F)
+val KilnDarkEmber = Color(0xFFE8722A)
+val KilnDarkEmberInk = Color(0xFF2A1305)
+val KilnDarkEmberContainer = Color(0xFF3A1E0C)
 
-// Dark Theme Colors
-val md_theme_dark_primary = Color(0xFFD0BCFF)
-val md_theme_dark_onPrimary = Color(0xFF381E72)
-val md_theme_dark_primaryContainer = Color(0xFF4F378B)
-val md_theme_dark_onPrimaryContainer = Color(0xFFEADDFF)
+val KilnDarkSignal = Color(0xFF6FD3C7)
+val KilnDarkSignalContainer = Color(0xFF10312E)
+val KilnDarkCaution = Color(0xFFE3B341)
+val KilnDarkCautionContainer = Color(0xFF352A0E)
+val KilnDarkHalt = Color(0xFFE5534B)
+val KilnDarkHaltInk = Color(0xFFFF9A93)
+val KilnDarkHaltContainer = Color(0xFF3A1512)
+val KilnDarkInert = Color(0xFF8A8276)
+val KilnDarkInertContainer = Color(0xFF232120)
 
-val md_theme_dark_secondary = Color(0xFFCCC2DC)
-val md_theme_dark_onSecondary = Color(0xFF332D41)
-val md_theme_dark_secondaryContainer = Color(0xFF4A4458)
-val md_theme_dark_onSecondaryContainer = Color(0xFFE8DEF8)
+// ---- Light ----------------------------------------------------------------
 
-val md_theme_dark_error = Color(0xFFF2B8B5)
-val md_theme_dark_errorContainer = Color(0xFF8C1D18)
-val md_theme_dark_onError = Color(0xFF601410)
-val md_theme_dark_onErrorContainer = Color(0xFFF9DEDC)
+val KilnLightGround = Color(0xFFF5F1E9)
+val KilnLightSurface = Color(0xFFFDFBF6)
+val KilnLightSurfaceRaised = Color(0xFFFFFFFF)
+val KilnLightSurfaceInset = Color(0xFFEFEAE0)
+val KilnLightHairline = Color(0xFFDFD7C9)
+val KilnLightInk = Color(0xFF1A1613)
+val KilnLightInkDim = Color(0xFF4E463C)
+val KilnLightInkFaint = Color(0xFF6E675D)
 
-val md_theme_dark_background = Color(0xFF1C1B1F)
-val md_theme_dark_onBackground = Color(0xFFE6E1E5)
-val md_theme_dark_surface = Color(0xFF1C1B1F)
-val md_theme_dark_onSurface = Color(0xFFE6E1E5)
-val md_theme_dark_surfaceVariant = Color(0xFF49454F)
-val md_theme_dark_onSurfaceVariant = Color(0xFFCAC4D0)
+val KilnLightEmber = Color(0xFFA8501C)
+val KilnLightEmberInk = Color(0xFFFFFFFF)
+val KilnLightEmberContainer = Color(0xFFF7E2D2)
+
+val KilnLightSignal = Color(0xFF0C6F63)
+val KilnLightSignalContainer = Color(0xFFD3EDE8)
+val KilnLightCaution = Color(0xFF7A5600)
+val KilnLightCautionContainer = Color(0xFFF6E7C4)
+val KilnLightHalt = Color(0xFFB3261E)
+val KilnLightHaltInk = Color(0xFFB3261E)
+val KilnLightHaltContainer = Color(0xFFF7DEDC)
+val KilnLightInert = Color(0xFF6E675D)
+val KilnLightInertContainer = Color(0xFFE7E1D6)
