@@ -14,7 +14,7 @@ android {
 
     defaultConfig {
         applicationId = "com.iml1s.xmrigminer"
-        minSdk = 21
+        minSdk = 24
         targetSdk = 34
         versionCode = 23
         versionName = "2.3.0"

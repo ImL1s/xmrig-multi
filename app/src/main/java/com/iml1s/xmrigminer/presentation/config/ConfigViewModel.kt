@@ -106,6 +106,7 @@ class ConfigViewModel @Inject constructor(
             is ConfigUiEvent.ThreadsAutoToggled -> handleThreadsAutoToggled(event.enabled)
             is ConfigUiEvent.MaxCpuUsageChanged -> handleMaxCpuUsageChanged(event.usage)
             is ConfigUiEvent.TlsToggled -> handleTlsToggled(event.enabled)
+            is ConfigUiEvent.TlsFingerprintChanged -> handleTlsFingerprintChanged(event.fingerprint)
             is ConfigUiEvent.CustomPoolUrlChanged -> handleCustomPoolUrlChanged(event.url)
             is ConfigUiEvent.SoloDaemonToggled -> handleSoloDaemonToggled(event.enabled)
             is ConfigUiEvent.RequireExternalPowerToggled -> {
@@ -270,6 +271,11 @@ class ConfigViewModel @Inject constructor(
             currentConfig.copy(useTls = enabled)
         }
         updateConfig(newConfig, state.copy(selectedPool = pool ?: state.selectedPool))
+    }
+
+    private fun handleTlsFingerprintChanged(fingerprint: String) {
+        val state = _uiState.value as? ConfigUiState.Success ?: return
+        updateConfig(currentConfig.copy(tlsFingerprint = fingerprint), state)
     }
 
     private fun handleCustomPoolUrlChanged(url: String) {

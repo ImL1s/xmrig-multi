@@ -421,7 +421,10 @@ private fun LimitsPanel() {
                 add("${blocked.joinToString("、") { it.displayName }} 在此版本無法挖礦，設定頁會擋下啟動")
             }
             if (!XmrigNativeCapabilities.TLS_ENABLED) {
-                add("此版本的 XMRig 未編譯 TLS，僅能連線到非加密礦池埠")
+                add("此版本的 XMRig TLS 未解鎖，僅能連線到非加密礦池埠 (#134)")
+            }
+            if (!XmrigNativeCapabilities.DAEMON_ENABLED) {
+                add("Solo/daemon 需要 WITH_HTTP=ON 原生建置；目前能力未宣告 (#134)")
             }
         }
     }

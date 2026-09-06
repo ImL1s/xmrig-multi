@@ -5,7 +5,9 @@
   "platforms": {
     "android": {
       "engine": "libxmrig.so via scripts/build_xmrig.sh",
-      "tls": { "status": "unavailable", "note": "XmrigNativeCapabilities TLS off", "evidenceId": "android-native-capabilities" },
+      "tls": { "status": "supported", "note": "Fingerprint trust model; not full CA/hostname", "evidenceId": "android-native-rebuild" },
+      "httpApi": { "status": "supported", "note": "Loopback 127.0.0.1 + per-session token", "evidenceId": "android-native-rebuild" },
+      "benchmark": { "status": "supported", "note": "Offline RandomX --bench", "evidenceId": "android-native-rebuild" },
       "coins": {
         "monero": { "status": "supported", "evidenceId": "web-share-gate" },
         "wownero": { "status": "unavailable", "evidenceId": "android-native-capabilities" },
@@ -13,9 +15,12 @@
       },
       "opencl": { "status": "unavailable", "reason": "WITH_OPENCL=OFF in build_xmrig.sh", "evidenceId": "gpu-capability" },
       "cuda": { "status": "unavailable", "reason": "WITH_CUDA=OFF in build_xmrig.sh", "evidenceId": "gpu-capability" },
-      "soloDaemon": { "status": "supported", "evidenceId": "daemon-endpoint" },
+      "soloDaemon": { "status": "supported", "note": "Requires WITH_HTTP=ON (XMRig CMake coupling)", "evidenceId": "android-native-rebuild" },
       "p2pool": { "status": "supported", "evidenceId": "p2pool-connect" },
       "knownLimits": [
+        "TLS trust is certificate fingerprint pin, not full CA/hostname identity (#134)",
+        "WITH_HWLOC=OFF — topology remains limited on Android",
+        "deviceVerified remains false until OEM device report attached",
         "FGS/WorkManager quota on Android 14–16 unverified on OEM matrix (#61)",
         "Battery/thermal policies present; overnight mining not guaranteed"
       ]
@@ -95,6 +100,7 @@
     "p2pool-connect": { "command": "node --test shared/p2pool-connect/test/*.test.js", "covers": "#45" },
     "desktop-optimize": { "command": "node --test shared/desktop-optimize/test/*.test.js", "covers": "#37" },
     "android-native-capabilities": { "command": "./gradlew testDebugUnitTest --tests \"*XmrigNativeCapabilities*\"", "covers": "TLS/coin gates" },
+    "android-native-rebuild": { "command": "./scripts/build_xmrig.sh && ./scripts/native/smoke-native.sh", "covers": "#134 TLS/HTTP/benchmark/daemon" },
     "gpu-capability": { "command": "node --test shared/gpu-capability/test/*.test.js", "covers": "#65" },
     "ios-capability": { "command": "see ios capability PR / XCTest when present", "covers": "#60" },
     "companion-sync": { "command": "node --test shared/companion-sync/test/*.test.js", "covers": "#62" },

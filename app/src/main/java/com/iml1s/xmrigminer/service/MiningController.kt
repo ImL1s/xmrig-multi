@@ -482,6 +482,12 @@ class MiningController @Inject constructor(
         if (config.useTls && !XmrigNativeCapabilities.TLS_ENABLED) {
             return MiningStartResult.InvalidConfig(XmrigNativeCapabilities.TLS_UNSUPPORTED_MESSAGE)
         }
+        XmrigNativeCapabilities.assertTlsPin(config)?.let {
+            return MiningStartResult.InvalidConfig(it)
+        }
+        XmrigNativeCapabilities.assertSoloDaemonAllowed(config)?.let {
+            return MiningStartResult.InvalidConfig(it)
+        }
         XmrigNativeCapabilities.assertStartAllowed(config.getCoin())?.let {
             return MiningStartResult.InvalidConfig(it)
         }

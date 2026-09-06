@@ -12,7 +12,7 @@ colour, but not proof that a miner ran.
 | Shot | File | What it shows |
 |------|------|----------------|
 | Home (idle) | [android/01-home-idle.png](android/01-home-idle.png) | Stopped state, start/stop controls, ARM64 CPU info |
-| Config / pool | [android/02-config-pool.png](android/02-config-pool.png) | Coin + MoneroOcean pool; TLS switch disabled (`WITH_TLS=OFF`) |
+| Config / pool | [android/02-config-pool.png](android/02-config-pool.png) | Coin + MoneroOcean pool; TLS switch (fingerprint trust when `#134` binary matches `native-capabilities.json`) |
 | Config / settings | [android/03-config-settings.png](android/03-config-settings.png) | Wallet, worker name, threads / CPU target, Save |
 | Mining | [android/04-mining-running.png](android/04-mining-running.png) | Live hashrate (~500 H/s), difficulty, temp, CPU |
 | Statistics | [android/05-stats.png](android/05-stats.png) | 10s/60s hashrate, shares, device health |

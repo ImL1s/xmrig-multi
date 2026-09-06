@@ -39,15 +39,19 @@ jobs:
         env:
           ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
         run: |
-          chmod +x scripts/build_xmrig.sh
-          if [ -f app/src/main/assets/xmrig_arm64 ]; then
-            echo "Using tracked app/src/main/assets/xmrig_arm64 (repo 1% fee wallet)"
-            mkdir -p app/src/main/jniLibs/arm64-v8a
-            cp app/src/main/assets/xmrig_arm64 app/src/main/jniLibs/arm64-v8a/libxmrig.so
-            chmod 755 app/src/main/jniLibs/arm64-v8a/libxmrig.so
-          else
-            ./scripts/build_xmrig.sh
-          fi
+          # Always rebuild — never ship a tracked HTTP-off / TLS-off asset as-is (#134).
+          chmod +x scripts/build_xmrig.sh scripts/native/*.sh
+          ./scripts/build_xmrig.sh
+          ./scripts/native/smoke-native.sh
+          python3 - <<'PY'
+          import json, sys
+          m = json.load(open("app/src/main/assets/native-capabilities.json"))
+          for name in ("httpApi", "tls", "benchmark", "daemon"):
+              if not m["capabilities"][name]["declared"]:
+                  print(f"::error::{name}.declared missing after release rebuild")
+                  sys.exit(1)
+          print("OK: release capabilities declared")
+          PY
 
       - name: Grant Execute Permission for Gradle
         run: chmod +x gradlew
@@ -93,6 +97,9 @@ jobs:
             else
               cp "$WEAR" "release-out/xmrig-multi-wearos-${VER}.apk"
             fi
+          fi
+          if [ -f app/src/main/assets/native-capabilities.json ]; then
+            cp app/src/main/assets/native-capabilities.json "release-out/native-capabilities.json"
           fi
           ls -la release-out
 

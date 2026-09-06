@@ -42,6 +42,15 @@ jobs:
           exit 1
         fi
 
+    - name: Check native-capabilities.json + smoke (#134)
+      run: |
+        if [ ! -f app/src/main/assets/native-capabilities.json ]; then
+          echo "::error::native-capabilities.json missing from assets (#134)"
+          exit 1
+        fi
+        chmod +x scripts/native/smoke-native.sh scripts/native/generate-manifest.sh scripts/native/build-deps.sh || true
+        ./scripts/native/smoke-native.sh
+
     - name: Build Debug APK
       run: ./gradlew :app:assembleDebug
 
@@ -67,3 +76,49 @@ jobs:
           app/build/reports/lint-results-debug.html
           app/build/reports/lint-results-debug.xml
         if-no-files-found: ignore
+
+  native-rebuild:
+    name: Native rebuild TLS/HTTP/benchmark (#134)
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v4
+
+    - name: Setup NDK r26c
+      uses: nttld/setup-ndk@v1
+      id: setup-ndk
+      with:
+        ndk-version: r26c
+        add-to-path: false
+
+    - name: Install build tools
+      run: sudo apt-get update && sudo apt-get install -y cmake ninja-build binutils
+
+    - name: Rebuild XMRig with OpenSSL + libuv
+      env:
+        ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
+      run: |
+        chmod +x scripts/build_xmrig.sh scripts/native/*.sh
+        ./scripts/build_xmrig.sh
+
+    - name: Smoke + assert CMake ON flags
+      run: |
+        ./scripts/native/smoke-native.sh
+        python3 - <<'PY'
+        import json, sys
+        m = json.load(open("app/src/main/assets/native-capabilities.json"))
+        cmake = m["cmake"]
+        for key in ("WITH_HTTP", "WITH_TLS", "WITH_BENCHMARK"):
+            if str(cmake.get(key, "")).upper() != "ON":
+                print(f"::error::{key}={cmake.get(key)} expected ON")
+                sys.exit(1)
+        if str(cmake.get("WITH_HWLOC", "")).upper() != "OFF":
+            print(f"::error::WITH_HWLOC={cmake.get('WITH_HWLOC')} expected OFF")
+            sys.exit(1)
+        caps = m["capabilities"]
+        for name in ("httpApi", "tls", "benchmark", "daemon"):
+            if not caps[name]["declared"]:
+                print(f"::error::{name}.declared is false after rebuild")
+                sys.exit(1)
+        print("OK: CMake ON flags + declared capabilities")
+        PY

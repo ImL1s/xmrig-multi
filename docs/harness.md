@@ -47,7 +47,8 @@ Cross-platform evidence store. Start with offline, reproducible gates from P0.
 | Web WASM preflight | `cd web && npm test` (runtime-preflight tests) | #51 COI/SAB/WASM gates + seed validation |
 | Android profile mapper | `./gradlew testDebugUnitTest --tests "*MiningProfileMapper*"` | #30 MiningConfig ↔ MiningProfile field mapping |
 | Android hardware probe | `./gradlew testDebugUnitTest --tests "*HardwareSnapshot*"` | #33 null-unknown + ABI gate |
-| Android native capabilities | `./gradlew testDebugUnitTest --tests "*XmrigNativeCapabilities*"` | TLS + coin start gates |
+| Android native capabilities | `./gradlew testDebugUnitTest --tests "*XmrigNativeCapabilities*"` | TLS/HTTP/benchmark/daemon gates + hash mismatch (#134) |
+| Android native smoke | `./scripts/native/smoke-native.sh` | Manifest/binary SHA + feature string checks (#134) |
 | Android runtime policy | `./gradlew testDebugUnitTest --tests "*MiningRuntimePolicy*"` | #61 fail-closed FGS/quota |
 | Android companion policy | `./gradlew testDebugUnitTest --tests "*CompanionCommandPolicy*"` | #62 |
 
