@@ -24,6 +24,7 @@ import {
 } from '../../shared/pool-recommend/js/recommend.js';
 import { capabilityMatrix } from '../../shared/desktop-idle-policy/js/matrix.js';
 import { CLOSE_PREFS } from '../../shared/desktop-idle-policy/js/close.js';
+import { buildMiningInvokeConfig, diffAdvancedDraft } from './launch-config.js';
 
 const elements = {
     cpuName: document.getElementById('cpu-name'),
@@ -52,6 +53,14 @@ const elements = {
     threads: document.getElementById('threads'),
     threadValue: document.getElementById('thread-value'),
     randomxMode: document.getElementById('randomx-mode'),
+    hugePages: document.getElementById('huge-pages'),
+    numa: document.getElementById('numa'),
+    yieldCpu: document.getElementById('yield-cpu'),
+    cpuAffinity: document.getElementById('cpu-affinity'),
+    applyAdvancedBtn: document.getElementById('apply-advanced-btn'),
+    revertAdvancedBtn: document.getElementById('revert-advanced-btn'),
+    advancedDraftStatus: document.getElementById('advanced-draft-status'),
+    advancedCapabilityHint: document.getElementById('advanced-capability-hint'),
     startBtn: document.getElementById('start-btn'),
     stopBtn: document.getElementById('stop-btn'),
     saveBtn: document.getElementById('save-settings-btn'),
@@ -85,16 +94,42 @@ let miningStartedAt = null;
 let settingsStore = null;
 let cpuThreadCount = 4;
 let dirty = false;
+let lastAppliedConfig = null;
+let optimizeProbe = null;
 
 async function init() {
     log('Initializing XMRig Multi Desktop...');
     await loadSystemInfo();
+    await loadOptimizeProbe();
     setupEventListeners();
     restoreSettings();
     await loadIdleCapability();
     await setupClosePreferenceListener();
     startIdleStatusLoop();
     log('Ready to mine!');
+}
+
+async function loadOptimizeProbe() {
+    try {
+        optimizeProbe = await invoke('get_optimize_matrix');
+        const hp = optimizeProbe?.huge_pages?.state || 'unknown';
+        const numa = optimizeProbe?.numa?.state || 'unknown';
+        if (elements.advancedCapabilityHint) {
+            elements.advancedCapabilityHint.textContent =
+                `Huge pages: ${hp}; NUMA: ${numa}. Requested ≠ available (#131).`;
+        }
+        if (elements.hugePages && hp === 'unsupported') {
+            elements.hugePages.disabled = true;
+            elements.hugePages.checked = false;
+        }
+        if (elements.numa && numa === 'unsupported') {
+            elements.numa.disabled = true;
+            elements.numa.checked = false;
+        }
+    } catch (e) {
+        optimizeProbe = null;
+        log(`Optimize matrix unavailable: ${e}`, 'info');
+    }
 }
 
 async function setupClosePreferenceListener() {
@@ -322,7 +357,16 @@ function applyProfileToUi(profile) {
     if (elements.randomxMode) {
         elements.randomxMode.value = profile.randomx_mode || 'auto';
     }
+    if (elements.hugePages && !elements.hugePages.disabled) {
+        elements.hugePages.checked = Boolean(profile.huge_pages);
+    }
+    if (elements.numa && !elements.numa.disabled) {
+        elements.numa.checked = Boolean(profile.numa);
+    }
+    if (elements.yieldCpu) elements.yieldCpu.checked = profile.yield_cpu !== false;
+    if (elements.cpuAffinity) elements.cpuAffinity.value = profile.cpu_affinity || '';
     dirty = false;
+    updateAdvancedDraftStatus();
 }
 
 function collectProfileFromUi() {
@@ -341,6 +385,10 @@ function collectProfileFromUi() {
         threads: parseInt(elements.threads.value, 10),
         algorithm: poolOption?.dataset?.algo || 'rx/0',
         randomx_mode: elements.randomxMode?.value || 'auto',
+        huge_pages: Boolean(elements.hugePages?.checked),
+        numa: Boolean(elements.numa?.checked),
+        yield_cpu: elements.yieldCpu?.checked !== false,
+        cpu_affinity: elements.cpuAffinity?.value?.trim() || '',
         locks: active.locks || [],
         localOverrides: { ...(active.localOverrides || {}), threads: true }
     };
@@ -453,7 +501,28 @@ function setupEventListeners() {
         elements.threadValue.textContent = elements.threads.value;
         markDirty();
     });
-    elements.randomxMode?.addEventListener('change', markDirty);
+    elements.randomxMode?.addEventListener('change', () => {
+        markDirty();
+        updateAdvancedDraftStatus();
+    });
+    elements.hugePages?.addEventListener('change', () => {
+        markDirty();
+        updateAdvancedDraftStatus();
+    });
+    elements.numa?.addEventListener('change', () => {
+        markDirty();
+        updateAdvancedDraftStatus();
+    });
+    elements.yieldCpu?.addEventListener('change', () => {
+        markDirty();
+        updateAdvancedDraftStatus();
+    });
+    elements.cpuAffinity?.addEventListener('input', () => {
+        markDirty();
+        updateAdvancedDraftStatus();
+    });
+    elements.applyAdvancedBtn?.addEventListener('click', () => applyAdvancedWhileMining());
+    elements.revertAdvancedBtn?.addEventListener('click', () => revertAdvancedDraft());
     elements.idleMineMinutes?.addEventListener('input', markDirty);
     elements.pauseOnActiveSeconds?.addEventListener('input', markDirty);
     elements.pauseOnBattery?.addEventListener('change', markDirty);
@@ -732,28 +801,40 @@ async function startMining() {
         }
     }
 
-    const config = {
-        pool_url: poolUrl,
-        wallet_address: wallet,
-        worker_name: elements.worker.value || 'desktop',
-        threads: parseInt(elements.threads.value, 10),
-        coin_type: coin,
-        algorithm: algo,
-        randomx_mode: elements.randomxMode?.value || 'auto',
-        pause_on_battery: convenience.pauseOnBattery,
-        pause_on_active_seconds,
-    };
+    const config = buildMiningInvokeConfig(
+        {
+            poolUrl,
+            walletAddress: wallet,
+            workerName: elements.worker.value || 'desktop',
+            threads: parseInt(elements.threads.value, 10),
+            coinType: coin,
+            algorithm: algo,
+            randomxMode: elements.randomxMode?.value || 'auto',
+            hugePages: Boolean(elements.hugePages?.checked),
+            numa: Boolean(elements.numa?.checked),
+            yieldCpu: elements.yieldCpu?.checked !== false,
+            cpuAffinity: elements.cpuAffinity?.value || '',
+            pauseOnBattery: convenience.pauseOnBattery,
+            pauseOnActiveSeconds: pause_on_active_seconds
+        },
+        optimizeProbe || {}
+    );
 
     log(`Starting ${coin.toUpperCase()} mining...`);
     log(`Pool: ${config.pool_url}`);
     log(`Threads: ${config.threads}`);
     log(`RandomX mode: ${config.randomx_mode} (scratchpad ≠ full dataset RAM — #35)`);
+    if (config.huge_pages && !config.huge_pages_available) {
+        log('Huge pages requested but probe unavailable — effective will stay false (#131)', 'info');
+    }
 
     try {
         const result = await invoke('start_mining', { config });
         log(result, 'success');
+        lastAppliedConfig = { ...config };
         setMiningState(true);
         startStatsPolling();
+        updateAdvancedDraftStatus();
     } catch (error) {
         log(`Failed to start mining: ${error}`, 'error');
     }
@@ -785,6 +866,9 @@ function setMiningState(mining) {
     elements.worker.disabled = mining;
     elements.threads.disabled = mining;
     if (elements.randomxMode) elements.randomxMode.disabled = mining;
+    // Advanced draft stays editable while mining; Apply performs controlled restart (#131).
+    if (elements.applyAdvancedBtn) elements.applyAdvancedBtn.disabled = !mining;
+    if (elements.revertAdvancedBtn) elements.revertAdvancedBtn.disabled = !mining;
     if (elements.profileSelect) elements.profileSelect.disabled = mining;
     if (elements.profileNewBtn) elements.profileNewBtn.disabled = mining;
     if (elements.profileDupBtn) elements.profileDupBtn.disabled = mining;
@@ -865,6 +949,78 @@ function setStat(node, text, hasValue) {
 }
 
 /** Wallet problems belong beside the wallet field, not only at the bottom of the log. */
+function updateAdvancedDraftStatus() {
+    if (!elements.advancedDraftStatus) return;
+    if (!lastAppliedConfig) {
+        elements.advancedDraftStatus.textContent =
+            'Save stores draft; Start applies. Apply while mining restarts with the new plan.';
+        return;
+    }
+    const draft = buildMiningInvokeConfig(
+        {
+            poolUrl: lastAppliedConfig.pool_url,
+            walletAddress: lastAppliedConfig.wallet_address,
+            workerName: lastAppliedConfig.worker_name,
+            threads: parseInt(elements.threads.value, 10),
+            coinType: lastAppliedConfig.coin_type,
+            algorithm: lastAppliedConfig.algorithm,
+            randomxMode: elements.randomxMode?.value || 'auto',
+            hugePages: Boolean(elements.hugePages?.checked),
+            numa: Boolean(elements.numa?.checked),
+            yieldCpu: elements.yieldCpu?.checked !== false,
+            cpuAffinity: elements.cpuAffinity?.value || '',
+            pauseOnBattery: lastAppliedConfig.pause_on_battery,
+            pauseOnActiveSeconds: lastAppliedConfig.pause_on_active_seconds
+        },
+        optimizeProbe || {}
+    );
+    const d = diffAdvancedDraft(lastAppliedConfig, draft);
+    if (!d.dirty) {
+        elements.advancedDraftStatus.textContent = 'Running config matches draft.';
+    } else {
+        elements.advancedDraftStatus.textContent =
+            `Saved draft not applied yet: ${d.fields.join(', ')}. Use Apply (restart) or Revert.`;
+    }
+}
+
+async function applyAdvancedWhileMining() {
+    if (!isMining) return;
+    persistSettings();
+    log('Applying advanced draft — controlled restart (#131)...');
+    try {
+        await stopMining();
+        await startMining();
+    } catch (e) {
+        log(`Apply failed: ${e}`, 'error');
+        if (lastAppliedConfig) {
+            log('Last-known-good kept in UI via Revert if needed', 'info');
+        }
+    }
+}
+
+function revertAdvancedDraft() {
+    if (!lastAppliedConfig) return;
+    if (elements.hugePages && !elements.hugePages.disabled) {
+        elements.hugePages.checked = Boolean(lastAppliedConfig.huge_pages);
+    }
+    if (elements.numa && !elements.numa.disabled) {
+        elements.numa.checked = Boolean(lastAppliedConfig.numa);
+    }
+    if (elements.yieldCpu) elements.yieldCpu.checked = lastAppliedConfig.yield_cpu !== false;
+    if (elements.cpuAffinity) {
+        elements.cpuAffinity.value = lastAppliedConfig.cpu_affinity || '';
+    }
+    if (elements.randomxMode) {
+        elements.randomxMode.value = lastAppliedConfig.randomx_mode || 'auto';
+    }
+    if (elements.threads && lastAppliedConfig.threads) {
+        elements.threads.value = String(lastAppliedConfig.threads);
+        elements.threadValue.textContent = String(lastAppliedConfig.threads);
+    }
+    updateAdvancedDraftStatus();
+    log('Reverted advanced draft to last-known-good (wallet untouched)', 'info');
+}
+
 function showWalletError(message) {
     if (elements.walletError) {
         elements.walletError.textContent = message;
