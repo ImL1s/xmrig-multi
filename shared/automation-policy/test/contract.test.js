@@ -86,6 +86,48 @@ test('budget cap pauses even in hobby', () => {
   assert.ok(v.reasons.some((r) => /Daily spend/i.test(r)));
 });
 
+test('unknown spend with cap set waits fail-closed', () => {
+  const v = evaluateAutomation(
+    base({
+      budget: { spentFiatToday: null, kwhToday: 0, sessionElapsedMs: 0, socPercent: 80 },
+      config: { ...DEFAULTS, economicGoal: 'hobby', dailySpendCapFiat: 10 }
+    })
+  );
+  assert.equal(v.kind, 'Waiting');
+});
+
+test('power UserStopped latches intent against revival', () => {
+  const armed = armAutomation({});
+  const v = evaluateAutomation(
+    base({
+      intent: armed,
+      power: { kind: 'UserStopped', reasons: ['policy-stop'] }
+    })
+  );
+  assert.equal(v.kind, 'UserStopped');
+  assert.ok(v.nextIntent.userStopRevision > v.nextIntent.sessionArmedRevision);
+  const after = evaluateAutomation(
+    base({ intent: v.nextIntent, power: { kind: 'Allowed' } })
+  );
+  assert.equal(after.kind, 'UserStopped');
+});
+
+test('next-sample reserve can trip daily cap early', () => {
+  const v = evaluateAutomation(
+    base({
+      budget: {
+        spentFiatToday: 9,
+        projectedNextSampleFiat: 1.5,
+        kwhToday: 0,
+        sessionElapsedMs: 0,
+        socPercent: 80
+      },
+      config: { ...DEFAULTS, economicGoal: 'hobby', dailySpendCapFiat: 10 }
+    })
+  );
+  assert.equal(v.kind, 'Paused');
+});
+
 test('profit_only waits when net unknown (not assume free/profit)', () => {
   const v = evaluateAutomation(
     base({

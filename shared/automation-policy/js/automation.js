@@ -71,7 +71,8 @@ export function evaluateAutomation(input = {}) {
   }
 
   if (power.kind === 'UserStopped') {
-    return verdict('UserStopped', power.reasons || ['Power Stop'], intent, 'pause');
+    const latched = latchUserStop(intent);
+    return verdict('UserStopped', power.reasons || ['Power Stop'], latched, 'pause');
   }
   if (power.kind === 'Paused' || power.kind === 'Waiting' || power.kind === 'Unavailable') {
     return verdict(power.kind, power.reasons || ['Power policy'], intent, mapAction(power.kind));
@@ -84,7 +85,7 @@ export function evaluateAutomation(input = {}) {
   // Budget — gross spend basis (do not unlock via unknown revenue)
   const budgetHit = evaluateBudget(budget, cfg);
   if (budgetHit) {
-    return verdict('Paused', [budgetHit], intent, 'pause');
+    return verdict(budgetHit.kind || 'Paused', [budgetHit.reason], intent, budgetHit.kind === 'Waiting' ? 'wait' : 'pause');
   }
 
   // Economic goal
@@ -116,37 +117,52 @@ export function evaluateAutomation(input = {}) {
 }
 
 function evaluateBudget(budget, cfg) {
-  if (cfg.dailySpendCapFiat != null && budget.spentFiatToday != null) {
-    const reserve = estimateReserve(cfg);
+  if (cfg.dailySpendCapFiat != null) {
+    if (budget.spentFiatToday == null) {
+      return { kind: 'Waiting', reason: 'Daily spend cap set but spend ledger unknown — pause until bound known' };
+    }
+    const reserve = estimateReserve(budget, cfg);
     if (budget.spentFiatToday + reserve >= cfg.dailySpendCapFiat) {
-      return `Daily spend cap reached (spent ${budget.spentFiatToday}, reserve ${reserve})`;
+      return {
+        kind: 'Paused',
+        reason: `Daily spend cap reached (spent ${budget.spentFiatToday}, reserve ${reserve})`
+      };
     }
   }
-  if (cfg.monthlySpendCapFiat != null && budget.spentFiatMonth != null) {
+  if (cfg.monthlySpendCapFiat != null) {
+    if (budget.spentFiatMonth == null) {
+      return { kind: 'Waiting', reason: 'Monthly spend cap set but spend ledger unknown' };
+    }
     if (budget.spentFiatMonth >= cfg.monthlySpendCapFiat) {
-      return `Monthly spend cap reached (${budget.spentFiatMonth})`;
+      return { kind: 'Paused', reason: `Monthly spend cap reached (${budget.spentFiatMonth})` };
     }
   }
-  if (cfg.dailyKwhCap != null && budget.kwhToday != null) {
+  if (cfg.dailyKwhCap != null) {
+    if (budget.kwhToday == null) {
+      return { kind: 'Waiting', reason: 'Daily kWh cap set but energy ledger unknown' };
+    }
     if (budget.kwhToday >= cfg.dailyKwhCap) {
-      return `Daily kWh cap reached (${budget.kwhToday})`;
+      return { kind: 'Paused', reason: `Daily kWh cap reached (${budget.kwhToday})` };
     }
   }
   if (cfg.sessionMaxMs != null && budget.sessionElapsedMs != null) {
     if (budget.sessionElapsedMs >= cfg.sessionMaxMs) {
-      return `Session time cap reached`;
+      return { kind: 'Paused', reason: `Session time cap reached` };
     }
   }
   if (cfg.minReserveSocPercent != null && budget.socPercent != null) {
     if (budget.socPercent < cfg.minReserveSocPercent) {
-      return `Battery reserve ${budget.socPercent}% < ${cfg.minReserveSocPercent}%`;
+      return { kind: 'Paused', reason: `Battery reserve ${budget.socPercent}% < ${cfg.minReserveSocPercent}%` };
     }
   }
   return null;
 }
 
-function estimateReserve(cfg) {
-  // Conservative next-sample reserve in fiat if provided via budget.projectedNextSampleFiat
+function estimateReserve(budget, cfg) {
+  const projected = num(budget.projectedNextSampleFiat);
+  if (projected != null) return Math.max(0, projected);
+  // Conservative placeholder when sample cost unknown but stop delay configured
+  if (cfg.stopReserveSampleMs && budget.projectedNextSampleFiat === 0) return 0;
   return 0;
 }
 
@@ -157,6 +173,7 @@ function normalizeBudget(b, cfg, nowMs) {
     kwhToday: num(b.kwhToday),
     sessionElapsedMs: num(b.sessionElapsedMs),
     socPercent: num(b.socPercent),
+    projectedNextSampleFiat: num(b.projectedNextSampleFiat),
     dayKey: b.dayKey || null,
     monthKey: b.monthKey || null,
     nowMs

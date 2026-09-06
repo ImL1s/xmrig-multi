@@ -31,7 +31,8 @@ object AutomationPolicy {
         val spentFiatMonth: Double? = null,
         val kwhToday: Double? = null,
         val sessionElapsedMs: Long? = null,
-        val socPercent: Int? = null
+        val socPercent: Int? = null,
+        val projectedNextSampleFiat: Double? = null
     )
     data class Economy(val netFiat: Double? = null, val netQuality: String = "unknown")
 
@@ -89,7 +90,10 @@ object AutomationPolicy {
             return Verdict(Kind.PAUSED, thermal.reasons.ifEmpty { listOf("Thermal block") }, Action.PAUSE, intent)
         }
         when (power.kind) {
-            "UserStopped" -> return Verdict(Kind.USER_STOPPED, power.reasons, Action.PAUSE, intent)
+            "UserStopped" -> {
+                val latched = latchUserStop(intent)
+                return Verdict(Kind.USER_STOPPED, power.reasons, Action.PAUSE, latched)
+            }
             "Paused" -> return Verdict(Kind.PAUSED, power.reasons, Action.PAUSE, intent)
             "Waiting" -> return Verdict(Kind.WAITING, power.reasons, Action.WAIT, intent)
             "Unavailable" -> return Verdict(Kind.UNAVAILABLE, power.reasons, Action.UNAVAILABLE, intent)
@@ -98,8 +102,8 @@ object AutomationPolicy {
             return Verdict(Kind.WAITING, listOf("Paused until next plug (explicit re-auth)"), Action.WAIT, intent)
         }
 
-        budgetHit(budget, config)?.let {
-            return Verdict(Kind.PAUSED, listOf(it), Action.PAUSE, intent)
+        budgetHit(budget, config)?.let { (kind, reason) ->
+            return Verdict(kind, listOf(reason), if (kind == Kind.WAITING) Action.WAIT else Action.PAUSE, intent)
         }
 
         if (config.economicGoal == EconomicGoal.PROFIT_ONLY) {
@@ -124,26 +128,56 @@ object AutomationPolicy {
         return Verdict(Kind.ALLOWED, listOf("All automation gates passed"), Action.NONE, intent)
     }
 
-    private fun budgetHit(budget: Budget, config: Defaults): String? {
+    fun simulate(
+        intent: Intent,
+        config: Defaults = Defaults(),
+        power: Gate = Gate("Allowed"),
+        thermal: Gate = Gate("Allowed"),
+        os: OsGate = OsGate(),
+        budget: Budget = Budget(),
+        economy: Economy = Economy(),
+        scenarioLabel: String = "what-if"
+    ): Verdict = evaluate(intent, config, power, thermal, os, budget, economy).copy(
+        simulated = true,
+        startsMiner = false
+    )
+
+    private fun budgetHit(budget: Budget, config: Defaults): Pair<Kind, String>? {
         val daily = config.dailySpendCapFiat
-        if (daily != null && budget.spentFiatToday != null && budget.spentFiatToday >= daily) {
-            return "Daily spend cap reached (spent ${budget.spentFiatToday})"
+        if (daily != null) {
+            if (budget.spentFiatToday == null) {
+                return Kind.WAITING to "Daily spend cap set but spend ledger unknown — pause until bound known"
+            }
+            val reserve = budget.projectedNextSampleFiat?.coerceAtLeast(0.0) ?: 0.0
+            if (budget.spentFiatToday + reserve >= daily) {
+                return Kind.PAUSED to "Daily spend cap reached (spent ${budget.spentFiatToday})"
+            }
         }
         val monthly = config.monthlySpendCapFiat
-        if (monthly != null && budget.spentFiatMonth != null && budget.spentFiatMonth >= monthly) {
-            return "Monthly spend cap reached (${budget.spentFiatMonth})"
+        if (monthly != null) {
+            if (budget.spentFiatMonth == null) {
+                return Kind.WAITING to "Monthly spend cap set but spend ledger unknown"
+            }
+            if (budget.spentFiatMonth >= monthly) {
+                return Kind.PAUSED to "Monthly spend cap reached (${budget.spentFiatMonth})"
+            }
         }
         val kwh = config.dailyKwhCap
-        if (kwh != null && budget.kwhToday != null && budget.kwhToday >= kwh) {
-            return "Daily kWh cap reached (${budget.kwhToday})"
+        if (kwh != null) {
+            if (budget.kwhToday == null) {
+                return Kind.WAITING to "Daily kWh cap set but energy ledger unknown"
+            }
+            if (budget.kwhToday >= kwh) {
+                return Kind.PAUSED to "Daily kWh cap reached (${budget.kwhToday})"
+            }
         }
         val session = config.sessionMaxMs
         if (session != null && budget.sessionElapsedMs != null && budget.sessionElapsedMs >= session) {
-            return "Session time cap reached"
+            return Kind.PAUSED to "Session time cap reached"
         }
         val soc = config.minReserveSocPercent
         if (soc != null && budget.socPercent != null && budget.socPercent < soc) {
-            return "Battery reserve ${budget.socPercent}% < $soc%"
+            return Kind.PAUSED to "Battery reserve ${budget.socPercent}% < $soc%"
         }
         return null
     }
