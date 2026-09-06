@@ -23,7 +23,9 @@ test('minimal dist passes smoke markers', () => {
         writeFileSync(join(dir, 'app.js'), 'console.log(1)');
         const r = smokeWebDist(dir);
         assert.equal(r.ok, true, JSON.stringify(r.checks));
-        assert.ok(r.residual.length >= 1);
+        assert.equal(r.layer, 'L1-static-sanity');
+        assert.ok(r.checks.every((c) => String(c.id).startsWith('static-')));
+        assert.ok(r.residual.some((x) => /UI\/native/i.test(x)));
     } finally {
         rmSync(dir, { recursive: true, force: true });
     }

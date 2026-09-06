@@ -1,0 +1,36 @@
+name: Quality Gate
+
+# Always runs on PR/push to main — must not be skipped by path filters (#133).
+# Layer L1 shared contracts + path classifier. Does not claim L3/L4 device proof.
+
+on:
+  pull_request:
+    branches: [ main ]
+  push:
+    branches: [ main ]
+
+jobs:
+  shared-and-desktop-contracts:
+    name: Shared + desktop contract gate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: CI path classifier (#133)
+        run: node --test shared/ci-path-gate/test/*.test.js
+
+      - name: All shared module contract tests
+        run: node --test shared/*/test/*.test.js shared/*/test/**/*.test.js
+
+      - name: Desktop launch-config / settings tests (#131)
+        working-directory: desktop
+        run: node --test test/*.test.js
+
+      - name: Static artifact smoke is labeled static-only (#133)
+        run: node --test shared/artifact-smoke/test/*.test.js

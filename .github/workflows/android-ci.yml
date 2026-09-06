@@ -38,7 +38,8 @@ jobs:
         if [ -f app/src/main/jniLibs/arm64-v8a/libxmrig.so ] || [ -f app/src/main/assets/xmrig_arm64 ]; then
           echo "XMRig binary present"
         else
-          echo "::warning::libxmrig.so / xmrig_arm64 missing. App builds, but mining will fail until scripts/build_xmrig.sh is run."
+          echo "::error::libxmrig.so / xmrig_arm64 missing — debug APK cannot mine; refusing green CI (#133)"
+          exit 1
         fi
 
     - name: Build Debug APK
@@ -47,8 +48,12 @@ jobs:
     - name: Build Wear OS Debug
       run: ./gradlew :wearos:assembleDebug
 
-    - name: Run Unit Tests
+    - name: Run Unit Tests (includes consumer integration suites)
       run: ./gradlew :app:testDebugUnitTest
+
+    - name: Consumer suites must stay wired (#130/#124/#126)
+      run: |
+        ./gradlew :app:testDebugUnitTest --tests '*EnergyBudgetIntegrationTest*' --tests '*PowerSettingsGateTest*' --tests '*MiningSessionSequencerTest*'
 
     - name: Run Android Lint
       run: ./gradlew :app:lintDebug

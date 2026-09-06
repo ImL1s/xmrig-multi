@@ -1,17 +1,17 @@
 # XMRig Multi — Multi-Platform Support
 
-Cross-platform **Monero (XMR) / Wownero (WOW) / DERO** mining application (**XMRig Multi**). GitHub repository: [`ImL1s/xmrig-multi`](https://github.com/ImL1s/xmrig-multi).
+Cross-platform **Monero (XMR)** miner with **Wownero (WOW) / DERO start paths safely disabled** until dedicated backends land (**XMRig Multi**). GitHub repository: [`ImL1s/xmrig-multi`](https://github.com/ImL1s/xmrig-multi).
 
 ## Supported Platforms
 
 | Platform | Type | Status | Mining | Notes |
 |----------|------|--------|--------|-------|
-| **Android** | Mobile | ✅ Asset fallback in checkout | ✅ Native XMRig | `:app:assembleDebug` |
-| **iOS** | Mobile | ⚠️ Tracked `.a` is upstream donate | ⚠️ Limited | Rebuild for this repo's fee; JIT blocked (3-5 H/s) |
-| **Web** | Browser | ✅ Demo | ✅ RandomX.js | WebSocket proxy required |
-| **macOS** | Desktop | ✅ CI release DMG | ✅ Native XMRig | Tag builds + local `desktop/scripts/build-xmrig.sh` |
-| **Windows** | Desktop | ✅ CI release NSIS | ✅ Native XMRig | Tag builds + local `desktop/scripts/build-xmrig.sh` |
-| **Linux** | Desktop | ✅ Tracked binary + CI `.deb` | ✅ Native XMRig | `xmrig-x86_64-unknown-linux-gnu` |
+| **Android** | Mobile | ✅ Asset fallback in checkout | ✅ Native XMRig (XMR) | WOW/DERO start blocked; `:app:assembleDebug` |
+| **iOS** | Mobile | ⚠️ Tracked `.a` is upstream donate | ⚠️ Limited XMR | Rebuild for this repo's fee; JIT blocked (3-5 H/s); WOW/DERO unavailable |
+| **Web** | Browser | ✅ Demo | ✅ RandomX.js (XMR) | WebSocket proxy required |
+| **macOS** | Desktop | ✅ CI release DMG | ✅ Native XMRig (XMR) | WOW/DERO start blocked in UI/engine |
+| **Windows** | Desktop | ✅ CI release NSIS | ✅ Native XMRig (XMR) | WOW/DERO start blocked in UI/engine |
+| **Linux** | Desktop | ✅ Tracked binary + CI `.deb` | ✅ Native XMRig (XMR) | `xmrig-x86_64-unknown-linux-gnu` |
 | **WearOS** | Watch | Companion | ❌ No | `./gradlew :wearos:assembleDebug` |
 | **watchOS** | Watch | Companion | ❌ No | `cd watchos && xcodegen generate` |
 
@@ -70,9 +70,9 @@ Built with **Tauri 2.0** for native performance with minimal bundle size.
 
 ### Features
 
-- Native XMRig integration
+- Native XMRig integration (Monero / RandomX)
 - Real-time hashrate monitoring
-- Multi-coin support (XMR, WOW, DERO)
+- WOW / DERO start paths are **unavailable** until dedicated backends ship (#27/#28)
 - Auto-update capability
 - System tray support
 
