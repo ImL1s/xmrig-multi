@@ -9,6 +9,7 @@ import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import com.iml1s.xmrigminer.data.model.CoinType
 import com.iml1s.xmrigminer.data.model.MiningConfig
+import com.iml1s.xmrigminer.data.daemon.DaemonEndpoint
 import com.iml1s.xmrigminer.data.repository.ConfigRepository
 import com.iml1s.xmrigminer.data.repository.StatsRepository
 import com.iml1s.xmrigminer.native.XmrigNativeCapabilities
@@ -66,9 +67,37 @@ class MiningController @Inject constructor(
             return MiningStartResult.InvalidConfig(message)
         }
 
+        // #44: refuse to start solo when daemon URL cannot be parsed (e.g. http:// mis-host).
+        // TCP reachability alone is never treated as mining-ready; RPC preflight is required
+        // at the UI/service layer before claiming the node can mine.
+        var launchConfig = config
+        if (config.soloDaemon) {
+            val parsed = DaemonEndpoint.parse(config.poolUrl)
+            if (!parsed.ok || parsed.engineUrl.isNullOrBlank()) {
+                return MiningStartResult.InvalidConfig(
+                    parsed.error ?: "配置無效：節點 RPC 地址無法解析"
+                )
+            }
+            if (parsed.engineUrl != config.poolUrl) {
+                launchConfig = config.copy(poolUrl = parsed.engineUrl)
+            }
+            // Encode the TCP≠ready rule in the start gate message surface.
+            val gate = DaemonEndpoint.preflightAfterTcp(
+                raw = launchConfig.poolUrl,
+                tcpOk = true,
+                rpcProbed = false
+            )
+            if (gate.tcpOnly) {
+                Timber.i(
+                    "Solo start: URL ok (%s); RPC get_info still required for mining-ready (#44)",
+                    launchConfig.poolUrl
+                )
+            }
+        }
+
         stop(resetStats = false)
 
-        val soloDaemon = config.soloDaemon
+        val soloDaemon = launchConfig.soloDaemon
         val networkType = if (soloDaemon) {
             // LAN monerod may have no validated Internet capability (#15).
             NetworkType.NOT_REQUIRED
@@ -81,7 +110,7 @@ class MiningController @Inject constructor(
 
         val launchSnapshot = Data.Builder()
             .putBoolean(MonitorWorker.KEY_SOLO_DAEMON, soloDaemon)
-            .putString(MiningWorker.KEY_CONFIG_SNAPSHOT, Json.encodeToString(MiningConfig.serializer(), config))
+            .putString(MiningWorker.KEY_CONFIG_SNAPSHOT, Json.encodeToString(MiningConfig.serializer(), launchConfig))
             .build()
 
         val miningRequest = OneTimeWorkRequestBuilder<MiningWorker>()

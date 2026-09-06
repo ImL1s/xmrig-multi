@@ -1,5 +1,6 @@
 package com.iml1s.xmrigminer.presentation.config
 
+import com.iml1s.xmrigminer.data.daemon.DaemonEndpoint
 import com.iml1s.xmrigminer.data.model.CoinType
 import com.iml1s.xmrigminer.data.model.MiningConfig
 import com.iml1s.xmrigminer.data.model.Pool
@@ -111,13 +112,12 @@ class ConfigDraftCoordinator(
 
         if (enabled) {
             val restored = restore(CoinType.MONERO, solo = true)
+            val daemonUrl = pickSoloUrl(restored?.poolUrl, current.poolUrl)
             return current.copy(
                 soloDaemon = true,
                 useTls = false,
                 coinType = CoinType.MONERO.name,
-                poolUrl = restored?.poolUrl?.takeIf { it.contains("18081") }
-                    ?: if (current.poolUrl.contains("18081")) current.poolUrl
-                    else MiningConfig.DEFAULT_SOLO_DAEMON_URL,
+                poolUrl = daemonUrl,
                 walletAddress = restored?.walletAddress ?: current.walletAddress,
                 workerName = restored?.workerName ?: current.workerName
             ) to null
@@ -163,5 +163,36 @@ class ConfigDraftCoordinator(
         val pool = pools.firstOrNull { it.isStartAllowed() } ?: pools.firstOrNull()
         return pool?.getUrl(useTls)
             ?: if (coin == CoinType.MONERO) MiningConfig.getDefaultPoolUrl(coin) else ""
+    }
+
+    /**
+     * Prefer a previously saved daemon URL that parses as a real endpoint (#44).
+     * Do not use fragile `contains("18081")` heuristics — but also do not treat
+     * a Stratum pool host:port (e.g. :3333) as a solo daemon when entering solo.
+     */
+    private fun pickSoloUrl(restored: String?, current: String): String {
+        fun asSoloCandidate(raw: String?): String? {
+            if (raw.isNullOrBlank()) return null
+            val parsed = DaemonEndpoint.parse(raw)
+            if (!parsed.ok || parsed.engineUrl == null) return null
+            val port = parsed.port ?: return null
+            val daemonish = parsed.isLoopback
+                || parsed.scheme == "http"
+                || parsed.scheme == "https"
+                || port in DAEMON_PORTS
+            return if (daemonish) parsed.engineUrl else null
+        }
+        // Restored solo draft is trusted if it parses at all.
+        val fromRestored = restored?.let { raw ->
+            val p = DaemonEndpoint.parse(raw)
+            if (p.ok) p.engineUrl else null
+        }
+        return fromRestored
+            ?: asSoloCandidate(current)
+            ?: MiningConfig.DEFAULT_SOLO_DAEMON_URL
+    }
+
+    companion object {
+        private val DAEMON_PORTS = setOf(18081, 18082, 18089, 38081, 38089)
     }
 }

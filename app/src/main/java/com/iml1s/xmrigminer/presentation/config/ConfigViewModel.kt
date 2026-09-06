@@ -346,6 +346,12 @@ class ConfigViewModel @Inject constructor(
         if (config.soloDaemon && config.getCoin() != CoinType.MONERO) {
             return "Solo / daemon mining is Monero-only in this release"
         }
+        if (config.soloDaemon) {
+            val daemon = com.iml1s.xmrigminer.data.daemon.DaemonEndpoint.parse(config.poolUrl)
+            if (!daemon.ok) {
+                return daemon.error ?: "Invalid solo daemon URL"
+            }
+        }
         XmrigNativeCapabilities.assertStartAllowed(config.getCoin())?.let { return it }
         return null
     }

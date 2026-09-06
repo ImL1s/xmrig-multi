@@ -8,6 +8,7 @@ import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.iml1s.xmrigminer.data.model.MiningConfig
+import com.iml1s.xmrigminer.data.daemon.DaemonEndpoint
 import com.iml1s.xmrigminer.data.network.ReconnectPolicy
 import com.iml1s.xmrigminer.data.repository.StatsRepository
 import com.iml1s.xmrigminer.util.CpuMonitor
@@ -42,7 +43,6 @@ class MonitorWorker @AssistedInject constructor(
         const val CHECK_INTERVAL = 5000L
         const val MAX_TEMPERATURE = 45f
         const val MIN_BATTERY_LEVEL = 20
-        private const val DEFAULT_DAEMON_PORT = 18081
         private const val DAEMON_PROBE_TIMEOUT_MS = 1500
     }
 
@@ -152,10 +152,13 @@ class MonitorWorker @AssistedInject constructor(
     }
 
     private suspend fun canReachDaemon(poolUrl: String?): Boolean {
-        if (poolUrl.isNullOrBlank()) return false
-        val host = daemonHostFromPoolUrl(poolUrl)
-        val port = daemonPortFromPoolUrl(poolUrl)
-        if (host.isBlank() || port !in 1..65535) return false
+        val parsed = DaemonEndpoint.parse(poolUrl)
+        if (!parsed.ok || parsed.host.isNullOrBlank() || parsed.port == null) {
+            Timber.w("Solo daemon URL invalid: %s", parsed.error)
+            return false
+        }
+        val host = parsed.host
+        val port = parsed.port
         return withContext(Dispatchers.IO) {
             try {
                 Socket().use { socket ->
@@ -167,30 +170,6 @@ class MonitorWorker @AssistedInject constructor(
                 false
             }
         }
-    }
-
-    /** Host from `host:port`, `[ipv6]:port`, or bare loopback forms. */
-    private fun daemonHostFromPoolUrl(poolUrl: String): String {
-        val endpoint = poolUrl.trim().substringBefore('/').lowercase()
-        if (endpoint.startsWith("[")) {
-            return endpoint.substringAfter("[").substringBefore("]")
-        }
-        val colonCount = endpoint.count { it == ':' }
-        // Bare IPv6 has multiple colons and is portless; use [ipv6]:port instead.
-        if (colonCount > 1) return endpoint
-        return endpoint.substringBefore(':')
-    }
-
-    private fun daemonPortFromPoolUrl(poolUrl: String): Int {
-        val endpoint = poolUrl.trim().substringBefore('/')
-        if (endpoint.startsWith("[")) {
-            val after = endpoint.substringAfter(']', missingDelimiterValue = "")
-            return after.removePrefix(":").toIntOrNull() ?: DEFAULT_DAEMON_PORT
-        }
-        val colonCount = endpoint.count { it == ':' }
-        // Bare IPv6 literals are portless; use [ipv6]:port for non-default ports.
-        if (colonCount != 1) return DEFAULT_DAEMON_PORT
-        return endpoint.substringAfter(':').toIntOrNull() ?: DEFAULT_DAEMON_PORT
     }
 
     private fun isDeviceCharging(): Boolean {

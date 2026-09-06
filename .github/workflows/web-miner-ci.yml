@@ -13,6 +13,7 @@ on:
       - 'shared/auto-tune/**'
       - 'shared/reconnect/**'
       - 'shared/wallet-address/**'
+      - 'shared/daemon-endpoint/**'
       - 'app/src/main/assets/pools.json'
       - 'desktop/src/generated-pool-configs.json'
       - 'desktop/src/main.js'
@@ -29,6 +30,7 @@ on:
       - 'shared/auto-tune/**'
       - 'shared/reconnect/**'
       - 'shared/wallet-address/**'
+      - 'shared/daemon-endpoint/**'
       - 'app/src/main/assets/pools.json'
       - 'desktop/src/generated-pool-configs.json'
       - 'desktop/src/main.js'
@@ -92,6 +94,10 @@ jobs:
       - name: Reconnect / failover contract tests (#43)
         working-directory: .
         run: node --test shared/reconnect/test/*.test.js
+
+      - name: Daemon endpoint parse / preflight tests (#44)
+        working-directory: .
+        run: node --test shared/daemon-endpoint/test/*.test.js
 
       - name: Build for Production
         run: npm run build
