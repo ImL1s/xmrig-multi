@@ -239,4 +239,26 @@ class MiningConfigTest {
         assertNull(pool["daemon"])
         assertTrue(pool["keepalive"]!!.jsonPrimitive.boolean)
     }
+
+    @Test
+    fun `toJson writes resolved randomx mode from memory budget`() {
+        val lowRam = MiningConfig(
+            poolUrl = "pool.supportxmr.com:3333",
+            walletAddress = "wallet",
+            randomxMode = "auto",
+            threads = 2
+        )
+        val rx = Json.parseToJsonElement(
+            lowRam.toJson(availableMemoryBytes = 1_500_000_000L, totalMemoryBytes = 2_000_000_000L)
+        ).jsonObject["randomx"]!!.jsonObject
+        assertEquals("light", rx["mode"]!!.jsonPrimitive.content)
+
+        val light = MiningConfig(
+            poolUrl = "pool.supportxmr.com:3333",
+            walletAddress = "wallet",
+            randomxMode = "light"
+        )
+        val rx2 = Json.parseToJsonElement(light.toJson()).jsonObject["randomx"]!!.jsonObject
+        assertEquals("light", rx2["mode"]!!.jsonPrimitive.content)
+    }
 }

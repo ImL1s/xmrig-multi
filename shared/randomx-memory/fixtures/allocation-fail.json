@@ -1,0 +1,14 @@
+{
+  "id": "allocation-fail-retry",
+  "description": "Prior OOM — light retry once, no infinite restart",
+  "algorithm": "rx/0",
+  "threads": 4,
+  "numaNodes": 1,
+  "availableBytes": 8589934592,
+  "totalBytes": 17179869184,
+  "processLimitBytes": null,
+  "allocationFailed": true,
+  "requestedMode": "auto",
+  "expectedApplied": "light",
+  "expectedFallback": true
+}

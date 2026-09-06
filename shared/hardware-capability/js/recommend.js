@@ -1,7 +1,10 @@
 /**
  * Conservative recommender over HardwareSnapshot (#33).
  * Does not auto-tune; only safe defaults + confidence + reasons.
+ * RandomX mode hint uses shared/randomx-memory select (#35).
  */
+
+import { selectRandomXMode } from '../../randomx-memory/js/select.js';
 
 /**
  * @param {object} snapshot validated HardwareSnapshot
@@ -58,17 +61,19 @@ export function recommendFromHardware(snapshot) {
         }
     }
 
-    let randomxModeHint = 'auto';
     const mem = Number.isInteger(memAvail) ? memAvail : memTotal;
+    const rxSel = selectRandomXMode({
+        algorithm: 'rx/0',
+        requestedMode: 'auto',
+        threads: recommended,
+        availableBytes: Number.isInteger(memAvail) ? memAvail : null,
+        totalBytes: Number.isInteger(memTotal) ? memTotal : null,
+        processLimitBytes: snapshot?.memory?.processLimitBytes?.value ?? null
+    });
+    const randomxModeHint = rxSel.appliedMode === 'fast' ? 'auto' : (rxSel.appliedMode || 'light');
+    for (const r of rxSel.reasons.slice(0, 3)) reasons.push(r);
     if (mem == null) {
-        randomxModeHint = 'light';
-        reasons.push('memory unknown — prefer RandomX light until probed');
-    } else if (mem < 2 * 1024 * 1024 * 1024) {
-        randomxModeHint = 'light';
-        reasons.push('available/total memory < 2 GiB — RandomX light');
-    } else if (mem >= 3 * 1024 * 1024 * 1024) {
-        randomxModeHint = 'auto';
-        reasons.push('memory budget may allow fast dataset');
+        reasons.push('memory unknown — RandomX light until probed (#35)');
     }
 
     const confParts = [

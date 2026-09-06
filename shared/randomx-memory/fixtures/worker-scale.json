@@ -1,0 +1,12 @@
+{
+  "id": "worker-scale",
+  "description": "Many workers inflate scratchpad but dataset dominates fast",
+  "algorithm": "rx/0",
+  "threads": 32,
+  "numaNodes": 1,
+  "availableBytes": 17179869184,
+  "totalBytes": 34359738368,
+  "processLimitBytes": null,
+  "expectedScratchpadMiB": 64,
+  "expectedAutoApplied": "fast"
+}

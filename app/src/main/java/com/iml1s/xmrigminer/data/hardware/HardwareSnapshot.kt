@@ -164,16 +164,29 @@ object HardwareProbe {
             else -> 1
         }
         val recommended = if (max >= 2) max - 1 else 1
-        val mem = snapshot.memory.availableBytes.value ?: snapshot.memory.totalBytes.value
-        val rx = when {
-            mem == null -> "light"
-            mem < 2L * 1024 * 1024 * 1024 -> "light"
-            else -> "auto"
+        val memAvail = snapshot.memory.availableBytes.value
+        val memTotal = snapshot.memory.totalBytes.value
+        val sel = RandomXMemoryBudget.select(
+            algorithm = "rx/0",
+            requestedMode = "auto",
+            threads = recommended,
+            availableBytes = memAvail,
+            totalBytes = memTotal,
+            processLimitBytes = snapshot.memory.processLimitBytes?.value
+        )
+        // Hint stays "auto" when fast fits so XMRig may still autoconfig; else "light".
+        val rx = when (sel.appliedMode) {
+            "fast" -> "auto"
+            "light" -> "light"
+            else -> "light"
         }
         val reasons = mutableListOf<String>()
         if (allowed != null) reasons.add("cap to allowed CPUs ($allowed)")
         else reasons.add("allowed unknown — using logical")
-        if (mem == null) reasons.add("memory unknown — prefer RandomX light")
+        reasons.addAll(sel.reasons.take(3))
+        if (memAvail == null && memTotal == null) {
+            reasons.add("memory unknown — prefer RandomX light (#35)")
+        }
         return RecommendedHardware(
             recommendedThreads = recommended,
             maxThreads = max,

@@ -1,0 +1,12 @@
+{
+  "id": "memory-unknown",
+  "description": "Available/total/process limit all unknown",
+  "algorithm": "rx/0",
+  "threads": 4,
+  "numaNodes": 1,
+  "availableBytes": null,
+  "totalBytes": null,
+  "processLimitBytes": null,
+  "expectedAutoApplied": "light",
+  "expectedFastRequiresConfirm": true
+}

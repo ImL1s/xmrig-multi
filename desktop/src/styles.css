@@ -233,6 +233,13 @@ body {
     opacity: 0.85;
 }
 
+.hint {
+    margin: 6px 0 0;
+    font-size: 12px;
+    opacity: 0.75;
+    line-height: 1.35;
+}
+
 .save-status.error {
     color: var(--danger, #e74c3c);
 }
