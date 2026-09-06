@@ -26,7 +26,14 @@ jobs:
         run: node --test shared/ci-path-gate/test/*.test.js
 
       - name: All shared module contract tests
-        run: node --test shared/*/test/*.test.js shared/*/test/**/*.test.js
+        run: |
+          mapfile -t files < <(find shared -type f -path '*/test/*.test.js' | sort)
+          if [ ${#files[@]} -eq 0 ]; then
+            echo "No shared tests found" >&2
+            exit 1
+          fi
+          echo "Running ${#files[@]} shared test files"
+          node --test "${files[@]}"
 
       - name: Desktop launch-config / settings tests (#131)
         working-directory: desktop
