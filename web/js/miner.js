@@ -26,6 +26,7 @@ class Miner {
 
         this.onLog = null;
         this.onStatsUpdate = null;
+        this.onProxyFailure = null;
         this.hashCount = 0;
         this.lastStatsTime = null;
 
@@ -39,11 +40,19 @@ class Miner {
 
     setupProxyHandlers() {
         this.proxy.onOpen = () => this.log('Connected to pool proxy');
-        this.proxy.onClose = () => {
+        this.proxy.onClose = (detail = {}) => {
             this.log('Pool connection closed');
+            if (this.onProxyFailure && detail.code) {
+                this.onProxyFailure({ code: detail.code, message: detail.reason });
+            }
             this.stop();
         };
-        this.proxy.onError = (err) => this.log('Proxy error: ' + err.message);
+        this.proxy.onError = (err) => {
+            this.log('Proxy error: ' + err.message);
+            if (this.onProxyFailure) {
+                this.onProxyFailure({ message: err.message });
+            }
+        };
 
         this.proxy.onJob = (job) => {
             this.stats.currentJob = job;
@@ -81,8 +90,15 @@ class Miner {
         this.log(`Pool: ${config.pool}`);
         this.log(`Threads: ${config.threads}`);
 
-        // Default proxy - use local proxy if none provided
-        const proxyUrl = config.proxy || 'ws://localhost:3333';
+        const proxyUrl = config.proxy;
+        if (!proxyUrl || (!proxyUrl.startsWith('ws://') && !proxyUrl.startsWith('wss://'))) {
+            this.log('Proxy URL required — refusing implicit localhost default (#50)');
+            this.isMining = false;
+            if (this.onProxyFailure) {
+                this.onProxyFailure({ message: 'missing proxy url' });
+            }
+            return;
+        }
         this.proxy.connect(proxyUrl, config);
 
         this.startStatsTimer();

@@ -410,6 +410,29 @@ input[type="range"]::-webkit-slider-thumb:hover {
   opacity: 0.85;
 }
 
+.proxy-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin-top: 8px;
+}
+
+.proxy-actions .btn {
+  flex: 0 0 auto;
+  padding: 8px 12px;
+  font-size: 13px;
+}
+
+.proxy-status {
+  font-size: 13px;
+  opacity: 0.9;
+}
+
+.proxy-status.error {
+  color: var(--error, #e74c3c);
+}
+
 /* Responsive */
 @media (max-width: 480px) {
   .container {

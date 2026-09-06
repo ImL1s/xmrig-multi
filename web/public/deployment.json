@@ -1,0 +1,8 @@
+{
+  "schemaVersion": 1,
+  "proxyUrl": null,
+  "sameOriginPath": null,
+  "allowDevLocalhostDefault": true,
+  "proxyKind": null,
+  "trustNotice": "Wallet login and worker name are sent through this WebSocket proxy to the pool. Only use a proxy you trust."
+}

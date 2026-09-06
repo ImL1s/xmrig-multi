@@ -13,18 +13,27 @@ import {
     loadWebSettingsFromStorage,
     saveWebSettingsToStorage
 } from './web-settings.js';
+import {
+    diagnoseProxyFailure,
+    resolveProxyEndpoint,
+    testProxyHandshake
+} from './proxy-config.js';
 
 class App {
     constructor() {
         this.miner = new Miner();
+        this.deployment = { allowDevLocalhostDefault: true };
         this.dom = {
             coinSelect: document.getElementById('coin-select'),
             walletAddress: document.getElementById('wallet-address'),
             walletLabel: document.getElementById('wallet-label'),
             walletHint: document.getElementById('wallet-hint'),
             poolSelect: document.getElementById('pool-select'),
-            customProxyGroup: document.getElementById('custom-proxy-group'),
+            proxyGroup: document.getElementById('proxy-group'),
             customProxyUrl: document.getElementById('custom-proxy-url'),
+            proxyHint: document.getElementById('proxy-hint'),
+            proxyStatus: document.getElementById('proxy-status'),
+            testProxyBtn: document.getElementById('test-proxy-btn'),
             threads: document.getElementById('threads'),
             workerName: document.getElementById('worker-name'),
             startBtn: document.getElementById('start-btn'),
@@ -71,14 +80,27 @@ class App {
         this.init();
     }
 
-    init() {
+    async init() {
         this.dom.startBtn.addEventListener('click', () => this.startMining());
         this.dom.stopBtn.addEventListener('click', () => this.stopMining());
         this.dom.coinSelect.addEventListener('change', () => this.onCoinSelectChange());
         this.dom.poolSelect.addEventListener('change', () => this.onPoolSelectChange());
+        this.dom.testProxyBtn?.addEventListener('click', () => this.onTestProxy());
+        this.dom.customProxyUrl?.addEventListener('change', () => this.saveSettings());
 
         this.miner.onLog = (msg) => this.log(msg);
         this.miner.onStatsUpdate = (stats) => this.updateUI(stats);
+        this.miner.onProxyFailure = (detail) => {
+            const diag = diagnoseProxyFailure({
+                ...detail,
+                pageProtocol: window.location.protocol,
+                proxyUrl: this.dom.customProxyUrl?.value
+            });
+            this.setProxyStatus(diag.userMessage, true);
+            this.log(`代理診斷 [${diag.layer}]: ${diag.userMessage}`);
+        };
+
+        await this.loadDeploymentConfig();
 
         // Model first, then options, then apply — do not let render overwrite saved threads (#47).
         const cores = navigator.hardwareConcurrency || 4;
@@ -87,6 +109,7 @@ class App {
         this.settingsPersistable = loaded.ok;
         this.renderThreadOptions(cores);
         this.applySettingsModel(this.settingsModel);
+        this.ensureProxyField();
         for (const w of loaded.warnings || []) {
             this.log(`設定: ${w}`);
         }
@@ -103,6 +126,73 @@ class App {
             .join(', ');
         this.log(`Web Miner 就緒 — 可啟動幣種: ${supported || '無'}（能力閘門 #26）`);
         this.updateActivityMeter(false);
+    }
+
+    async loadDeploymentConfig() {
+        try {
+            const res = await fetch(`${import.meta.env.BASE_URL}deployment.json`, { cache: 'no-store' });
+            if (res.ok) {
+                const json = await res.json();
+                this.deployment = { ...this.deployment, ...json };
+                this.log(`部署設定已載入 (proxy source file)`);
+            }
+        } catch {
+            this.log('部署設定 deployment.json 不可用 — 僅使用頁面/使用者輸入');
+        }
+    }
+
+    ensureProxyField() {
+        if (!this.dom.customProxyUrl) return;
+        if (this.dom.customProxyUrl.value.trim()) {
+            this.refreshProxyHint();
+            return;
+        }
+        const resolved = resolveProxyEndpoint(window.location, this.deployment, '');
+        if (resolved.ok && resolved.url) {
+            this.dom.customProxyUrl.value = resolved.url;
+            this.log(`代理預填來源: ${resolved.source} (${resolved.kind})`);
+        } else {
+            this.setProxyStatus(resolved.error || '請設定 WebSocket 代理', true);
+        }
+        this.refreshProxyHint(resolved);
+    }
+
+    refreshProxyHint(resolved) {
+        const r = resolved || resolveProxyEndpoint(
+            window.location,
+            this.deployment,
+            this.dom.customProxyUrl?.value || ''
+        );
+        if (this.dom.proxyHint) {
+            const trust = r.trustNotice || this.deployment.trustNotice || '';
+            this.dom.proxyHint.textContent =
+                `來源: ${r.source || 'user'} / ${r.kind || 'user'}. ${trust}`.trim();
+        }
+    }
+
+    setProxyStatus(text, isError = false) {
+        if (!this.dom.proxyStatus) return;
+        this.dom.proxyStatus.textContent = text || '';
+        this.dom.proxyStatus.classList.toggle('error', Boolean(isError));
+    }
+
+    async onTestProxy() {
+        const resolved = resolveProxyEndpoint(
+            window.location,
+            this.deployment,
+            this.dom.customProxyUrl.value.trim()
+        );
+        if (!resolved.ok || !resolved.url) {
+            this.setProxyStatus(resolved.error || '缺少代理 URL', true);
+            return;
+        }
+        this.setProxyStatus('測試中…');
+        this.log(`測試代理握手（不傳送錢包）: ${resolved.url}`);
+        const result = await testProxyHandshake(resolved.url);
+        this.setProxyStatus(result.userMessage, !result.ok);
+        this.log(result.ok
+            ? `代理握手成功 (${result.ms}ms)`
+            : `代理握手失敗 [${result.layer}]: ${result.userMessage}`);
     }
 
     applySettingsModel(settings) {
@@ -221,8 +311,8 @@ class App {
     }
 
     onPoolSelectChange() {
-        const isCustom = this.dom.poolSelect.value === 'custom';
-        this.dom.customProxyGroup.style.display = isCustom ? 'block' : 'none';
+        // Proxy field stays visible for all pool presets (#50).
+        this.refreshProxyHint();
     }
 
     startMining() {
@@ -256,34 +346,42 @@ class App {
             return;
         }
 
-        let proxyUrl;
-        let poolKey;
-        if (isCustomProxy) {
-            proxyUrl = this.dom.customProxyUrl.value.trim();
-            poolKey = null;
-        } else {
-            proxyUrl = 'ws://localhost:3333';
-            poolKey = poolSelection;
+        const resolved = resolveProxyEndpoint(
+            window.location,
+            this.deployment,
+            this.dom.customProxyUrl.value.trim()
+        );
+        if (!resolved.ok || !resolved.url) {
+            alert(resolved.error || '請設定 WebSocket 代理 URL');
+            this.setProxyStatus(resolved.error || '缺少代理', true);
+            this.log(`拒絕啟動: ${resolved.error || 'missing proxy'}`);
+            return;
+        }
+
+        if (resolved.requiresRemoteConfirm) {
+            const notice = resolved.trustNotice
+                || '此為遠端代理：錢包登入會經過第三方。確認信任後才繼續。';
+            if (!window.confirm(notice)) {
+                this.log('使用者取消遠端代理確認');
+                return;
+            }
         }
 
         const config = {
             walletAddress,
-            pool: poolKey,
+            pool: isCustomProxy ? null : poolSelection,
             coin: coinSelection,
             threads: parseInt(this.dom.threads.value, 10),
             workerName: this.dom.workerName.value.trim() || 'web-worker',
             password: this.dom.workerName.value.trim() || 'x',
-            proxy: proxyUrl
+            proxy: resolved.url
         };
 
-        if (!config.proxy.startsWith('ws://') && !config.proxy.startsWith('wss://')) {
-            alert('代理地址必須以 ws:// 或 wss:// 開頭');
-            return;
-        }
-
         this.saveSettings();
+        this.refreshProxyHint(resolved);
         this.log(`開始挖礦 ${coinConfig.name} (${coinConfig.symbol})`);
-        this.log(`使用礦池: ${isCustomProxy ? '自訂代理' : poolSelection}`);
+        this.log(`礦池 preset: ${isCustomProxy ? '自訂（僅代理）' : poolSelection}`);
+        this.log(`代理: ${resolved.url} [${resolved.source}/${resolved.kind}]`);
         this.log(`演算法: ${coinConfig.algorithm}`);
         this.miner.start(config);
 
@@ -294,6 +392,7 @@ class App {
         this.dom.poolSelect.disabled = true;
         this.dom.customProxyUrl.disabled = true;
         this.dom.threads.disabled = true;
+        if (this.dom.testProxyBtn) this.dom.testProxyBtn.disabled = true;
     }
 
     stopMining() {
@@ -305,6 +404,7 @@ class App {
         this.dom.poolSelect.disabled = false;
         this.dom.customProxyUrl.disabled = false;
         this.dom.threads.disabled = false;
+        if (this.dom.testProxyBtn) this.dom.testProxyBtn.disabled = false;
     }
 
     updateUI(stats) {
