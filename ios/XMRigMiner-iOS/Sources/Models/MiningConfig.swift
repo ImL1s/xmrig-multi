@@ -203,9 +203,10 @@ struct MiningConfig: Codable {
 // MARK: - Preset Pools
 
 extension PoolConfig {
-    // Monero (XMR) pools - Using non-TLS ports (XMRig built without TLS)
+    // Monero (XMR) pools — ports aligned with shared/pool-registry (#40/#41).
+    // XMRig iOS binary built without TLS: use non-TLS endpoints only.
     static let supportXMR = PoolConfig(url: "pool.supportxmr.com:3333", tls: false, coin: .monero)
-    static let moneroOcean = PoolConfig(url: "gulf.moneroocean.stream:10001", tls: false, coin: .monero)
+    static let moneroOcean = PoolConfig(url: "gulf.moneroocean.stream:10128", tls: false, coin: .monero)
     static let hashVault = PoolConfig(url: "pool.hashvault.pro:3333", tls: false, coin: .monero)
     static let twoMiners = PoolConfig(url: "xmr.2miners.com:2222", tls: false, coin: .monero)
 

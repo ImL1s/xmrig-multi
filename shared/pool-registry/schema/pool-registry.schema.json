@@ -1,0 +1,122 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/ImL1s/xmrig-multi/shared/pool-registry/schema/pool-registry.schema.json",
+  "title": "PoolRegistry",
+  "description": "Versioned cross-platform pool registry (#40). Endpoint audit dispositions live in #41.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "generatedAt", "entries"],
+  "properties": {
+    "schemaVersion": { "type": "integer", "const": 1 },
+    "generatedAt": { "type": "string" },
+    "notes": { "type": "string" },
+    "entries": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/entry" }
+    }
+  },
+  "$defs": {
+    "feeValue": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status"],
+      "properties": {
+        "status": { "type": "string", "enum": ["known", "unknown"] },
+        "percent": { "type": ["number", "null"] },
+        "asOf": { "type": ["string", "null"] },
+        "note": { "type": "string" }
+      }
+    },
+    "endpoint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "transport", "host", "port"],
+      "properties": {
+        "id": { "type": "string" },
+        "transport": {
+          "type": "string",
+          "enum": ["stratum-tcp", "stratum-tls", "daemon-rpc", "web-proxy", "p2pool"]
+        },
+        "host": { "type": "string" },
+        "port": { "type": "integer", "minimum": 1, "maximum": 65535 },
+        "tls": { "type": "boolean" },
+        "region": { "type": ["string", "null"] },
+        "difficultyHint": { "type": ["string", "null"] },
+        "protocolVerifiedAt": { "type": ["string", "null"] },
+        "notes": { "type": "string" }
+      }
+    },
+    "entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id", "displayName", "kind", "status", "miningChain", "payoutAsset",
+        "algorithms", "engineRequirements", "endpoints", "account", "fees",
+        "sources", "lastReviewedAt", "noviceDefault"
+      ],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "displayName": { "type": "string" },
+        "kind": {
+          "type": "string",
+          "enum": ["stratum-pool", "p2pool", "monero-daemon", "dero-node", "web-proxy"]
+        },
+        "status": {
+          "type": "string",
+          "enum": ["verified", "docs-verified", "unverified", "deprecated", "unavailable"]
+        },
+        "miningChain": { "type": "string", "enum": ["monero", "wownero", "dero"] },
+        "payoutAsset": { "type": "string", "enum": ["XMR", "WOW", "DERO"] },
+        "algorithms": { "type": "array", "items": { "type": "string" } },
+        "engineRequirements": {
+          "type": "array",
+          "items": { "type": "string", "enum": ["xmrig", "randomx-js", "dero-miner"] }
+        },
+        "endpoints": { "type": "array", "items": { "$ref": "#/$defs/endpoint" } },
+        "account": {
+          "type": "object",
+          "properties": {
+            "user": { "type": "string" },
+            "pass": { "type": "string" },
+            "rigId": { "type": "string" },
+            "notes": { "type": "string" }
+          }
+        },
+        "fees": {
+          "type": "object",
+          "properties": {
+            "poolFee": { "$ref": "#/$defs/feeValue" },
+            "minPayout": {
+              "type": "object",
+              "properties": {
+                "status": { "type": "string", "enum": ["known", "unknown"] },
+                "amount": { "type": ["number", "null"] },
+                "asset": { "type": ["string", "null"] },
+                "asOf": { "type": ["string", "null"] },
+                "note": { "type": "string" }
+              }
+            },
+            "payoutScheme": { "type": ["string", "null"] }
+          }
+        },
+        "sources": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["label", "url"],
+            "properties": {
+              "label": { "type": "string" },
+              "url": { "type": "string" }
+            }
+          }
+        },
+        "lastReviewedAt": { "type": "string" },
+        "lastProtocolVerifiedAt": { "type": ["string", "null"] },
+        "noviceDefault": { "type": "boolean" },
+        "disposition": { "type": "string" },
+        "description": { "type": "string" },
+        "legacyNames": { "type": "array", "items": { "type": "string" } }
+      }
+    }
+  }
+}

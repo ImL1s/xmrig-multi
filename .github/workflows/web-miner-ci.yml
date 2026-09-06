@@ -6,12 +6,20 @@ on:
     paths:
       - 'web/**'
       - 'shared/mining-profile/**'
+      - 'shared/pool-registry/**'
+      - 'app/src/main/assets/pools.json'
+      - 'desktop/src/generated-pool-configs.json'
+      - 'desktop/src/main.js'
       - '.github/workflows/web-miner-ci.yml'
   pull_request:
     branches: [ main ]
     paths:
       - 'web/**'
       - 'shared/mining-profile/**'
+      - 'shared/pool-registry/**'
+      - 'app/src/main/assets/pools.json'
+      - 'desktop/src/generated-pool-configs.json'
+      - 'desktop/src/main.js'
 
 jobs:
   lint-and-build:
@@ -44,6 +52,10 @@ jobs:
       - name: MiningProfile contract tests (#30)
         working-directory: .
         run: node --test shared/mining-profile/test/*.test.js
+
+      - name: Pool registry contract tests (#40/#41)
+        working-directory: .
+        run: node --test shared/pool-registry/test/*.test.js
 
       - name: Build for Production
         run: npm run build

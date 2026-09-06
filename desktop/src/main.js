@@ -5,6 +5,7 @@ import {
     loadDesktopStore,
     saveDesktopStore
 } from './settings.js';
+import generatedPools from './generated-pool-configs.json';
 
 const elements = {
     cpuName: document.getElementById('cpu-name'),
@@ -32,20 +33,7 @@ const elements = {
     logOutput: document.getElementById('log-output'),
 };
 
-const poolConfigs = {
-    monero: [
-        { url: 'gulf.moneroocean.stream:10128', name: 'MoneroOcean (Recommended, XMR payout)', algo: 'rx/0', status: 'supported' },
-        { url: 'pool.supportxmr.com:3333', name: 'SupportXMR', algo: 'rx/0', status: 'supported' },
-        { url: 'pool.hashvault.pro:3333', name: 'HashVault', algo: 'rx/0', status: 'supported' },
-        { url: 'xmr.2miners.com:2222', name: '2Miners', algo: 'rx/0', status: 'supported' },
-    ],
-    wownero: [
-        { url: '', name: 'Wownero unavailable — need signer/daemon (#28)', algo: 'rx/wow', status: 'unavailable' },
-    ],
-    dero: [
-        { url: '', name: 'DERO unavailable — need daemon adapter (#27)', algo: 'astrobwt/v3', status: 'unavailable' },
-    ],
-};
+const poolConfigs = generatedPools.poolConfigs;
 
 let statsInterval = null;
 let isMining = false;
