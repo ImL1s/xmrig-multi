@@ -19,7 +19,13 @@ sealed interface ConfigUiState {
         val showResetConfirm: Boolean = false,
         val showDiscardConfirm: Boolean = false,
         /** Why Save is disabled — null when save is allowed. */
-        val saveBlockedReason: String? = null
+        val saveBlockedReason: String? = null,
+        /** Last solo daemon readiness probe (#44). TCP≠ready. */
+        val daemonProbeStage: String? = null,
+        val daemonProbeMessage: String? = null,
+        val daemonProbeReady: Boolean = false,
+        val daemonProbeCheckedAtEpochMs: Long? = null,
+        val isProbingDaemon: Boolean = false
     ) : ConfigUiState
     data class Error(val message: String) : ConfigUiState
 }
@@ -35,6 +41,8 @@ sealed interface ConfigUiEvent {
     data class TlsToggled(val enabled: Boolean) : ConfigUiEvent
     data class CustomPoolUrlChanged(val url: String) : ConfigUiEvent
     data class SoloDaemonToggled(val enabled: Boolean) : ConfigUiEvent
+    /** Manual / save-time monerod RPC readiness check (#44). */
+    data object ProbeDaemon : ConfigUiEvent
     data object SaveConfig : ConfigUiEvent
     /** User tapped Reset — ask before destroying drafts (#52). */
     data object RequestResetToDefaults : ConfigUiEvent

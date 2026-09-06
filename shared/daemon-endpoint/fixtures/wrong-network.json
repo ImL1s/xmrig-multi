@@ -1,0 +1,11 @@
+{
+  "result": {
+    "height": 500,
+    "target_height": 500,
+    "synchronized": true,
+    "mainnet": false,
+    "nettype": "testnet",
+    "version": "0.18.3.3",
+    "restricted": false
+  }
+}

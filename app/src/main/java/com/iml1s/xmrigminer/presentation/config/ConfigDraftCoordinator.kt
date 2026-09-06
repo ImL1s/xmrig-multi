@@ -110,14 +110,14 @@ class ConfigDraftCoordinator(
         stashFrom(current, selectedPool)
 
         if (enabled) {
+            // Per-mode stash only — never infer solo from "contains 18081" (#44).
             val restored = restore(CoinType.MONERO, solo = true)
             return current.copy(
                 soloDaemon = true,
                 useTls = false,
                 coinType = CoinType.MONERO.name,
-                poolUrl = restored?.poolUrl?.takeIf { it.contains("18081") }
-                    ?: if (current.poolUrl.contains("18081")) current.poolUrl
-                    else MiningConfig.DEFAULT_SOLO_DAEMON_URL,
+                poolUrl = restored?.poolUrl?.takeIf { it.isNotBlank() }
+                    ?: MiningConfig.DEFAULT_SOLO_DAEMON_URL,
                 walletAddress = restored?.walletAddress ?: current.walletAddress,
                 workerName = restored?.workerName ?: current.workerName
             ) to null

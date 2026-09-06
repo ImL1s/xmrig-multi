@@ -1,0 +1,11 @@
+{
+  "result": {
+    "height": 3200000,
+    "target_height": 3200000,
+    "synchronized": true,
+    "mainnet": true,
+    "nettype": "mainnet",
+    "version": "0.18.3.3",
+    "restricted": false
+  }
+}
