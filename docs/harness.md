@@ -12,6 +12,7 @@ Cross-platform evidence store. Start with offline, reproducible gates from P0.
 | Session state machine | `node --test shared/session-state/test/*.test.js` | #48 phase transitions / process-exit unlock |
 | Hardware capability | `node --test shared/hardware-capability/test/*.test.js` | #33 snapshot schema / fixtures / recommend / redact |
 | Web proxy setup | `cd web && npm test` (proxy-config tests) | #50 no implicit localhost on public HTTPS |
+| Web WASM preflight | `cd web && npm test` (runtime-preflight tests) | #51 COI/SAB/WASM gates + seed validation |
 | Android profile mapper | `./gradlew testDebugUnitTest --tests "*MiningProfileMapper*"` | #30 MiningConfig ↔ MiningProfile field mapping |
 | Android hardware probe | `./gradlew testDebugUnitTest --tests "*HardwareSnapshot*"` | #33 null-unknown + ABI gate |
 | Android native capabilities | `./gradlew testDebugUnitTest --tests "*XmrigNativeCapabilities*"` | TLS + coin start gates |
