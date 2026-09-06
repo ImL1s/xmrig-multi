@@ -1,0 +1,7 @@
+{
+  "description": "64+ logical uses id-list path not 32-bit mask",
+  "snapshotFixture": "gt64-logical.json",
+  "input": "0,64,127",
+  "expectOk": true,
+  "expectPreferIdList": true
+}
