@@ -203,6 +203,47 @@ body {
     cursor: not-allowed;
 }
 
+.profile-controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+}
+
+.profile-controls select {
+    flex: 1 1 160px;
+    min-width: 140px;
+}
+
+.profile-controls .btn {
+    flex: 0 0 auto;
+    padding: 8px 12px;
+    font-size: 13px;
+}
+
+.save-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+}
+
+.save-status {
+    font-size: 13px;
+    opacity: 0.85;
+}
+
+.save-status.error {
+    color: var(--danger, #e74c3c);
+}
+
+.import-preview {
+    margin-top: 8px;
+    font-size: 13px;
+    white-space: pre-wrap;
+    opacity: 0.9;
+}
+
 input[type="range"] {
     -webkit-appearance: none;
     height: 8px;
