@@ -32,6 +32,7 @@ on:
       - 'shared/economy-snapshot/**'
       - 'shared/automation-policy/**'
       - 'shared/desktop-idle-policy/**'
+      - 'shared/ios-glance/**'
       - 'app/src/main/assets/pools.json'
       - 'desktop/src/generated-pool-configs.json'
       - 'desktop/src/main.js'
@@ -59,6 +60,7 @@ on:
       - 'shared/economy-snapshot/**'
       - 'shared/automation-policy/**'
       - 'shared/desktop-idle-policy/**'
+      - 'shared/ios-glance/**'
       - 'shared/cpu-topology/**'
       - 'shared/thermal-policy/**'
       - 'shared/power-policy/**'
@@ -230,6 +232,10 @@ jobs:
       - name: Desktop idle / tray / close policy (#77)
         working-directory: .
         run: node --test shared/desktop-idle-policy/test/*.test.js
+
+      - name: iOS glance / StandBy / Widget snapshot (#78)
+        working-directory: .
+        run: node --test shared/ios-glance/test/*.test.js
 
       - name: Build for Production
         run: npm run build
