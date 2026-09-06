@@ -76,7 +76,12 @@ fun AmbientScreen(
             val window = (context as? ComponentActivity)?.window
             window?.let { w ->
                 w.attributes = w.attributes?.apply {
-                    screenBrightness = (0.08f + 0.35f * dim).coerceIn(0.08f, 1f)
+                    // Night-only dim; daytime keep system brightness (dim==1).
+                    screenBrightness = if (dim < 1f) {
+                        (0.08f + 0.35f * dim).coerceIn(0.08f, 1f)
+                    } else {
+                        WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE
+                    }
                 }
             }
             val delayMs = AmbientClockPolicy.nextTickMs(System.currentTimeMillis(), showSeconds = false)
