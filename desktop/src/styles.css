@@ -356,6 +356,34 @@ select option:disabled {
     color: var(--ink-faint);
 }
 
+.profile-controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--sp-2);
+    align-items: center;
+}
+
+.profile-controls select {
+    flex: 1 1 160px;
+    min-width: 140px;
+}
+
+.profile-controls .btn {
+    flex: 0 0 auto;
+    padding: var(--sp-2) var(--sp-3);
+    font-size: 0.82rem;
+    min-height: var(--touch-target);
+}
+
+.import-preview {
+    grid-column: 1 / -1;
+    margin-top: var(--sp-1);
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    white-space: pre-wrap;
+    color: var(--ink-dim);
+}
+
 input[type="range"] {
     -webkit-appearance: none;
     appearance: none;

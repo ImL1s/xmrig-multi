@@ -10,7 +10,9 @@ Cross-platform evidence store. Start with offline, reproducible gates from P0.
 | MiningProfile contract | `node --test shared/mining-profile/test/*.test.js` | #30 schema/migrate/compile golden fixtures |
 | Pool registry | `node --test shared/pool-registry/test/*.test.js` | #40/#41 shared registry + Android/desktop drift |
 | Session state machine | `node --test shared/session-state/test/*.test.js` | #48 phase transitions / process-exit unlock |
+| Hardware capability | `node --test shared/hardware-capability/test/*.test.js` | #33 snapshot schema / fixtures / recommend / redact |
 | Android profile mapper | `./gradlew testDebugUnitTest --tests "*MiningProfileMapper*"` | #30 MiningConfig ↔ MiningProfile field mapping |
+| Android hardware probe | `./gradlew testDebugUnitTest --tests "*HardwareSnapshot*"` | #33 null-unknown + ABI gate |
 | Android native capabilities | `./gradlew testDebugUnitTest --tests "*XmrigNativeCapabilities*"` | TLS + coin start gates |
 
 ## Evidence rules

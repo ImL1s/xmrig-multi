@@ -1,0 +1,44 @@
+{
+  "schemaVersion": 1,
+  "capturedAt": "2026-09-06T00:00:00.000Z",
+  "evidenceKind": "fixture",
+  "platform": {
+    "os": "android",
+    "osVersion": { "value": "Android 32-bit fixture", "source": "fixture", "timestamp": "2026-09-06T00:00:00.000Z", "confidence": "high", "unknownReason": null },
+    "arch": "arm",
+    "abi": { "value": "armeabi-v7a", "source": "fixture", "timestamp": "2026-09-06T00:00:00.000Z", "confidence": "high", "unknownReason": null },
+    "containerOrVm": { "value": false, "source": "fixture", "timestamp": "2026-09-06T00:00:00.000Z", "confidence": "high", "unknownReason": null }
+  },
+  "cpu": {
+    "name": { "value": "32-bit ABI Fixture", "source": "fixture", "timestamp": "2026-09-06T00:00:00.000Z", "confidence": "medium", "unknownReason": null },
+    "logical": { "value": 4, "source": "fixture", "timestamp": "2026-09-06T00:00:00.000Z", "confidence": "high", "unknownReason": null },
+    "physical": { "value": 4, "source": "fixture", "timestamp": "2026-09-06T00:00:00.000Z", "confidence": "medium", "unknownReason": null },
+    "allowed": { "value": 4, "source": "fixture", "timestamp": "2026-09-06T00:00:00.000Z", "confidence": "medium", "unknownReason": null },
+    "smt": { "value": false, "source": "fixture", "timestamp": "2026-09-06T00:00:00.000Z", "confidence": "low", "unknownReason": null },
+    "heterogeneous": { "value": null, "source": "fixture", "timestamp": "2026-09-06T00:00:00.000Z", "confidence": "unknown", "unknownReason": "not-probed" },
+    "coreGroups": { "value": null, "source": "fixture", "timestamp": "2026-09-06T00:00:00.000Z", "confidence": "unknown", "unknownReason": "not-probed" },
+    "cache": {
+      "l2Bytes": { "value": null, "source": "fixture", "timestamp": "2026-09-06T00:00:00.000Z", "confidence": "unknown", "unknownReason": "permission-denied" },
+      "l3Bytes": { "value": null, "source": "fixture", "timestamp": "2026-09-06T00:00:00.000Z", "confidence": "unknown", "unknownReason": "permission-denied" }
+    },
+    "numaNodes": { "value": null, "source": "fixture", "timestamp": "2026-09-06T00:00:00.000Z", "confidence": "unknown", "unknownReason": "not-applicable" }
+  },
+  "memory": {
+    "totalBytes": { "value": 2147483648, "source": "fixture", "timestamp": "2026-09-06T00:00:00.000Z", "confidence": "high", "unknownReason": null },
+    "availableBytes": { "value": 536870912, "source": "fixture", "timestamp": "2026-09-06T00:00:00.000Z", "confidence": "medium", "unknownReason": null },
+    "processLimitBytes": { "value": null, "source": "fixture", "timestamp": "2026-09-06T00:00:00.000Z", "confidence": "unknown", "unknownReason": "not-probed" }
+  },
+  "power": {
+    "onAc": { "value": null, "source": "fixture", "timestamp": "2026-09-06T00:00:00.000Z", "confidence": "unknown", "unknownReason": "permission-denied" },
+    "batteryPresent": { "value": true, "source": "fixture", "timestamp": "2026-09-06T00:00:00.000Z", "confidence": "medium", "unknownReason": null }
+  },
+  "sensors": {
+    "thermalReadable": { "value": false, "source": "fixture", "timestamp": "2026-09-06T00:00:00.000Z", "confidence": "medium", "unknownReason": null },
+    "powerReadable": { "value": false, "source": "fixture", "timestamp": "2026-09-06T00:00:00.000Z", "confidence": "medium", "unknownReason": null }
+  },
+  "engine": {
+    "abiSupported": { "value": false, "source": "fixture", "timestamp": "2026-09-06T00:00:00.000Z", "confidence": "high", "unknownReason": "32-bit-abi-unsupported-for-bundled-xmrig" },
+    "flags": ["abi-unsupported"]
+  },
+  "invalidationHints": ["power-source-change"]
+}

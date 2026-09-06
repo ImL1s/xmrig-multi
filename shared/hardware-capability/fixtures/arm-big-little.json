@@ -1,0 +1,53 @@
+{
+  "schemaVersion": 1,
+  "capturedAt": "2026-09-06T00:00:00.000Z",
+  "evidenceKind": "fixture",
+  "platform": {
+    "os": "android",
+    "osVersion": { "value": "Android fixture", "source": "fixture", "timestamp": "2026-09-06T00:00:00.000Z", "confidence": "high", "unknownReason": null },
+    "arch": "aarch64",
+    "abi": { "value": "arm64-v8a", "source": "fixture", "timestamp": "2026-09-06T00:00:00.000Z", "confidence": "high", "unknownReason": null },
+    "containerOrVm": { "value": false, "source": "fixture", "timestamp": "2026-09-06T00:00:00.000Z", "confidence": "high", "unknownReason": null }
+  },
+  "cpu": {
+    "name": { "value": "ARM big.LITTLE Fixture", "source": "fixture", "timestamp": "2026-09-06T00:00:00.000Z", "confidence": "medium", "unknownReason": null },
+    "logical": { "value": 8, "source": "fixture", "timestamp": "2026-09-06T00:00:00.000Z", "confidence": "high", "unknownReason": null },
+    "physical": { "value": 8, "source": "fixture", "timestamp": "2026-09-06T00:00:00.000Z", "confidence": "medium", "unknownReason": null },
+    "allowed": { "value": 8, "source": "fixture", "timestamp": "2026-09-06T00:00:00.000Z", "confidence": "medium", "unknownReason": null },
+    "smt": { "value": false, "source": "fixture", "timestamp": "2026-09-06T00:00:00.000Z", "confidence": "medium", "unknownReason": null },
+    "heterogeneous": { "value": true, "source": "fixture", "timestamp": "2026-09-06T00:00:00.000Z", "confidence": "high", "unknownReason": null },
+    "coreGroups": {
+      "value": [
+        { "kind": "performance", "logicalIds": [4, 5, 6, 7], "label": "big" },
+        { "kind": "efficiency", "logicalIds": [0, 1, 2, 3], "label": "LITTLE" }
+      ],
+      "source": "fixture",
+      "timestamp": "2026-09-06T00:00:00.000Z",
+      "confidence": "medium",
+      "unknownReason": null
+    },
+    "cache": {
+      "l2Bytes": { "value": null, "source": "fixture", "timestamp": "2026-09-06T00:00:00.000Z", "confidence": "unknown", "unknownReason": "permission-denied" },
+      "l3Bytes": { "value": null, "source": "fixture", "timestamp": "2026-09-06T00:00:00.000Z", "confidence": "unknown", "unknownReason": "permission-denied" }
+    },
+    "numaNodes": { "value": null, "source": "fixture", "timestamp": "2026-09-06T00:00:00.000Z", "confidence": "unknown", "unknownReason": "not-applicable" }
+  },
+  "memory": {
+    "totalBytes": { "value": 6144653312, "source": "fixture", "timestamp": "2026-09-06T00:00:00.000Z", "confidence": "high", "unknownReason": null },
+    "availableBytes": { "value": 2147483648, "source": "fixture", "timestamp": "2026-09-06T00:00:00.000Z", "confidence": "medium", "unknownReason": null },
+    "processLimitBytes": { "value": null, "source": "fixture", "timestamp": "2026-09-06T00:00:00.000Z", "confidence": "unknown", "unknownReason": "not-probed" }
+  },
+  "power": {
+    "onAc": { "value": false, "source": "fixture", "timestamp": "2026-09-06T00:00:00.000Z", "confidence": "high", "unknownReason": null },
+    "batteryPresent": { "value": true, "source": "fixture", "timestamp": "2026-09-06T00:00:00.000Z", "confidence": "high", "unknownReason": null }
+  },
+  "sensors": {
+    "thermalReadable": { "value": true, "source": "fixture", "timestamp": "2026-09-06T00:00:00.000Z", "confidence": "medium", "unknownReason": null },
+    "powerReadable": { "value": false, "source": "fixture", "timestamp": "2026-09-06T00:00:00.000Z", "confidence": "low", "unknownReason": "oem-restricted" }
+  },
+  "engine": {
+    "abiSupported": { "value": true, "source": "fixture", "timestamp": "2026-09-06T00:00:00.000Z", "confidence": "high", "unknownReason": null },
+    "flags": ["arm-big-little"]
+  },
+  "invalidationHints": ["power-source-change", "thermal-throttle", "cpuset-change"]
+}

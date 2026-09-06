@@ -1,0 +1,44 @@
+{
+  "schemaVersion": 1,
+  "capturedAt": "2026-09-06T00:00:00.000Z",
+  "evidenceKind": "fixture",
+  "platform": {
+    "os": "windows",
+    "osVersion": { "value": null, "source": "wmic-missing", "timestamp": "2026-09-06T00:00:00.000Z", "confidence": "unknown", "unknownReason": "external-command-missing" },
+    "arch": "x86_64",
+    "abi": { "value": "x86_64", "source": "env", "timestamp": "2026-09-06T00:00:00.000Z", "confidence": "high", "unknownReason": null },
+    "containerOrVm": { "value": null, "source": "none", "timestamp": "2026-09-06T00:00:00.000Z", "confidence": "unknown", "unknownReason": "not-probed" }
+  },
+  "cpu": {
+    "name": { "value": null, "source": "wmic-missing", "timestamp": "2026-09-06T00:00:00.000Z", "confidence": "unknown", "unknownReason": "external-command-missing" },
+    "logical": { "value": 8, "source": "GetSystemInfo", "timestamp": "2026-09-06T00:00:00.000Z", "confidence": "high", "unknownReason": null },
+    "physical": { "value": 4, "source": "num_cpus", "timestamp": "2026-09-06T00:00:00.000Z", "confidence": "medium", "unknownReason": null },
+    "allowed": { "value": 8, "source": "assume-all-logical", "timestamp": "2026-09-06T00:00:00.000Z", "confidence": "low", "unknownReason": null },
+    "smt": { "value": null, "source": "none", "timestamp": "2026-09-06T00:00:00.000Z", "confidence": "unknown", "unknownReason": "topology-api-not-used" },
+    "heterogeneous": { "value": null, "source": "none", "timestamp": "2026-09-06T00:00:00.000Z", "confidence": "unknown", "unknownReason": "topology-api-not-used" },
+    "coreGroups": { "value": null, "source": "none", "timestamp": "2026-09-06T00:00:00.000Z", "confidence": "unknown", "unknownReason": "topology-api-not-used" },
+    "cache": {
+      "l2Bytes": { "value": null, "source": "none", "timestamp": "2026-09-06T00:00:00.000Z", "confidence": "unknown", "unknownReason": "not-probed" },
+      "l3Bytes": { "value": null, "source": "none", "timestamp": "2026-09-06T00:00:00.000Z", "confidence": "unknown", "unknownReason": "not-probed" }
+    },
+    "numaNodes": { "value": null, "source": "none", "timestamp": "2026-09-06T00:00:00.000Z", "confidence": "unknown", "unknownReason": "not-probed" }
+  },
+  "memory": {
+    "totalBytes": { "value": 17179869184, "source": "GlobalMemoryStatusEx", "timestamp": "2026-09-06T00:00:00.000Z", "confidence": "high", "unknownReason": null },
+    "availableBytes": { "value": 8589934592, "source": "GlobalMemoryStatusEx", "timestamp": "2026-09-06T00:00:00.000Z", "confidence": "high", "unknownReason": null },
+    "processLimitBytes": { "value": null, "source": "none", "timestamp": "2026-09-06T00:00:00.000Z", "confidence": "unknown", "unknownReason": "not-probed" }
+  },
+  "power": {
+    "onAc": { "value": null, "source": "none", "timestamp": "2026-09-06T00:00:00.000Z", "confidence": "unknown", "unknownReason": "not-probed" },
+    "batteryPresent": { "value": null, "source": "none", "timestamp": "2026-09-06T00:00:00.000Z", "confidence": "unknown", "unknownReason": "not-probed" }
+  },
+  "sensors": {
+    "thermalReadable": { "value": false, "source": "capability", "timestamp": "2026-09-06T00:00:00.000Z", "confidence": "medium", "unknownReason": null },
+    "powerReadable": { "value": false, "source": "capability", "timestamp": "2026-09-06T00:00:00.000Z", "confidence": "medium", "unknownReason": null }
+  },
+  "engine": {
+    "abiSupported": { "value": true, "source": "env", "timestamp": "2026-09-06T00:00:00.000Z", "confidence": "high", "unknownReason": null },
+    "flags": ["windows-no-wmic"]
+  },
+  "invalidationHints": ["hotplug", "power-source-change", "memory-pressure"]
+}

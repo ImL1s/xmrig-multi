@@ -1,0 +1,53 @@
+{
+  "schemaVersion": 1,
+  "capturedAt": "2026-09-06T00:00:00.000Z",
+  "evidenceKind": "fixture",
+  "platform": {
+    "os": "linux",
+    "osVersion": { "value": "Linux fixture", "source": "fixture", "timestamp": "2026-09-06T00:00:00.000Z", "confidence": "high", "unknownReason": null },
+    "arch": "x86_64",
+    "abi": { "value": "x86_64", "source": "fixture", "timestamp": "2026-09-06T00:00:00.000Z", "confidence": "high", "unknownReason": null },
+    "containerOrVm": { "value": false, "source": "fixture", "timestamp": "2026-09-06T00:00:00.000Z", "confidence": "high", "unknownReason": null }
+  },
+  "cpu": {
+    "name": { "value": "AMD Multi-CCD Fixture", "source": "fixture", "timestamp": "2026-09-06T00:00:00.000Z", "confidence": "high", "unknownReason": null },
+    "logical": { "value": 32, "source": "fixture", "timestamp": "2026-09-06T00:00:00.000Z", "confidence": "high", "unknownReason": null },
+    "physical": { "value": 16, "source": "fixture", "timestamp": "2026-09-06T00:00:00.000Z", "confidence": "high", "unknownReason": null },
+    "allowed": { "value": 32, "source": "fixture", "timestamp": "2026-09-06T00:00:00.000Z", "confidence": "high", "unknownReason": null },
+    "smt": { "value": true, "source": "fixture", "timestamp": "2026-09-06T00:00:00.000Z", "confidence": "high", "unknownReason": null },
+    "heterogeneous": { "value": true, "source": "fixture", "timestamp": "2026-09-06T00:00:00.000Z", "confidence": "medium", "unknownReason": null },
+    "coreGroups": {
+      "value": [
+        { "kind": "ccd", "logicalIds": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15], "label": "CCD0" },
+        { "kind": "ccd", "logicalIds": [16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31], "label": "CCD1" }
+      ],
+      "source": "fixture",
+      "timestamp": "2026-09-06T00:00:00.000Z",
+      "confidence": "medium",
+      "unknownReason": null
+    },
+    "cache": {
+      "l2Bytes": { "value": 8388608, "source": "fixture", "timestamp": "2026-09-06T00:00:00.000Z", "confidence": "medium", "unknownReason": null },
+      "l3Bytes": { "value": 67108864, "source": "fixture", "timestamp": "2026-09-06T00:00:00.000Z", "confidence": "medium", "unknownReason": null }
+    },
+    "numaNodes": { "value": 1, "source": "fixture", "timestamp": "2026-09-06T00:00:00.000Z", "confidence": "medium", "unknownReason": null }
+  },
+  "memory": {
+    "totalBytes": { "value": 68719476736, "source": "fixture", "timestamp": "2026-09-06T00:00:00.000Z", "confidence": "high", "unknownReason": null },
+    "availableBytes": { "value": 34359738368, "source": "fixture", "timestamp": "2026-09-06T00:00:00.000Z", "confidence": "high", "unknownReason": null },
+    "processLimitBytes": { "value": null, "source": "fixture", "timestamp": "2026-09-06T00:00:00.000Z", "confidence": "unknown", "unknownReason": "no-cgroup-limit" }
+  },
+  "power": {
+    "onAc": { "value": true, "source": "fixture", "timestamp": "2026-09-06T00:00:00.000Z", "confidence": "high", "unknownReason": null },
+    "batteryPresent": { "value": false, "source": "fixture", "timestamp": "2026-09-06T00:00:00.000Z", "confidence": "high", "unknownReason": null }
+  },
+  "sensors": {
+    "thermalReadable": { "value": false, "source": "fixture", "timestamp": "2026-09-06T00:00:00.000Z", "confidence": "low", "unknownReason": "sysfs-unavailable" },
+    "powerReadable": { "value": false, "source": "fixture", "timestamp": "2026-09-06T00:00:00.000Z", "confidence": "low", "unknownReason": "sysfs-unavailable" }
+  },
+  "engine": {
+    "abiSupported": { "value": true, "source": "fixture", "timestamp": "2026-09-06T00:00:00.000Z", "confidence": "high", "unknownReason": null },
+    "flags": ["amd-multi-ccd"]
+  },
+  "invalidationHints": ["hotplug", "thermal-throttle", "cpuset-change"]
+}

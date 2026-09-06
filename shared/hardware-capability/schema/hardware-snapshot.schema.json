@@ -1,0 +1,185 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/ImL1s/xmrig-multi/shared/hardware-capability/schema/hardware-snapshot.schema.json",
+  "title": "HardwareSnapshot",
+  "description": "Cross-platform hardware capability model (#33). Facts only — auto-tune consumes this; never invent 0 for unknown sensors.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "capturedAt", "evidenceKind", "platform", "cpu", "memory"],
+  "properties": {
+    "schemaVersion": { "type": "integer", "const": 1 },
+    "capturedAt": {
+      "type": "string",
+      "description": "ISO-8601 capture time (UTC preferred)"
+    },
+    "evidenceKind": {
+      "type": "string",
+      "enum": ["fixture", "live"],
+      "description": "fixture = simulated; live = real probe. Never claim full HW support from one device."
+    },
+    "platform": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["os", "arch"],
+      "properties": {
+        "os": { "type": "string" },
+        "osVersion": { "$ref": "#/$defs/fieldString" },
+        "arch": { "type": "string" },
+        "abi": { "$ref": "#/$defs/fieldString" },
+        "containerOrVm": { "$ref": "#/$defs/fieldBool" }
+      }
+    },
+    "cpu": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["logical", "physical", "allowed"],
+      "properties": {
+        "name": { "$ref": "#/$defs/fieldString" },
+        "logical": { "$ref": "#/$defs/fieldInt" },
+        "physical": { "$ref": "#/$defs/fieldInt" },
+        "allowed": {
+          "description": "CPUs the process may bind to (cpuset / affinity). Null value = unknown.",
+          "allOf": [{ "$ref": "#/$defs/fieldInt" }]
+        },
+        "smt": { "$ref": "#/$defs/fieldBool" },
+        "heterogeneous": {
+          "description": "P/E, big.LITTLE, or multi-CCD topology present",
+          "allOf": [{ "$ref": "#/$defs/fieldBool" }]
+        },
+        "coreGroups": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "value": {
+              "type": ["array", "null"],
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["kind", "logicalIds"],
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "enum": ["performance", "efficiency", "ccd", "unknown"]
+                  },
+                  "logicalIds": {
+                    "type": "array",
+                    "items": { "type": "integer", "minimum": 0 }
+                  },
+                  "label": { "type": ["string", "null"] }
+                }
+              }
+            },
+            "source": { "type": "string" },
+            "timestamp": { "type": "string" },
+            "confidence": { "$ref": "#/$defs/confidence" },
+            "unknownReason": { "type": ["string", "null"] }
+          },
+          "required": ["value", "source", "timestamp", "confidence"]
+        },
+        "cache": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "l2Bytes": { "$ref": "#/$defs/fieldInt" },
+            "l3Bytes": { "$ref": "#/$defs/fieldInt" }
+          }
+        },
+        "numaNodes": { "$ref": "#/$defs/fieldInt" }
+      }
+    },
+    "memory": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["totalBytes", "availableBytes"],
+      "properties": {
+        "totalBytes": { "$ref": "#/$defs/fieldInt" },
+        "availableBytes": { "$ref": "#/$defs/fieldInt" },
+        "processLimitBytes": { "$ref": "#/$defs/fieldInt" }
+      }
+    },
+    "power": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "onAc": { "$ref": "#/$defs/fieldBool" },
+        "batteryPresent": { "$ref": "#/$defs/fieldBool" }
+      }
+    },
+    "sensors": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "thermalReadable": { "$ref": "#/$defs/fieldBool" },
+        "powerReadable": { "$ref": "#/$defs/fieldBool" }
+      }
+    },
+    "engine": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "abiSupported": { "$ref": "#/$defs/fieldBool" },
+        "flags": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Opaque capability flags for recommender (e.g. large-pages-probe-later)"
+        }
+      }
+    },
+    "invalidationHints": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "cpuset-change",
+          "hotplug",
+          "power-source-change",
+          "thermal-throttle",
+          "memory-pressure"
+        ]
+      },
+      "description": "Events that should invalidate dependent recommendations"
+    }
+  },
+  "$defs": {
+    "confidence": {
+      "type": "string",
+      "enum": ["high", "medium", "low", "unknown"]
+    },
+    "fieldInt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["value", "source", "timestamp", "confidence"],
+      "properties": {
+        "value": { "type": ["integer", "null"], "minimum": 0 },
+        "source": { "type": "string", "minLength": 1 },
+        "timestamp": { "type": "string" },
+        "confidence": { "$ref": "#/$defs/confidence" },
+        "unknownReason": { "type": ["string", "null"] }
+      }
+    },
+    "fieldBool": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["value", "source", "timestamp", "confidence"],
+      "properties": {
+        "value": { "type": ["boolean", "null"] },
+        "source": { "type": "string", "minLength": 1 },
+        "timestamp": { "type": "string" },
+        "confidence": { "$ref": "#/$defs/confidence" },
+        "unknownReason": { "type": ["string", "null"] }
+      }
+    },
+    "fieldString": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["value", "source", "timestamp", "confidence"],
+      "properties": {
+        "value": { "type": ["string", "null"] },
+        "source": { "type": "string", "minLength": 1 },
+        "timestamp": { "type": "string" },
+        "confidence": { "$ref": "#/$defs/confidence" },
+        "unknownReason": { "type": ["string", "null"] }
+      }
+    }
+  }
+}

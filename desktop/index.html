@@ -49,6 +49,16 @@
             <section class="card config-section" aria-labelledby="config-heading">
                 <h2 id="config-heading">Mining configuration</h2>
                 <form id="mining-form" class="form-grid">
+                    <div class="form-group span-all profile-row">
+                        <label for="profile-select">Profile</label>
+                        <div class="profile-controls">
+                            <select id="profile-select" aria-label="Active profile"></select>
+                            <button type="button" id="profile-new-btn" class="btn btn-secondary" title="New profile">New</button>
+                            <button type="button" id="profile-dup-btn" class="btn btn-secondary" title="Duplicate profile">Copy</button>
+                            <button type="button" id="profile-rename-btn" class="btn btn-secondary" title="Rename profile">Rename</button>
+                            <button type="button" id="profile-delete-btn" class="btn btn-secondary" title="Delete profile">Delete</button>
+                        </div>
+                    </div>
                     <div class="form-group">
                         <label for="coin-type">Coin</label>
                         <select id="coin-type">
@@ -95,8 +105,12 @@
                         <button type="button" id="save-settings-btn" class="btn btn-secondary">
                             Save settings
                         </button>
+                        <button type="button" id="export-settings-btn" class="btn btn-secondary">Export</button>
+                        <button type="button" id="import-settings-btn" class="btn btn-secondary">Import</button>
+                        <input type="file" id="import-file" accept="application/json,.json" hidden>
                         <span id="save-status" class="save-status" role="status">Not saved yet</span>
                     </div>
+                    <p id="import-preview" class="import-preview span-all" hidden></p>
 
                     <div class="form-group span-all">
                         <p class="notice" id="capability-notice">
