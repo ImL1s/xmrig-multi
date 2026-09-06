@@ -45,8 +45,9 @@ class MiningController @Inject constructor(
     }
 
     suspend fun start(): MiningStartResult {
-        // Explicit phone/watch Start clears companion Stop latch (#62).
+        // Explicit in-app / authorized Start clears Stop latch (#79/#62).
         wearStatsSyncer.get().clearUserStopLatchOnExplicitPhoneStart()
+        MiningSessionLatch.armSession()
         var config = configRepository.getConfig().first()
         if (config.useTls && !XmrigNativeCapabilities.TLS_ENABLED) {
             return MiningStartResult.InvalidConfig(XmrigNativeCapabilities.TLS_UNSUPPORTED_MESSAGE)
@@ -142,6 +143,7 @@ class MiningController @Inject constructor(
     }
 
     suspend fun stop(resetStats: Boolean = true) = withContext(Dispatchers.IO) {
+        MiningSessionLatch.latchUserStop()
         workManager.cancelUniqueWork(MiningWorker.WORK_NAME)
         workManager.cancelUniqueWork(MonitorWorker.WORK_NAME)
         // WorkManager can mark the unique work CANCELLED (UI shows stopped) before the
