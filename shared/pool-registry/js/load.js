@@ -28,13 +28,30 @@ export function loadRegistry(path = registryPath()) {
     }
     return {
         registry: data,
-        hash: registryHash(raw),
+        hash: canonicalRegistryHash(data),
         path
     };
 }
 
+/** Hash parsed registry so Windows CRLF checkouts do not drift from Linux CI. */
+export function canonicalRegistryHash(registry) {
+    return createHash('sha256').update(stableStringify(registry)).digest('hex');
+}
+
+/** @deprecated use canonicalRegistryHash for cross-platform stability */
 export function registryHash(rawText) {
-    return createHash('sha256').update(rawText).digest('hex');
+    return createHash('sha256').update(String(rawText).replace(/\r\n/g, '\n')).digest('hex');
+}
+
+function stableStringify(v) {
+    if (v === null || typeof v !== 'object') {
+        return JSON.stringify(v);
+    }
+    if (Array.isArray(v)) {
+        return `[${v.map(stableStringify).join(',')}]`;
+    }
+    const keys = Object.keys(v).sort();
+    return `{${keys.map((k) => `${JSON.stringify(k)}:${stableStringify(v[k])}`).join(',')}}`;
 }
 
 export function validateRegistry(data) {

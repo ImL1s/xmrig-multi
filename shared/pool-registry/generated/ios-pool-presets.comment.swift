@@ -1,5 +1,5 @@
 // AUTO-GENERATED from shared/pool-registry — do not hand-edit presets here.
-// registryHash: 7b1dac63c48ed38fe491d700da3eb1269f4e015209cab1fecd6d1328acc1ee7a
+// registryHash: 26bbd46e0993fa52a50c217b19f870e0ea31431a87d38a58c2a1c51ff879943f
 enum PoolRegistryPresets {
     // Prefer loading registry JSON in a follow-up; constants keep compile-time visibility.
     // supportxmr: pool.supportxmr.com:3333 status=docs-verified kind=stratum-pool

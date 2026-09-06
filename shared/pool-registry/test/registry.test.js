@@ -7,8 +7,7 @@ import {
     loadRegistry,
     validateRegistry,
     toAndroidPoolsJson,
-    toDesktopPoolConfigs,
-    registryHash
+    toDesktopPoolConfigs
 } from '../js/load.js';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -92,15 +91,14 @@ test('c3pool 23333 is not marked TLS', () => {
 });
 
 test('android + desktop adapters stay in sync with registry hash file when generated', () => {
-    const raw = readFileSync(join(root, 'registry.v1.json'), 'utf8');
-    const { registry } = loadRegistry();
+    const { registry, hash } = loadRegistry();
     const android = toAndroidPoolsJson(registry);
     assert.equal(android.find((p) => p.id === 'moneroocean').payout_asset, 'XMR');
     assert.equal(android.find((p) => p.id === 'c3pool').status, 'unverified');
     const desktop = toDesktopPoolConfigs(registry);
     assert.ok(desktop.monero.some((p) => p.id === 'supportxmr'));
     assert.ok(desktop.wownero.every((p) => p.status === 'unavailable' || p.registry_status === 'unavailable'));
-    assert.equal(registryHash(raw).length, 64);
+    assert.equal(hash.length, 64);
 });
 
 test('validate rejects fee percent on unknown', () => {
@@ -121,11 +119,10 @@ test('checked-in Android pools.json matches generator output', () => {
 });
 
 test('checked-in desktop generated-pool-configs matches generator', () => {
-    const raw = readFileSync(join(root, 'registry.v1.json'), 'utf8');
-    const { registry } = loadRegistry();
+    const { registry, hash } = loadRegistry();
     const expected = {
         schemaVersion: 1,
-        registryHash: registryHash(raw),
+        registryHash: hash,
         generatedAt: registry.generatedAt,
         poolConfigs: toDesktopPoolConfigs(registry)
     };
