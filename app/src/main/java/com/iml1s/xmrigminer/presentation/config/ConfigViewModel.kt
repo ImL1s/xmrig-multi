@@ -161,10 +161,20 @@ class ConfigViewModel @Inject constructor(
 
     private fun handleWalletAddressChanged(address: String) {
         val state = _uiState.value as? ConfigUiState.Success ?: return
-        val trimmed = address.trim()
-        val newConfig = currentConfig.copy(walletAddress = trimmed)
-        val error = validateWalletAddress(trimmed, state.selectedCoinType)
-        updateConfig(newConfig, state.copy(validationError = error))
+        val (parsed, warnings) = com.iml1s.xmrigminer.data.wallet.WalletAddressValidator.parseInput(address)
+        if (parsed.isEmpty() && warnings.isNotEmpty()) {
+            updateConfig(
+                currentConfig.copy(walletAddress = address.trim()),
+                state.copy(validationError = warnings.first())
+            )
+            return
+        }
+        val cleaned = parsed.ifBlank { address.trim() }
+        val error = validateWalletAddress(cleaned, state.selectedCoinType)
+        updateConfig(
+            currentConfig.copy(walletAddress = cleaned),
+            state.copy(validationError = error)
+        )
     }
 
     private fun handleWorkerNameChanged(name: String) {
@@ -350,19 +360,17 @@ class ConfigViewModel @Inject constructor(
     }
 
     private fun validateMoneroAddress(address: String): String? {
-        if (address.startsWith("4") && address.length == 95) return null
-        if (address.startsWith("8") && address.length == 106) return null
-        if (address.startsWith("8") && address.length == 95) return null
-        return "Invalid Monero wallet address (should start with 4 or 8)"
+        val r = com.iml1s.xmrigminer.data.wallet.WalletAddressValidator.validate(address, "monero")
+        return if (r.ok) null else r.message
     }
 
     private fun validateWowneroAddress(address: String): String? {
-        if (address.startsWith("Wo") && address.length in 95..106) return null
-        return "Invalid Wownero wallet address (should start with 'Wo')"
+        val r = com.iml1s.xmrigminer.data.wallet.WalletAddressValidator.validate(address, "wownero")
+        return if (r.ok) null else r.message
     }
 
     private fun validateDeroAddress(address: String): String? {
-        if (address.startsWith("dero") && address.length >= 60) return null
-        return "Invalid DERO wallet address (should start with 'dero')"
+        val r = com.iml1s.xmrigminer.data.wallet.WalletAddressValidator.validate(address, "dero")
+        return if (r.ok) null else r.message
     }
 }
