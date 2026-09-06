@@ -16,6 +16,7 @@ const elements = {
     coinType: document.getElementById('coin-type'),
     poolUrl: document.getElementById('pool-url'),
     wallet: document.getElementById('wallet'),
+    walletError: document.getElementById('wallet-error'),
     worker: document.getElementById('worker'),
     threads: document.getElementById('threads'),
     threadValue: document.getElementById('thread-value'),
@@ -23,6 +24,10 @@ const elements = {
     stopBtn: document.getElementById('stop-btn'),
     logOutput: document.getElementById('log-output'),
 };
+
+// Shown instead of a fabricated 0.00 before the miner reports anything (#54).
+const PLACEHOLDER = '\u2013';
+const HASHRATE_PLACEHOLDER = '\u2013.\u2013\u2013';
 
 // Pool configurations per coin
 const poolConfigs = {
@@ -88,6 +93,7 @@ function setupEventListeners() {
     elements.threads.addEventListener('input', () => {
         elements.threadValue.textContent = elements.threads.value;
     });
+    elements.wallet.addEventListener('input', clearWalletError);
     elements.startBtn.addEventListener('click', startMining);
     elements.stopBtn.addEventListener('click', stopMining);
 }
@@ -100,13 +106,27 @@ function updatePoolOptions() {
     elements.poolUrl.innerHTML = pools.map(p =>
         `<option value="${p.url}" data-algo="${p.algo}" data-status="${p.status || 'supported'}">${p.name}</option>`
     ).join('');
+
+    // Say up front that the coin cannot run, instead of accepting a click and then refusing it.
+    const blocked = pools.every(p => p.status === 'unavailable');
+    if (!isMining) {
+        elements.startBtn.disabled = blocked;
+    }
+    elements.startBtn.title = blocked
+        ? `${coin.toUpperCase()} is not supported by this build`
+        : '';
+}
+
+function isCoinBlocked() {
+    const pools = poolConfigs[elements.coinType.value] || poolConfigs.monero;
+    return pools.every(p => p.status === 'unavailable');
 }
 
 // Start mining
 async function startMining() {
     const wallet = elements.wallet.value.trim();
     if (!wallet) {
-        log('Please enter a wallet address', 'error');
+        showWalletError('Enter the address your payouts should go to.');
         return;
     }
 
@@ -130,10 +150,12 @@ async function startMining() {
     if (elements.poolUrl.value.toLowerCase().includes('moneroocean')) {
         const isXmr = (wallet.startsWith('4') || wallet.startsWith('8')) && wallet.length >= 95;
         if (!isXmr) {
-            log('MoneroOcean requires a Monero (XMR) payout address (#29)', 'error');
+            showWalletError('MoneroOcean pays out in XMR, so this must be a Monero address (#29).');
             return;
         }
     }
+
+    clearWalletError();
 
     const config = {
         pool_url: elements.poolUrl.value,
@@ -174,7 +196,7 @@ async function stopMining() {
 // Set UI mining state
 function setMiningState(mining) {
     isMining = mining;
-    elements.startBtn.disabled = mining;
+    elements.startBtn.disabled = mining || isCoinBlocked();
     elements.stopBtn.disabled = !mining;
     elements.statusIndicator.className = `status-indicator ${mining ? 'mining' : ''}`;
     elements.miningStatus.textContent = mining ? 'Mining' : 'Stopped';
@@ -210,18 +232,39 @@ function stopStatsPolling() {
 
 // Update stats display
 function updateStats(stats) {
-    elements.hashrate.textContent = stats.hashrate.toFixed(2);
-    elements.shares.textContent = `${stats.shares_accepted} / ${stats.shares_rejected}`;
-    elements.difficulty.textContent = stats.difficulty > 0 ? formatNumber(stats.difficulty) : '-';
-    elements.uptime.textContent = formatUptime(stats.uptime);
+    // A running miner with no accepted share yet reports 0 H/s honestly; that is a real
+    // measurement, not a placeholder, so it stays a number.
+    setStat(elements.hashrate, stats.hashrate.toFixed(2), true);
+    setStat(elements.shares, `${stats.shares_accepted} / ${stats.shares_rejected}`, true);
+    setStat(elements.difficulty, formatNumber(stats.difficulty), stats.difficulty > 0);
+    setStat(elements.uptime, formatUptime(stats.uptime), true);
 }
 
 // Reset stats display
 function resetStats() {
-    elements.hashrate.textContent = '0.00';
-    elements.shares.textContent = '0 / 0';
-    elements.difficulty.textContent = '-';
-    elements.uptime.textContent = '00:00:00';
+    setStat(elements.hashrate, HASHRATE_PLACEHOLDER, false);
+    setStat(elements.shares, PLACEHOLDER, false);
+    setStat(elements.difficulty, PLACEHOLDER, false);
+    setStat(elements.uptime, PLACEHOLDER, false);
+}
+
+function setStat(node, text, hasValue) {
+    node.textContent = hasValue ? text : (node === elements.hashrate ? HASHRATE_PLACEHOLDER : PLACEHOLDER);
+    node.dataset.hasValue = String(hasValue);
+}
+
+function showWalletError(message) {
+    elements.walletError.textContent = message;
+    elements.walletError.dataset.visible = 'true';
+    elements.wallet.setAttribute('aria-invalid', 'true');
+    elements.wallet.focus();
+    log(message, 'error');
+}
+
+function clearWalletError() {
+    elements.walletError.dataset.visible = 'false';
+    elements.walletError.textContent = '';
+    elements.wallet.removeAttribute('aria-invalid');
 }
 
 // Log message to output

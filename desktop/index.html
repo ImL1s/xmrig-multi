@@ -9,106 +9,117 @@
 <body>
     <div id="app">
         <header class="app-header">
-            <h1>XMRig Multi</h1>
+            <h1>XMRig <span class="mark">Multi</span></h1>
             <span class="version">Desktop v1.0.0</span>
         </header>
 
         <main class="app-main">
-            <!-- System Info Card -->
-            <section class="card system-info">
-                <h2>System Information</h2>
-                <div class="info-grid">
-                    <div class="info-item">
-                        <span class="label">CPU</span>
-                        <span id="cpu-name" class="value">Loading...</span>
-                    </div>
-                    <div class="info-item">
-                        <span class="label">Cores / Threads</span>
-                        <span id="cpu-threads" class="value">-</span>
-                    </div>
-                    <div class="info-item">
-                        <span class="label">Memory</span>
-                        <span id="memory" class="value">-</span>
-                    </div>
-                    <div class="info-item">
-                        <span class="label">OS</span>
-                        <span id="os-info" class="value">-</span>
-                    </div>
-                </div>
-            </section>
-
-            <!-- Mining Status Card -->
-            <section class="card mining-status">
+            <!-- Miner state leads: what the machine is doing right now. -->
+            <section class="card mining-status" aria-labelledby="mining-status">
                 <div class="status-header">
-                    <div class="status-indicator" id="status-indicator"></div>
-                    <h2 id="mining-status">Stopped</h2>
+                    <div class="status-indicator" id="status-indicator" aria-hidden="true"></div>
+                    <h2 id="mining-status" role="status">Stopped</h2>
                 </div>
                 <div class="stats-grid">
                     <div class="stat-item primary">
-                        <span class="stat-value" id="hashrate">0.00</span>
-                        <span class="stat-label">H/s</span>
+                        <span class="stat-value" id="hashrate" data-has-value="false">&ndash;.&ndash;&ndash;</span>
+                        <span class="stat-label">Hashrate (H/s)</span>
                     </div>
                     <div class="stat-item">
-                        <span class="stat-value" id="shares">0 / 0</span>
+                        <span class="stat-value" id="shares" data-has-value="false">&ndash;</span>
                         <span class="stat-label">Accepted / Rejected</span>
                     </div>
                     <div class="stat-item">
-                        <span class="stat-value" id="difficulty">-</span>
+                        <span class="stat-value" id="difficulty" data-has-value="false">&ndash;</span>
                         <span class="stat-label">Difficulty</span>
                     </div>
                     <div class="stat-item">
-                        <span class="stat-value" id="uptime">00:00:00</span>
+                        <span class="stat-value" id="uptime" data-has-value="false">&ndash;</span>
                         <span class="stat-label">Uptime</span>
                     </div>
                 </div>
             </section>
 
-            <!-- Configuration Card -->
-            <section class="card config-section">
-                <h2>Mining Configuration</h2>
-                <form id="mining-form">
+            <!-- Controls sit directly under the readout they change. -->
+            <section class="controls">
+                <button id="start-btn" class="btn btn-primary">Start mining</button>
+                <button id="stop-btn" class="btn btn-danger" disabled>Stop</button>
+            </section>
+
+            <section class="card config-section" aria-labelledby="config-heading">
+                <h2 id="config-heading">Mining configuration</h2>
+                <form id="mining-form" class="form-grid">
                     <div class="form-group">
-                        <label for="coin-type">Cryptocurrency</label>
+                        <label for="coin-type">Coin</label>
                         <select id="coin-type">
                             <option value="monero">Monero (XMR)</option>
-                            <option value="wownero">Wownero (WOW)</option>
-                            <option value="dero">DERO</option>
+                            <option value="wownero">Wownero (WOW) &mdash; unavailable</option>
+                            <option value="dero">DERO &mdash; unavailable</option>
                         </select>
+                        <p class="hint" id="coin-hint">This build mines RandomX (rx/0) only.</p>
                     </div>
+
                     <div class="form-group">
-                        <label for="pool-url">Pool URL</label>
-                        <select id="pool-url">
-                            <option value="gulf.moneroocean.stream:10128">MoneroOcean (Recommended)</option>
-                            <option value="pool.supportxmr.com:3333">SupportXMR</option>
-                            <option value="pool.hashvault.pro:3333">HashVault</option>
-                            <option value="xmr.2miners.com:2222">2Miners</option>
-                        </select>
+                        <label for="pool-url">Pool</label>
+                        <select id="pool-url"></select>
+                        <p class="hint">Payout goes to the address below, not to this app.</p>
                     </div>
-                    <div class="form-group">
-                        <label for="wallet">Wallet Address</label>
-                        <input type="text" id="wallet" placeholder="Your XMR wallet address" required>
+
+                    <div class="form-group span-all">
+                        <label for="wallet">Payout address</label>
+                        <input type="text" id="wallet" placeholder="4... or 8..." required
+                               autocomplete="off" spellcheck="false" aria-describedby="wallet-hint">
+                        <p class="hint" id="wallet-hint">Monero addresses start with 4 or 8 and are 95 characters.</p>
+                        <p class="field-error" id="wallet-error" role="alert"></p>
                     </div>
+
                     <div class="form-group">
-                        <label for="worker">Worker Name</label>
-                        <input type="text" id="worker" value="desktop" placeholder="Worker identifier">
+                        <label for="worker">Worker name</label>
+                        <input type="text" id="worker" value="desktop" placeholder="Worker identifier"
+                               autocomplete="off">
                     </div>
+
                     <div class="form-group">
-                        <label for="threads">CPU Threads: <span id="thread-value">4</span></label>
+                        <label for="threads">CPU threads: <span id="thread-value">4</span></label>
                         <input type="range" id="threads" min="1" max="16" value="4">
+                        <p class="hint">Leaving one thread free keeps the desktop responsive.</p>
+                    </div>
+
+                    <div class="form-group span-all">
+                        <p class="notice" id="capability-notice">
+                            Wownero and DERO cannot be mined by this build. Both need work that is not
+                            written yet: Wownero a verified signer/daemon flow (#28), DERO its own daemon
+                            adapter (#27).
+                        </p>
                     </div>
                 </form>
             </section>
 
-            <!-- Control Buttons -->
-            <section class="controls">
-                <button id="start-btn" class="btn btn-primary">Start Mining</button>
-                <button id="stop-btn" class="btn btn-danger" disabled>Stop Mining</button>
+            <section class="card system-info" aria-labelledby="system-heading">
+                <h2 id="system-heading">This machine</h2>
+                <div class="info-grid">
+                    <div class="info-item">
+                        <span class="label">CPU</span>
+                        <span id="cpu-name" class="value">Reading&hellip;</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="label">Cores / threads</span>
+                        <span id="cpu-threads" class="value">&ndash;</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="label">Memory</span>
+                        <span id="memory" class="value">&ndash;</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="label">OS</span>
+                        <span id="os-info" class="value">&ndash;</span>
+                    </div>
+                </div>
             </section>
 
-            <!-- Log Output -->
-            <section class="card log-section">
-                <h2>Mining Log</h2>
-                <div id="log-output" class="log-output"></div>
+            <section class="card log-section" aria-labelledby="log-heading">
+                <h2 id="log-heading">Miner log</h2>
+                <div id="log-output" class="log-output" role="log" aria-live="polite"></div>
             </section>
         </main>
     </div>
