@@ -78,6 +78,39 @@
                 android:resource="@xml/mining_dream" />
         </service>
 
+        <!-- Quick Settings tile (#79); BIND_QUICK_SETTINGS_TILE -->
+        <service
+            android:name=".service.quick.MiningQuickTileService"
+            android:exported="true"
+            android:icon="@drawable/ic_mining"
+            android:label="@string/tile_mining_label"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
+
+        <!-- In-app only command receiver — not exported (#79) -->
+        <receiver
+            android:name=".service.quick.QuickCommandReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.iml1s.xmrigminer.action.QUICK_COMMAND" />
+            </intent-filter>
+        </receiver>
+
+        <receiver
+            android:name=".service.quick.MiningQuickWidgetProvider"
+            android:exported="true"
+            android:label="@string/app_name">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_mining_quick_info" />
+        </receiver>
+
     </application>
 
 </manifest>

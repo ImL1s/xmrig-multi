@@ -33,6 +33,7 @@ on:
       - 'shared/automation-policy/**'
       - 'shared/desktop-idle-policy/**'
       - 'shared/ios-glance/**'
+      - 'shared/quick-controls/**'
       - 'app/src/main/assets/pools.json'
       - 'desktop/src/generated-pool-configs.json'
       - 'desktop/src/main.js'
@@ -61,6 +62,7 @@ on:
       - 'shared/automation-policy/**'
       - 'shared/desktop-idle-policy/**'
       - 'shared/ios-glance/**'
+      - 'shared/quick-controls/**'
       - 'shared/cpu-topology/**'
       - 'shared/thermal-policy/**'
       - 'shared/power-policy/**'
@@ -236,6 +238,10 @@ jobs:
       - name: iOS glance / StandBy / Widget snapshot (#78)
         working-directory: .
         run: node --test shared/ios-glance/test/*.test.js
+
+      - name: Quick controls command protocol (#79)
+        working-directory: .
+        run: node --test shared/quick-controls/test/*.test.js
 
       - name: Build for Production
         run: npm run build
