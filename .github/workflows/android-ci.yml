@@ -53,7 +53,7 @@ jobs:
 
     - name: Consumer suites must stay wired (#130/#124/#126)
       run: |
-        ./gradlew :app:testDebugUnitTest --tests '*EnergyBudgetIntegrationTest*' --tests '*PowerSettingsGateTest*' --tests '*MiningSessionSequencerTest*'
+        ./gradlew :app:testDebugUnitTest --tests '*EnergyBudgetIntegrationTest*' --tests '*PowerSettingsGateTest*' --tests '*MiningControllerSessionSequenceTest*'
 
     - name: Run Android Lint
       run: ./gradlew :app:lintDebug
