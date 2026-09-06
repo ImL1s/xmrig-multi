@@ -264,4 +264,20 @@ class MiningConfigTest {
         val rx2 = Json.parseToJsonElement(light.toJson()).jsonObject["randomx"]!!.jsonObject
         assertEquals("light", rx2["mode"]!!.jsonPrimitive.content)
     }
+
+    @Test
+    fun `autoReconnect false writes zero XMRig retries`() {
+        val config = MiningConfig(
+            poolUrl = "pool.supportxmr.com:3333",
+            walletAddress = "4AdUndXHHZ6cfufTMvppY6JwXNouMBzSkbLYfpAV5Usx3skxNgYeYTRj5UzqtReoS44qo9mtmXCqY45DJ852K5Jv2684Rge",
+            autoReconnect = false,
+            retries = 5
+        )
+        val root = Json.parseToJsonElement(config.toJson()).jsonObject
+        assertEquals(0, root["retries"]!!.jsonPrimitive.int)
+
+        val on = config.copy(autoReconnect = true)
+        val rootOn = Json.parseToJsonElement(on.toJson()).jsonObject
+        assertEquals(5, rootOn["retries"]!!.jsonPrimitive.int)
+    }
 }

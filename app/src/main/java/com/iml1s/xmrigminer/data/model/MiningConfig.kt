@@ -123,7 +123,8 @@ data class MiningConfig(
             }
             put("print-time", printTime)
             put("health-print-time", printTime)
-            put("retries", retries)
+            // autoReconnect=false must disable XMRig's own retry loop (#43)
+            put("retries", if (autoReconnect) retries else 0)
             put("retry-pause", retryPause)
             put("api", JsonNull)
             put("http", JsonNull)

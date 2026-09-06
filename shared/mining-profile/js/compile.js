@@ -382,7 +382,7 @@ function buildNative(resolved, hardware) {
         pools: [pool],
         'donate-level': resolved.donateLevel,
         'print-time': 10,
-        retries: resolved.network.retries,
+        retries: resolved.network.autoReconnect ? resolved.network.retries : 0,
         'retry-pause': resolved.network.retryPauseSec,
         randomx: {
             mode: resolved.randomx.mode,

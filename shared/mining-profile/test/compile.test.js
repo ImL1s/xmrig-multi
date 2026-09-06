@@ -234,3 +234,13 @@ test('public field mapping: Android MiningConfig-like keys → profile paths', (
     assert.equal(migrated.cpu.mode, 'auto');
     assert.equal(migrated.endpoint.type, 'stratum');
 });
+
+test('autoReconnect false forces XMRig retries to 0 (#43)', () => {
+    const profile = {
+        ...fixture('profile-android-manual.json'),
+        network: { autoReconnect: false, retries: 5, retryPauseSec: 5 }
+    };
+    const out = compile(profile, CAPS_XMRIG, HW);
+    assert.equal(out.ok, true);
+    assert.equal(out.native.json.retries, 0);
+});
