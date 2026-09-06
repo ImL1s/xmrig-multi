@@ -151,20 +151,15 @@ struct MiningConfig: Codable {
         }
 
         let priority = max(0, min(5, cpuPriority))
+        let capability = EngineCapability.probeSideloadDefault(binaryPresent: true, version: "bundled")
+        guard let randomx = capability.randomxJSON() else {
+            return nil
+        }
         let config: [String: Any] = [
             "autosave": false,
             "watch": false,
             "cpu": buildCpuConfig(priority: priority),
-            "randomx": [
-                "mode": "light",
-                "1gb-pages": false,
-                "rdmsr": false,
-                "wrmsr": false,
-                "cache_qos": false,
-                "numa": false,
-                "jit": true,
-                "scratchpad_prefetch_mode": 1
-            ],
+            "randomx": randomx,
             "donate-level": donateLevel,
             "pools": [poolConfig]
         ]

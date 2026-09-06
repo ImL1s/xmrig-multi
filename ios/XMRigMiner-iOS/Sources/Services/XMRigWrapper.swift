@@ -41,6 +41,19 @@ class XMRigWrapper: ObservableObject {
     }
     
     func initialize(config: MiningConfig) -> Bool {
+        let capability = EngineCapability.probeSideloadDefault(
+            binaryPresent: true,
+            version: version
+        )
+        if !capability.canMineOnDevice {
+            logs.append(capability.miningBlockedReason ?? "iOS capability blocked mining (#60)")
+            return false
+        }
+        for w in capability.warnings {
+            logs.append(w)
+        }
+        logs.append("RandomX mode=\(capability.randomxMode) jit=\(capability.jitEnabled) (\(capability.jitStatus.rawValue)); background: \(capability.backgroundReason)")
+
         switch config.pool.coin {
         case .wownero:
             logs.append("Wownero start blocked until verified signer/daemon flow (#28)")

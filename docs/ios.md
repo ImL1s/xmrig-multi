@@ -4,6 +4,18 @@ Sideload-only. Apple App Store prohibits cryptocurrency mining apps.
 
 Native RandomX on stock iOS runs in interpreted mode (~3–5 H/s). JIT (~200–400 H/s) needs SideStore + StikDebug on older devices. Details: [platforms.md](platforms.md).
 
+## Capability channels (#60)
+
+Mining entitlement is decided from **distribution channel + binary/selftest evidence**, not from “iOS version says so”:
+
+| Channel | On-device miner |
+|---------|----------------|
+| Sideload / source build | Allowed only when bundled binary is present and selftest/signing OK |
+| App Store companion | Never claims on-device mining (watch/glance / remote only) |
+| Unverified | Fail closed |
+
+`randomx.jit` is emitted as `true` only when runtime evidence says JIT is actually used; otherwise light mode with `jit:false` (config key presence alone is not proof). Background mining is never advertised as reliable/permanent. Shared contract: `shared/ios-capability/`.
+
 ## Requirements
 
 - macOS 14+ (Sonoma)
