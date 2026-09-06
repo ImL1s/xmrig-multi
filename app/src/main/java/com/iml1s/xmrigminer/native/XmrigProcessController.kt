@@ -109,7 +109,8 @@ object XmrigProcessController {
         return attempts
     }
 
-    private fun pidOf(process: Process): Int? {
+    fun pidOf(process: Process?): Int? {
+        if (process == null) return null
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             try {
                 val method = Process::class.java.getMethod("pid")

@@ -82,7 +82,12 @@
                             <option value="pool.supportxmr.com:3333">SupportXMR</option>
                             <option value="pool.hashvault.pro:3333">HashVault</option>
                             <option value="xmr.2miners.com:2222">2Miners</option>
+                            <option value="__custom__">Custom endpoint…</option>
                         </select>
+                    </div>
+                    <div class="form-group" id="custom-pool-group" style="display:none;">
+                        <label for="custom-pool-url">Custom pool / daemon endpoint</label>
+                        <input type="text" id="custom-pool-url" placeholder="host:port">
                     </div>
                     <div class="form-group">
                         <label for="wallet">Wallet Address</label>
@@ -95,6 +100,10 @@
                     <div class="form-group">
                         <label for="threads">CPU Threads: <span id="thread-value">4</span></label>
                         <input type="range" id="threads" min="1" max="16" value="4">
+                    </div>
+                    <div class="form-group save-row">
+                        <button type="button" id="save-settings-btn" class="btn btn-secondary">Save settings</button>
+                        <span id="save-status" class="save-status">Not saved yet</span>
                     </div>
                 </form>
             </section>

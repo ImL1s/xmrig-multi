@@ -33,7 +33,6 @@ import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import timber.log.Timber
 import java.io.File
-import android.os.Process as AndroidProcess
 
 @HiltWorker
 class MiningWorker @AssistedInject constructor(
@@ -210,37 +209,56 @@ class MiningWorker @AssistedInject constructor(
     }
 
     private suspend fun monitorCpuUsage() {
-        val pid = AndroidProcess.myPid()
+        // Measure XMRig child process, never the WorkManager parent PID (#54).
+        val childPid = XmrigProcessController.pidOf(process)
+        if (childPid == null || childPid <= 0) {
+            Timber.w("CPU metric unavailable: no XMRig child PID (quality=unavailable)")
+            return
+        }
+
         var lastCpuTime = 0L
-        var lastWallTime = 0L
+        var lastWallNs = 0L
+        val tickMs = readProcClockTickMs()
 
         while (currentCoroutineContext().isActive && XmrigProcessController.isAlive(process)) {
             try {
-                val statFile = File("/proc/$pid/stat")
-                if (statFile.exists() && statFile.canRead()) {
-                    val stat = statFile.readText().split(" ")
-                    val currentCpuTime = stat[13].toLong() + stat[14].toLong()
-                    val currentWallTime = System.currentTimeMillis()
-
-                    if (lastCpuTime > 0 && lastWallTime > 0) {
-                        val cpuTimeDelta = currentCpuTime - lastCpuTime
-                        val wallTimeDelta = currentWallTime - lastWallTime
-                        if (wallTimeDelta > 0) {
-                            val cpuUsage = (cpuTimeDelta * 10.0 / wallTimeDelta * 100).toFloat()
+                val statFile = File("/proc/$childPid/stat")
+                if (!statFile.exists() || !statFile.canRead()) {
+                    Timber.w("CPU metric unavailable: cannot read /proc/%d/stat", childPid)
+                    return
+                }
+                val stat = ProcStatCpu.parseCpuJiffies(statFile.readText())
+                if (stat == null) {
+                    delay(5000)
+                } else {
+                    val currentWallNs = android.os.SystemClock.elapsedRealtimeNanos()
+                    if (lastCpuTime > 0 && lastWallNs > 0) {
+                        val cpuTimeDelta = stat - lastCpuTime
+                        val wallTimeDeltaMs = (currentWallNs - lastWallNs) / 1_000_000.0
+                        if (wallTimeDeltaMs > 0) {
+                            val cpuUsage = (cpuTimeDelta * tickMs / wallTimeDeltaMs * 100).toFloat()
                             val cpuCores = Runtime.getRuntime().availableProcessors()
                             statsRepository.updateCpuUsage(cpuUsage.coerceIn(0f, cpuCores * 100f))
                         }
                     }
-                    lastCpuTime = currentCpuTime
-                    lastWallTime = currentWallTime
-                } else {
-                    return
+                    lastCpuTime = stat
+                    lastWallNs = currentWallNs
+                    delay(5000)
                 }
-                delay(5000)
             } catch (e: Exception) {
                 Timber.e(e, "Error monitoring CPU usage")
                 delay(5000)
             }
+        }
+    }
+
+    /** Jiffies to ms; fall back to Linux default 10ms/tick when sysconf unavailable. */
+    private fun readProcClockTickMs(): Double {
+        return try {
+            val clkTck = android.system.Os.sysconf(android.system.OsConstants._SC_CLK_TCK)
+            if (clkTck > 0) 1000.0 / clkTck else 10.0
+        } catch (_: Throwable) {
+            10.0
         }
     }
 
