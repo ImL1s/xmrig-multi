@@ -5,4 +5,6 @@ object WearPaths {
     const val START = "/mining/start"
     const val STOP = "/mining/stop"
     const val REQUEST_STATS = "/mining/request_stats"
+    /** Phone → watch command acknowledgement (/mining/ack). */
+    const val ACK = "/mining/ack"
 }

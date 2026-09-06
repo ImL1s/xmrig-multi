@@ -39,6 +39,21 @@ class WearStatsSyncer @Inject constructor(
     private var pending: Snapshot? = null
     private var flushJob: Job? = null
 
+    /** Opaque session id so watches can detect phone restart (#62). */
+    val sessionId: String = "phone-${System.currentTimeMillis()}"
+
+    @Volatile
+    var userStopLatched: Boolean = false
+        private set
+
+    fun markUserStopFromCompanion() {
+        userStopLatched = true
+    }
+
+    fun clearUserStopLatchOnExplicitPhoneStart() {
+        userStopLatched = false
+    }
+
     fun start() {
         scope.launch {
             combine(
@@ -123,6 +138,7 @@ class WearStatsSyncer @Inject constructor(
             lastDeliveredSeq = seq
             try {
                 val request = PutDataMapRequest.create(WearPaths.STATS)
+                val syncAt = System.currentTimeMillis()
                 request.dataMap.apply {
                     putBoolean("isRunning", snapshot.running)
                     putDouble("hashrate", snapshot.stats.hashrate)
@@ -132,7 +148,11 @@ class WearStatsSyncer @Inject constructor(
                     putLong("uptime", snapshot.stats.uptime)
                     putString("coinType", snapshot.config.coinType)
                     putString("poolName", snapshot.config.poolUrl)
-                    putLong("syncAt", System.currentTimeMillis())
+                    // Never put wallet / password on the Data Layer (#62).
+                    putLong("syncAt", syncAt)
+                    putString("sessionId", sessionId)
+                    putString("sourceDeviceId", "android-phone")
+                    putString("syncQuality", "live")
                 }
                 if (urgent) {
                     request.setUrgent()

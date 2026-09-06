@@ -15,6 +15,7 @@ import com.iml1s.xmrigminer.data.repository.ConfigRepository
 import com.iml1s.xmrigminer.data.repository.StatsRepository
 import com.iml1s.xmrigminer.native.XmrigNativeCapabilities
 import com.iml1s.xmrigminer.native.XmrigProcessController
+import com.iml1s.xmrigminer.wear.WearStatsSyncer
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
@@ -23,6 +24,7 @@ import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import timber.log.Timber
 import javax.inject.Inject
+import javax.inject.Provider
 import javax.inject.Singleton
 
 sealed interface MiningStartResult {
@@ -34,7 +36,8 @@ sealed interface MiningStartResult {
 class MiningController @Inject constructor(
     private val workManager: WorkManager,
     private val configRepository: ConfigRepository,
-    private val statsRepository: StatsRepository
+    private val statsRepository: StatsRepository,
+    private val wearStatsSyncer: Provider<WearStatsSyncer>
 ) {
     fun isRunning(): Flow<Boolean> {
         return workManager.getWorkInfosForUniqueWorkFlow(MiningWorker.WORK_NAME)
@@ -42,6 +45,8 @@ class MiningController @Inject constructor(
     }
 
     suspend fun start(): MiningStartResult {
+        // Explicit phone/watch Start clears companion Stop latch (#62).
+        wearStatsSyncer.get().clearUserStopLatchOnExplicitPhoneStart()
         var config = configRepository.getConfig().first()
         if (config.useTls && !XmrigNativeCapabilities.TLS_ENABLED) {
             return MiningStartResult.InvalidConfig(XmrigNativeCapabilities.TLS_UNSUPPORTED_MESSAGE)

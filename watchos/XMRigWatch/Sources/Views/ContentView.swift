@@ -9,11 +9,18 @@ struct ContentView: View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 12) {
-                    // Status Header
-                    StatusBadge(isRunning: statsManager.stats.isRunning)
+                    // Status Header — text includes sync quality (#62)
+                    StatusBadge(
+                        isRunning: statsManager.stats.isRunning,
+                        syncLabel: statsManager.stats.syncLabel,
+                        pending: statsManager.commandPending
+                    )
 
                     // Hashrate Card
-                    HashrateCard(hashrate: statsManager.stats.hashrate)
+                    HashrateCard(
+                        hashrate: statsManager.stats.hashrate,
+                        syncQuality: statsManager.stats.syncQuality
+                    )
 
                     // Quick Stats
                     HStack(spacing: 16) {
@@ -34,25 +41,30 @@ struct ContentView: View {
                         .font(.caption2)
                         .foregroundColor(.gray)
 
-                    // Control Buttons
+                    // Control Buttons — pending shows Working, Stop always easy
                     HStack(spacing: 12) {
                         Button(action: { statsManager.requestStart() }) {
                             Image(systemName: "play.fill")
                         }
                         .buttonStyle(.borderedProminent)
                         .tint(.purple)
-                        .disabled(statsManager.stats.isRunning)
+                        .disabled(statsManager.stats.isRunning || statsManager.commandPending)
+                        .accessibilityLabel("Start mining on phone")
 
                         Button(action: { statsManager.requestStop() }) {
                             Image(systemName: "stop.fill")
                         }
                         .buttonStyle(.borderedProminent)
                         .tint(.red)
-                        .disabled(!statsManager.stats.isRunning)
+                        .disabled(statsManager.commandPending && !statsManager.stats.isRunning)
+                        .accessibilityLabel("Stop mining on phone")
                     }
 
-                    // Connection Status
-                    ConnectionStatus(isConnected: statsManager.isConnected)
+                    ConnectionStatus(
+                        isConnected: statsManager.isConnected,
+                        syncLabel: statsManager.stats.syncLabel,
+                        ackReason: statsManager.lastAckReason
+                    )
                 }
                 .padding()
             }
@@ -75,15 +87,18 @@ struct ContentView: View {
 
 struct StatusBadge: View {
     let isRunning: Bool
+    var syncLabel: String = "Live"
+    var pending: Bool = false
 
     var body: some View {
-        HStack(spacing: 6) {
-            Circle()
-                .fill(isRunning ? Color.green : Color.gray)
-                .frame(width: 8, height: 8)
-            Text(isRunning ? "Mining" : "Stopped")
+        VStack(spacing: 4) {
+            Text(pending ? "Working…" : (isRunning ? "Mining" : "Stopped"))
                 .font(.caption)
                 .fontWeight(.semibold)
+            Text(syncLabel)
+                .font(.system(size: 9))
+                .foregroundColor(.gray)
+                .multilineTextAlignment(.center)
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 6)
@@ -91,18 +106,21 @@ struct StatusBadge: View {
             Capsule()
                 .fill(isRunning ? Color.green.opacity(0.2) : Color.gray.opacity(0.2))
         )
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(isRunning ? "Mining" : "Stopped"), \(syncLabel)")
     }
 }
 
 struct HashrateCard: View {
     let hashrate: Double
+    var syncQuality: String = "live"
 
     var body: some View {
         VStack(spacing: 4) {
             Text(String(format: "%.1f", hashrate))
                 .font(.system(size: 36, weight: .bold, design: .rounded))
                 .foregroundColor(.purple)
-            Text("H/s")
+            Text(syncQuality == "live" ? "H/s" : "H/s (\(syncQuality))")
                 .font(.caption2)
                 .foregroundColor(.gray)
         }
@@ -134,15 +152,23 @@ struct StatBadge: View {
 
 struct ConnectionStatus: View {
     let isConnected: Bool
+    var syncLabel: String = ""
+    var ackReason: String? = nil
 
     var body: some View {
-        HStack(spacing: 4) {
-            Image(systemName: isConnected ? "iphone" : "iphone.slash")
+        VStack(spacing: 2) {
+            Text(syncLabel.isEmpty ? (isConnected ? "Connected" : "Searching...") : syncLabel)
                 .font(.caption2)
-            Text(isConnected ? "Connected" : "Searching...")
-                .font(.caption2)
+                .multilineTextAlignment(.center)
+            if let ackReason, !ackReason.isEmpty {
+                Text(ackReason)
+                    .font(.system(size: 9))
+                    .foregroundColor(.orange)
+                    .multilineTextAlignment(.center)
+            }
         }
-        .foregroundColor(isConnected ? .green : .gray)
+        .foregroundColor(isConnected ? .primary : .gray)
+        .accessibilityLabel(syncLabel)
     }
 }
 

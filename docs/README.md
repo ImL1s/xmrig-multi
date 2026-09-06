@@ -8,6 +8,8 @@ Guides for building and running **XMRig Multi** across Android, iOS, Web, Deskto
 | [Building XMRig](building.md) | Compile native binaries (Android / Desktop). [繁體中文](building.zh-TW.md) |
 | [Developer fee](dev-fee.md) | 1% time-based fee and where it is implemented |
 | [Verification harness](harness.md) | Offline gates / CI evidence for #64 |
+| [Android runtime matrix](android-runtime-matrix.md) | FGS/quota lifecycle (#61) |
+| [UX acceptance](ux-acceptance.md) | Onboarding / a11y / i18n residuals (#56–#59) |
 | [iOS](ios.md) | Sideload build: static library + Xcode |
 | [Screenshots](screenshots/README.md) | Android UI captures (S21+) |
 

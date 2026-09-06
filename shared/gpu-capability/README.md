@@ -1,12 +1,20 @@
-# GPU capability (#65 phase 1)
+# GPU capability (#65)
 
-Visibility + fixtures only. Packaged builds ship `WITH_OPENCL=OFF` / `WITH_CUDA=OFF`.
+## Phase 1 — visibility
+Per-device status: `supported` | `experimental` | `unavailable` | `unverified`
+Packaged builds ship `WITH_OPENCL=OFF` / `WITH_CUDA=OFF`.
 
-- Per-device status: `supported` | `experimental` | `unavailable` | `unverified`
-- `startable` only when status is `supported` **and** backend selftest would pass (phase 2)
-- No GPU / unsupported platforms must not invent startable controls; CPU mining unaffected
-- Apple Metal / Android / Web: explicit unavailable — never relabel as OpenCL/CUDA
+## Phase 2 — optional enable gates
+- Default: all GPUs **disabled** even when startable
+- Explicit per-device preference; never auto-enable all
+- `runBackendSelftest` requires selftest **and** local job/submit — load-only is insufficient
+- `releaseGpuContext` on stop/failure
+- No fabricated H/W without a trusted power sensor
+- Apple Metal / Android / Web: unavailable (never relabeled as OpenCL/CUDA)
+
+Real CUDA/OpenCL mining on hardware remains **unverified** until a packaged backend + device report exists.
 
 ```js
-import { evaluateGpu, loadFixture } from './js/evaluate.js';
+import { evaluateGpu } from './js/evaluate.js';
+import { resolveGpuEnablement, runBackendSelftest } from './js/phase2.js';
 ```

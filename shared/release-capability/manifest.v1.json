@@ -97,11 +97,23 @@
     "android-native-capabilities": { "command": "./gradlew testDebugUnitTest --tests \"*XmrigNativeCapabilities*\"", "covers": "TLS/coin gates" },
     "gpu-capability": { "command": "node --test shared/gpu-capability/test/*.test.js", "covers": "#65" },
     "ios-capability": { "command": "see ios capability PR / XCTest when present", "covers": "#60" },
-    "companion-sync": { "command": "pending shared/companion-sync", "covers": "#62" }
+    "companion-sync": { "command": "node --test shared/companion-sync/test/*.test.js", "covers": "#62" },
+    "onboarding": { "command": "node --test shared/onboarding/test/*.test.js", "covers": "#56" },
+    "staged-apply": { "command": "node --test shared/staged-apply/test/*.test.js", "covers": "#57" },
+    "a11y": { "command": "node --test shared/a11y/test/*.test.js", "covers": "#58" },
+    "i18n": { "command": "node --test shared/i18n/test/*.test.js", "covers": "#59" },
+    "artifact-smoke": { "command": "node --test shared/artifact-smoke/test/*.test.js", "covers": "#64" },
+    "android-runtime": { "command": "./gradlew testDebugUnitTest --tests \"*MiningRuntimePolicy*\"", "covers": "#61" }
   },
   "releaseChecklist": {
     "verifiedPlatforms": ["web (CI)", "android unit (CI)"],
-    "unverifiedPlatforms": ["OEM overnight Android", "iOS sideload device matrix", "Desktop GPU (N/A)"],
+    "unverifiedPlatforms": [
+      "OEM overnight Android (#61)",
+      "iOS sideload device matrix",
+      "Desktop GPU hardware (#65)",
+      "Paired Wear/watchOS lab (#62)",
+      "TalkBack/VoiceOver (#58)"
+    ],
     "knownLimitsMustAppearInReleaseNotes": true
   }
 }

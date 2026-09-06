@@ -71,14 +71,18 @@ fun MiningScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            // Status Header
+            // Status Header — text label, not color alone (#62 / #58)
             item {
-                StatusChip(isRunning = state.isRunning)
+                StatusChip(
+                    isRunning = state.isRunning,
+                    syncLabel = state.syncLabel,
+                    pending = state.commandPending
+                )
             }
 
-            // Hashrate (Main Stat)
+            // Hashrate (Main Stat) — show quality text so stale ≠ live
             item {
-                HashrateCard(hashrate = state.hashrate)
+                HashrateCard(hashrate = state.hashrate, syncQuality = state.syncQuality)
             }
 
             // Stats Row
@@ -93,19 +97,24 @@ fun MiningScreen(
             // Control Button
             item {
                 Spacer(modifier = Modifier.height(8.dp))
-                if (state.isRunning) {
+                if (state.isRunning || state.commandPending) {
                     Button(
                         onClick = onStopMining,
+                        enabled = !state.commandPending || state.isRunning,
                         colors = ButtonDefaults.buttonColors(
                             backgroundColor = Color(0xFFEF4444)
                         ),
                         modifier = Modifier.fillMaxWidth(0.8f)
                     ) {
-                        Text("Stop", fontWeight = FontWeight.Bold)
+                        Text(
+                            if (state.commandPending) "Working…" else "Stop",
+                            fontWeight = FontWeight.Bold
+                        )
                     }
                 } else {
                     Button(
                         onClick = onStartMining,
+                        enabled = state.syncQuality != "offline" || state.isConnected,
                         colors = ButtonDefaults.buttonColors(
                             backgroundColor = Color(0xFF7C3AED)
                         ),
@@ -116,10 +125,13 @@ fun MiningScreen(
                 }
             }
 
-            // Connection Status
+            // Connection / sync quality (text, not color-only)
             item {
                 Text(
-                    text = if (state.isConnected) "📱 Connected to phone" else "📱 Searching for phone...",
+                    text = buildString {
+                        append(state.syncLabel)
+                        state.lastAckReason?.let { append("\n"); append(it) }
+                    },
                     fontSize = 10.sp,
                     color = Color.Gray,
                     textAlign = TextAlign.Center
@@ -130,19 +142,18 @@ fun MiningScreen(
 }
 
 @Composable
-fun StatusChip(isRunning: Boolean) {
+fun StatusChip(isRunning: Boolean, syncLabel: String, pending: Boolean) {
     Chip(
         onClick = { },
         label = {
             Text(
-                text = if (isRunning) "Mining" else "Stopped",
-                fontWeight = FontWeight.Bold
-            )
-        },
-        icon = {
-            Text(
-                text = if (isRunning) "🟢" else "⚪",
-                fontSize = 14.sp
+                text = when {
+                    pending -> "Working…"
+                    isRunning -> "Mining · $syncLabel"
+                    else -> "Stopped · $syncLabel"
+                },
+                fontWeight = FontWeight.Bold,
+                fontSize = 12.sp
             )
         },
         colors = ChipDefaults.chipColors(
@@ -156,7 +167,7 @@ fun StatusChip(isRunning: Boolean) {
 }
 
 @Composable
-fun HashrateCard(hashrate: Double) {
+fun HashrateCard(hashrate: Double, syncQuality: String = "live") {
     Card(
         onClick = { },
         modifier = Modifier.fillMaxWidth(0.9f)
@@ -172,7 +183,7 @@ fun HashrateCard(hashrate: Double) {
                 color = Color(0xFF7C3AED)
             )
             Text(
-                text = "H/s",
+                text = if (syncQuality == "live") "H/s" else "H/s ($syncQuality)",
                 fontSize = 14.sp,
                 color = Color.Gray
             )

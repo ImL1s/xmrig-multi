@@ -2,6 +2,16 @@
 
 Cross-platform evidence store. Start with offline, reproducible gates from P0.
 
+## Five layers
+
+| Layer | What | Commands |
+|-------|------|----------|
+| 1. Contract / golden | Profile, registry, capabilities, fees | `node --test shared/*/test/*.test.js` (see slices) |
+| 2. Protocol / correctness | Share target, mock Stratum, wallet | `cd web && npm test` |
+| 3. Lifecycle / fault | Session, reconnect, thermal, power, companion | shared session/reconnect/thermal/power/companion-sync |
+| 4. UI | Onboarding/a11y/i18n helpers + Compose/unit | shared onboarding/a11y/i18n + Android unit |
+| 5. Artifact smoke | Built web dist (+ residual for APK/desktop/iOS) | `node --test shared/artifact-smoke/test/*.test.js` |
+
 ## Current slices
 
 | Slice | Command | Covers |
@@ -26,12 +36,20 @@ Cross-platform evidence store. Start with offline, reproducible gates from P0.
 | Power policy | `node --test shared/power-policy/test/*.test.js` | #39 |
 | Diagnostics | `node --test shared/diagnostics/test/*.test.js` | #55 |
 | Release capability | `node --test shared/release-capability/test/*.test.js` | #64 manifest gate |
-| GPU capability | `node --test shared/gpu-capability/test/*.test.js` | #65 phase-1 visibility |
+| GPU capability + phase-2 | `node --test shared/gpu-capability/test/*.test.js` | #65 visibility + optional enable gates |
+| Companion sync | `node --test shared/companion-sync/test/*.test.js` | #62 |
+| Onboarding flow | `node --test shared/onboarding/test/*.test.js` | #56 |
+| Staged apply | `node --test shared/staged-apply/test/*.test.js` | #57 |
+| A11y helpers | `node --test shared/a11y/test/*.test.js` | #58 automated slice |
+| i18n catalog | `node --test shared/i18n/test/*.test.js` | #59 |
+| Artifact smoke | `node --test shared/artifact-smoke/test/*.test.js` | #64 layer 5 |
 | Web proxy setup | `cd web && npm test` (proxy-config tests) | #50 no implicit localhost on public HTTPS |
 | Web WASM preflight | `cd web && npm test` (runtime-preflight tests) | #51 COI/SAB/WASM gates + seed validation |
 | Android profile mapper | `./gradlew testDebugUnitTest --tests "*MiningProfileMapper*"` | #30 MiningConfig ↔ MiningProfile field mapping |
 | Android hardware probe | `./gradlew testDebugUnitTest --tests "*HardwareSnapshot*"` | #33 null-unknown + ABI gate |
 | Android native capabilities | `./gradlew testDebugUnitTest --tests "*XmrigNativeCapabilities*"` | TLS + coin start gates |
+| Android runtime policy | `./gradlew testDebugUnitTest --tests "*MiningRuntimePolicy*"` | #61 fail-closed FGS/quota |
+| Android companion policy | `./gradlew testDebugUnitTest --tests "*CompanionCommandPolicy*"` | #62 |
 
 ## Evidence rules
 
@@ -39,11 +57,13 @@ Cross-platform evidence store. Start with offline, reproducible gates from P0.
 - `supported` requires fixture + command listed here; UI presence alone is insufficient.
 - Packaged OpenCL/CUDA are **off**; release-capability CI fails if a platform claims GPU `supported`.
 - Live accepted-share proofs stay out of CI; attach de-identified notes to the issue when done.
+- Device matrices (OEM overnight, TalkBack/VoiceOver, paired watches) stay **unverified** until recorded — see residuals below.
 
-## Not yet covered
+## Residuals (honest)
 
 - Official RandomX known-answer vectors end-to-end in WASM (#25 remainder)
-- Artifact smoke for APK / installers / iOS `.a`
-- OEM overnight / thermal-power device matrix (#61)
-- GPU backend selftest + optional CUDA/OpenCL enable (#65 phase 2)
-- Companion sync contract (#62)
+- Full APK / desktop installer / iOS `.a` hash smoke (needs those build artifacts in CI)
+- OEM overnight / thermal-power device matrix (#61) — policy + emulator covered; ≥2 OEM 8h runs unverified
+- GPU CUDA/OpenCL enable on real hardware (#65) — phase-2 gates exist; packaged backends remain OFF
+- Paired Wear OS / watchOS device lab (#62) — contract + code paths covered; hardware unverified
+- TalkBack / VoiceOver full flows (#58) — automated contrast/viewport helpers only
