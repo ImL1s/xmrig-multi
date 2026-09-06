@@ -53,12 +53,18 @@ class MiningRuntimePolicyTest {
     }
 
     @Test
-    fun `user stop is not overridden by automation policy`() {
-        val msg = MiningRuntimePolicy.messageFor(
-            MiningRuntimePolicy.FailureKind.USER_STOPPED,
-            MiningRuntimePolicy.StartPath.AUTOMATED
+    fun `lifecycle matrix events never auto-retry after user or system stop`() {
+        val noRetry = listOf(
+            MiningRuntimePolicy.FailureKind.QUOTA_EXHAUSTED,
+            MiningRuntimePolicy.FailureKind.FGS_START_NOT_ALLOWED,
+            MiningRuntimePolicy.FailureKind.NOTIFICATION_DENIED,
+            MiningRuntimePolicy.FailureKind.OS_STOPPED,
+            MiningRuntimePolicy.FailureKind.FORCE_STOPPED,
+            MiningRuntimePolicy.FailureKind.USER_STOPPED
         )
-        assertTrue(msg.message.contains("must not override Stop", ignoreCase = true))
-        assertFalse(MiningRuntimePolicy.shouldRetryAutomatedStart(MiningRuntimePolicy.FailureKind.USER_STOPPED))
+        noRetry.forEach {
+            assertFalse(MiningRuntimePolicy.shouldRetryAutomatedStart(it))
+            assertTrue(MiningRuntimePolicy.messageFor(it, MiningRuntimePolicy.StartPath.AUTOMATED).clearMiningUi)
+        }
     }
 }

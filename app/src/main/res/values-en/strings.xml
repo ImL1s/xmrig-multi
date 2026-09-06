@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">XMRig Multi</string>
+
+    <!-- Mining Screen / session phases (#59) -->
+    <string name="mining_title">Mining</string>
+    <string name="start_mining">Start mining</string>
+    <string name="stop_mining">Stop mining</string>
+    <string name="mining_status_running">Mining</string>
+    <string name="mining_status_stopped">Stopped</string>
+    <string name="status_connecting">Connecting</string>
+    <string name="status_initializing">Initializing</string>
+    <string name="status_computing">Computing</string>
+    <string name="status_waiting_share">Waiting for share</string>
+    <string name="status_paused_thermal">Paused — overheating</string>
+    <string name="status_paused_power">Paused — power policy</string>
+    <string name="status_system_limited">Limited by system</string>
+
+    <!-- Stats -->
+    <string name="stats_hashrate">Hashrate</string>
+    <string name="stats_shares">Shares</string>
+    <string name="stats_accepted">Accepted</string>
+    <string name="stats_rejected">Rejected</string>
+    <string name="stats_success_rate">Success rate</string>
+    <string name="stats_cpu_usage">CPU usage</string>
+    <string name="stats_temperature">Temperature</string>
+    <string name="stats_battery">Battery</string>
+    <string name="stats_difficulty">Difficulty</string>
+    <string name="metric_unavailable">Unavailable</string>
+
+    <!-- Config / onboarding (#56) -->
+    <string name="config_pool_url">Pool URL</string>
+    <string name="config_wallet_address">Wallet address</string>
+    <string name="config_worker_name">Worker name</string>
+    <string name="config_threads">Threads</string>
+    <string name="config_max_cpu">Max CPU usage</string>
+    <string name="onboarding_step_capability">What this device can mine</string>
+    <string name="onboarding_step_payout">Where payouts go</string>
+    <string name="onboarding_step_load">How much load to take</string>
+    <string name="onboarding_summary">Launch summary</string>
+    <string name="onboarding_skip_advanced">Skip to advanced settings</string>
+    <string name="apply_saved_not_effective">Saved but not yet effective — restart required</string>
+    <string name="apply_in_progress">Applying changes…</string>
+
+    <!-- Errors -->
+    <string name="error_invalid_config">Invalid configuration</string>
+    <string name="error_start_failed">Failed to start</string>
+    <string name="error_stop_failed">Failed to stop</string>
+    <string name="error_no_wallet">Set a wallet address first</string>
+    <string name="error_raw_expand">Show original message</string>
+
+    <!-- Notifications -->
+    <string name="notification_channel_name">Mining service</string>
+    <string name="notification_channel_desc">Shows mining status and progress</string>
+    <string name="notification_title">XMRig Multi mining</string>
+    <string name="notification_text">Hashrate: %s H/s</string>
+
+    <!-- Warnings -->
+    <string name="warning_high_temp">Temperature too high</string>
+    <string name="warning_low_battery">Battery low</string>
+    <string name="warning_mobile_data">Using mobile data</string>
+
+    <!-- Info -->
+    <string name="info_cpu_cores">CPU cores</string>
+    <string name="info_architecture">Architecture</string>
+    <string name="info_crypto_support">Crypto extensions</string>
+
+    <!-- Disclaimer -->
+    <string name="disclaimer_title">Disclaimer</string>
+    <string name="disclaimer_message">For learning and personal use. Phone mining is inefficient and generates heat. You accept the risk.</string>
+    <string name="disclaimer_agree">I understand</string>
+</resources>

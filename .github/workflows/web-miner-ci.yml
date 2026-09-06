@@ -171,6 +171,30 @@ jobs:
         working-directory: .
         run: node --test shared/gpu-capability/test/*.test.js
 
+      - name: Companion sync contract (#62)
+        working-directory: .
+        run: node --test shared/companion-sync/test/*.test.js
+
+      - name: Onboarding flow contract (#56)
+        working-directory: .
+        run: node --test shared/onboarding/test/*.test.js
+
+      - name: Staged apply / advanced controls (#57)
+        working-directory: .
+        run: node --test shared/staged-apply/test/*.test.js
+
+      - name: A11y viewport / contrast helpers (#58)
+        working-directory: .
+        run: node --test shared/a11y/test/*.test.js
+
+      - name: i18n terminology catalog (#59)
+        working-directory: .
+        run: node --test shared/i18n/test/*.test.js
+
+      - name: Artifact smoke + evidence catalog (#64)
+        working-directory: .
+        run: node --test shared/artifact-smoke/test/*.test.js
+
       - name: Build for Production
         run: npm run build
 

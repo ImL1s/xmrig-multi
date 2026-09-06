@@ -1,14 +1,21 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">XMRig Multi</string>
-    
-    <!-- Mining Screen -->
+
+    <!-- Mining Screen / session phases (#59) -->
     <string name="mining_title">挖礦管理</string>
     <string name="start_mining">開始挖礦</string>
     <string name="stop_mining">停止挖礦</string>
     <string name="mining_status_running">挖礦中</string>
     <string name="mining_status_stopped">已停止</string>
-    
+    <string name="status_connecting">正在連線</string>
+    <string name="status_initializing">正在初始化</string>
+    <string name="status_computing">計算中</string>
+    <string name="status_waiting_share">等待 share</string>
+    <string name="status_paused_thermal">因過熱暫停</string>
+    <string name="status_paused_power">因電源政策暫停</string>
+    <string name="status_system_limited">受系統限制</string>
+
     <!-- Stats -->
     <string name="stats_hashrate">算力</string>
     <string name="stats_shares">Shares</string>
@@ -19,36 +26,45 @@
     <string name="stats_temperature">溫度</string>
     <string name="stats_battery">電量</string>
     <string name="stats_difficulty">難度</string>
-    
-    <!-- Config -->
+    <string name="metric_unavailable">無法取得</string>
+
+    <!-- Config / onboarding (#56) -->
     <string name="config_pool_url">礦池地址</string>
     <string name="config_wallet_address">錢包地址</string>
     <string name="config_worker_name">礦工名稱</string>
     <string name="config_threads">執行緒數</string>
     <string name="config_max_cpu">最大 CPU 使用率</string>
-    
+    <string name="onboarding_step_capability">這台裝置能挖什麼</string>
+    <string name="onboarding_step_payout">收款位置</string>
+    <string name="onboarding_step_load">負載</string>
+    <string name="onboarding_summary">啟動摘要</string>
+    <string name="onboarding_skip_advanced">跳過精靈，進入進階設定</string>
+    <string name="apply_saved_not_effective">已保存但尚未生效 — 需要重啟挖礦</string>
+    <string name="apply_in_progress">正在套用變更…</string>
+
     <!-- Errors -->
     <string name="error_invalid_config">配置無效</string>
     <string name="error_start_failed">啟動失敗</string>
     <string name="error_stop_failed">停止失敗</string>
     <string name="error_no_wallet">請先設置錢包地址</string>
-    
+    <string name="error_raw_expand">查看原始訊息</string>
+
     <!-- Notifications -->
     <string name="notification_channel_name">挖礦服務</string>
     <string name="notification_channel_desc">顯示挖礦狀態和進度</string>
     <string name="notification_title">XMRig 挖礦中</string>
     <string name="notification_text">當前算力: %s H/s</string>
-    
+
     <!-- Warnings -->
     <string name="warning_high_temp">溫度過高</string>
     <string name="warning_low_battery">電量過低</string>
     <string name="warning_mobile_data">使用移動數據</string>
-    
+
     <!-- Info -->
     <string name="info_cpu_cores">CPU 核心數</string>
     <string name="info_architecture">架構</string>
     <string name="info_crypto_support">加密擴展支持</string>
-    
+
     <!-- Disclaimer -->
     <string name="disclaimer_title">免責聲明</string>
     <string name="disclaimer_message">本應用僅供學習目的。手機挖礦效率極低，會產生熱量和耗電。請自行承擔風險。</string>

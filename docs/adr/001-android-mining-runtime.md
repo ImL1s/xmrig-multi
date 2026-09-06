@@ -1,8 +1,10 @@
 # ADR 001: Android long-running mining runtime (#61)
 
-- **Status:** Accepted (implementation in progress)
+- **Status:** Accepted (fail-closed implemented; OEM overnight unverified)
 - **Date:** 2026-09-06
 - **Parent:** #24 / #61
+
+See also [android-runtime-matrix.md](../android-runtime-matrix.md).
 
 ## Context
 

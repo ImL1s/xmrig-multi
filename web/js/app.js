@@ -59,6 +59,7 @@ class App {
             capabilityList: document.getElementById('capability-list'),
             stepPayout: document.getElementById('step-payout'),
             // actions
+            skipWizardBtn: document.getElementById('skip-wizard-btn'),
             startBtn: document.getElementById('start-btn'),
             stopBtn: document.getElementById('stop-btn'),
             startNote: document.getElementById('start-note'),
@@ -128,6 +129,7 @@ class App {
 
         this.dom.startBtn.addEventListener('click', () => this.startMining());
         this.dom.stopBtn.addEventListener('click', () => this.stopMining());
+        this.dom.skipWizardBtn?.addEventListener('click', () => this.skipWizardToAdvanced());
         this.dom.coinSelect.addEventListener('change', () => this.onCoinSelectChange());
         this.dom.poolSelect.addEventListener('change', () => this.onPoolSelectChange());
         this.dom.testProxyBtn?.addEventListener('click', () => this.onTestProxy());
@@ -524,6 +526,18 @@ class App {
     }
 
     // -- Start / stop -------------------------------------------------------
+
+    /** Advanced users can skip the guided steps without losing draft fields (#56). */
+    skipWizardToAdvanced() {
+        document.querySelectorAll('.step').forEach((el) => {
+            el.dataset.complete = 'true';
+        });
+        this.dom.workerName?.focus();
+        this.dom.startNote.textContent =
+            '已跳過精靈：請直接編輯上方設定與啟動摘要，再按開始。不會自動挖礦。';
+        this.refreshSummary();
+        document.getElementById('summary-heading')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
 
     startMining() {
         const poolSelection = this.dom.poolSelect.value;
