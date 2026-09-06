@@ -118,7 +118,7 @@ export function evaluateAutomation(input = {}) {
 function evaluateBudget(budget, cfg) {
   if (cfg.dailySpendCapFiat != null && budget.spentFiatToday != null) {
     const reserve = estimateReserve(cfg);
-    if (budget.spentFiatToday + reserve > cfg.dailySpendCapFiat) {
+    if (budget.spentFiatToday + reserve >= cfg.dailySpendCapFiat) {
       return `Daily spend cap reached (spent ${budget.spentFiatToday}, reserve ${reserve})`;
     }
   }
