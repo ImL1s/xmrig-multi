@@ -27,7 +27,8 @@ test('quality-gate workflow exists and is not path-filtered', () => {
     /pull_request:[\s\S]*paths:/,
     'Quality Gate must not use paths: filters on pull_request'
   );
-  assert.match(yml, /shared\/\*\/test/);
+  assert.match(yml, /find shared/);
+  assert.match(yml, /node --test/);
 });
 
 test('web-miner-ci covers shared/** or each previously missed module', () => {
