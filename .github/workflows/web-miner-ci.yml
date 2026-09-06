@@ -17,6 +17,7 @@ on:
       - 'shared/daemon-endpoint/**'
       - 'shared/fee-manifest/**'
       - 'shared/pool-recommend/**'
+      - 'shared/p2pool-connect/**'
       - 'app/src/main/assets/pools.json'
       - 'desktop/src/generated-pool-configs.json'
       - 'desktop/src/main.js'
@@ -37,6 +38,7 @@ on:
       - 'shared/daemon-endpoint/**'
       - 'shared/fee-manifest/**'
       - 'shared/pool-recommend/**'
+      - 'shared/p2pool-connect/**'
       - 'app/src/main/assets/pools.json'
       - 'desktop/src/generated-pool-configs.json'
       - 'desktop/src/main.js'
@@ -116,6 +118,10 @@ jobs:
       - name: Pool recommend / share-wait tests (#42)
         working-directory: .
         run: node --test shared/pool-recommend/test/*.test.js
+
+      - name: P2Pool connect-existing tests (#45)
+        working-directory: .
+        run: node --test shared/p2pool-connect/test/*.test.js
 
       - name: Build for Production
         run: npm run build

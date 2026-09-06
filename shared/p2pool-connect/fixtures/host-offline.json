@@ -1,0 +1,6 @@
+{
+  "name": "host-offline",
+  "monerod": { "ok": false, "code": "host_offline", "message": "monerod unreachable" },
+  "p2pool": { "ok": false, "code": "host_offline", "message": "P2Pool unreachable" },
+  "miner": { "ok": true, "code": "idle", "message": "miner idle" }
+}

@@ -1,0 +1,6 @@
+{
+  "name": "ready-main",
+  "monerod": { "ok": true, "code": "synced", "message": "monerod synced", "detail": { "height": 3200000 } },
+  "p2pool": { "ok": true, "code": "sidechain_synced", "message": "sidechain synced", "detail": { "sidechain": "main" } },
+  "miner": { "ok": true, "code": "idle", "message": "miner idle" }
+}

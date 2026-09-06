@@ -1,0 +1,6 @@
+{
+  "name": "bad-address",
+  "monerod": { "ok": true, "code": "synced", "message": "monerod synced" },
+  "p2pool": { "ok": true, "code": "sidechain_synced", "message": "sidechain synced" },
+  "miner": { "ok": false, "code": "address_rejected", "message": "P2Pool rejected payout address" }
+}
