@@ -34,6 +34,7 @@ fun ConfigScreen(
                     snackbarHostState.showSnackbar("Configuration saved successfully")
                     onNavigateBack()
                 }
+                is ConfigUiEffect.NavigateBack -> onNavigateBack()
                 is ConfigUiEffect.ShowError -> {
                     snackbarHostState.showSnackbar(effect.message)
                 }
@@ -41,17 +42,58 @@ fun ConfigScreen(
         }
     }
 
+    val successState = uiState as? ConfigUiState.Success
+    if (successState?.showResetConfirm == true) {
+        AlertDialog(
+            onDismissRequest = { viewModel.onEvent(ConfigUiEvent.CancelResetToDefaults) },
+            title = { Text("Reset configuration?") },
+            text = {
+                Text(
+                    "This clears the saved profile and all unsaved drafts for every coin, " +
+                        "including wallet addresses. This cannot be undone from this screen."
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = { viewModel.onEvent(ConfigUiEvent.ConfirmResetToDefaults) }) {
+                    Text("Reset")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { viewModel.onEvent(ConfigUiEvent.CancelResetToDefaults) }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+    if (successState?.showDiscardConfirm == true) {
+        AlertDialog(
+            onDismissRequest = { viewModel.onEvent(ConfigUiEvent.CancelDiscardAndStay) },
+            title = { Text("Discard unsaved changes?") },
+            text = { Text("You have edits that are not saved. Leave without saving?") },
+            confirmButton = {
+                TextButton(onClick = { viewModel.onEvent(ConfigUiEvent.ConfirmDiscardAndNavigateBack) }) {
+                    Text("Discard")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { viewModel.onEvent(ConfigUiEvent.CancelDiscardAndStay) }) {
+                    Text("Keep editing")
+                }
+            }
+        )
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text("Mining Configuration") },
                 navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
+                    IconButton(onClick = { viewModel.onEvent(ConfigUiEvent.RequestNavigateBack) }) {
                         Icon(Icons.Default.ArrowBack, "Back")
                     }
                 },
                 actions = {
-                    IconButton(onClick = { viewModel.onEvent(ConfigUiEvent.ResetToDefaults) }) {
+                    IconButton(onClick = { viewModel.onEvent(ConfigUiEvent.RequestResetToDefaults) }) {
                         Icon(Icons.Default.Refresh, "Reset to defaults")
                     }
                 }
@@ -68,7 +110,7 @@ fun ConfigScreen(
                     CircularProgressIndicator()
                 }
             }
-            
+
             is ConfigUiState.Error -> {
                 Box(
                     modifier = Modifier.fillMaxSize(),
@@ -81,7 +123,7 @@ fun ConfigScreen(
                     )
                 }
             }
-            
+
             is ConfigUiState.Success -> {
                 ConfigContent(
                     modifier = Modifier.padding(paddingValues),
@@ -154,7 +196,7 @@ private fun ConfigContent(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(56.dp),
-            enabled = !state.isValidating && state.config.isValid() && state.validationError == null
+            enabled = !state.isValidating && state.saveBlockedReason == null
         ) {
             if (state.isValidating) {
                 CircularProgressIndicator(
@@ -166,6 +208,22 @@ private fun ConfigContent(
                 Spacer(modifier = Modifier.width(8.dp))
                 Text("Save Configuration")
             }
+        }
+        state.saveBlockedReason?.let { reason ->
+            Text(
+                text = reason,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.error,
+                modifier = Modifier.padding(top = 8.dp)
+            )
+        }
+        if (state.isDirty) {
+            Text(
+                text = "Unsaved changes",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.outline,
+                modifier = Modifier.padding(top = 4.dp)
+            )
         }
 
         Spacer(modifier = Modifier.height(16.dp))

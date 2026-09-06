@@ -9,8 +9,13 @@ import com.iml1s.xmrigminer.data.repository.ConfigRepository
 import com.iml1s.xmrigminer.data.repository.PoolRepository
 import com.iml1s.xmrigminer.native.XmrigNativeCapabilities
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -27,7 +32,11 @@ class ConfigViewModel @Inject constructor(
     val uiEffect = _uiEffect.receiveAsFlow()
 
     private var currentConfig: MiningConfig = MiningConfig()
+    private var savedConfig: MiningConfig = MiningConfig()
     private var availablePools: List<Pool> = emptyList()
+    private val drafts = ConfigDraftCoordinator { availablePools }
+    private var collectJob: Job? = null
+    private var applyingRemote = false
 
     init {
         loadConfigAndPools()
@@ -37,27 +46,52 @@ class ConfigViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 availablePools = poolRepository.getPools()
-
-                configRepository.getConfig().collect { config ->
-                    currentConfig = config
-                    val coinType = config.getCoin()
-                    val filteredPools = availablePools.filter { it.getCoinType() == coinType }
-                    val selectedPool = filteredPools.find { pool ->
-                        pool.url == config.poolUrl || pool.sslUrl == config.poolUrl
+                // One long-lived collector — Reset must not stack another (#52).
+                if (collectJob == null) {
+                    collectJob = launch {
+                        configRepository.getConfig().collect { config ->
+                            if (applyingRemote) return@collect
+                            val state = _uiState.value as? ConfigUiState.Success
+                            if (state != null && state.isDirty) {
+                                savedConfig = config
+                                _uiState.value = state.copy(
+                                    isDirty = currentConfig != savedConfig,
+                                    saveBlockedReason = saveBlockedReason(
+                                        currentConfig,
+                                        state.validationError
+                                    )
+                                )
+                                return@collect
+                            }
+                            applySavedConfig(config)
+                        }
                     }
-
-                    _uiState.value = ConfigUiState.Success(
-                        config = config,
-                        pools = availablePools,
-                        selectedPool = selectedPool,
-                        selectedCoinType = coinType,
-                        filteredPools = filteredPools
-                    )
                 }
             } catch (e: Exception) {
                 _uiState.value = ConfigUiState.Error(e.message ?: "Failed to load configuration")
             }
         }
+    }
+
+    private fun applySavedConfig(config: MiningConfig) {
+        savedConfig = config
+        currentConfig = config
+        drafts.clear()
+        drafts.stashFrom(config, null)
+        val coinType = config.getCoin()
+        val filteredPools = availablePools.filter { it.getCoinType() == coinType }
+        val selectedPool = filteredPools.find { pool ->
+            pool.url == config.poolUrl || pool.sslUrl == config.poolUrl
+        }
+        _uiState.value = ConfigUiState.Success(
+            config = config,
+            pools = availablePools,
+            selectedPool = selectedPool,
+            selectedCoinType = coinType,
+            filteredPools = filteredPools,
+            isDirty = false,
+            saveBlockedReason = saveBlockedReason(config, null)
+        )
     }
 
     fun onEvent(event: ConfigUiEvent) {
@@ -73,35 +107,33 @@ class ConfigViewModel @Inject constructor(
             is ConfigUiEvent.CustomPoolUrlChanged -> handleCustomPoolUrlChanged(event.url)
             is ConfigUiEvent.SoloDaemonToggled -> handleSoloDaemonToggled(event.enabled)
             is ConfigUiEvent.SaveConfig -> handleSaveConfig()
-            is ConfigUiEvent.ResetToDefaults -> handleResetToDefaults()
+            is ConfigUiEvent.RequestResetToDefaults -> handleRequestReset()
+            is ConfigUiEvent.ConfirmResetToDefaults -> handleConfirmReset()
+            is ConfigUiEvent.CancelResetToDefaults -> handleCancelReset()
+            is ConfigUiEvent.RequestNavigateBack -> handleRequestNavigateBack()
+            is ConfigUiEvent.ConfirmDiscardAndNavigateBack -> handleConfirmDiscard()
+            is ConfigUiEvent.CancelDiscardAndStay -> handleCancelDiscard()
         }
     }
 
     private fun handleCoinTypeChanged(coinType: CoinType) {
         val state = _uiState.value as? ConfigUiState.Success ?: return
+        val (newConfig, selectedPool) = drafts.switchCoin(currentConfig, state.selectedPool, coinType)
         val filteredPools = availablePools.filter { it.getCoinType() == coinType }
-        val defaultPool = filteredPools.firstOrNull { it.isStartAllowed() } ?: filteredPools.firstOrNull()
-        val enablingSolo = currentConfig.soloDaemon && coinType == CoinType.MONERO
-        val defaultPoolUrl = when {
-            enablingSolo -> currentConfig.poolUrl.ifBlank { MiningConfig.DEFAULT_SOLO_DAEMON_URL }
-            else -> defaultPool?.takeIf { it.isStartAllowed() }?.getUrl(currentConfig.useTls)
-                ?: if (coinType == CoinType.MONERO) MiningConfig.getDefaultPoolUrl(coinType) else ""
+        val error = if (newConfig.walletAddress.isBlank()) {
+            null
+        } else {
+            validateWalletAddress(newConfig.walletAddress, coinType)
         }
-
-        val newConfig = currentConfig.copy(
-            coinType = coinType.name,
-            poolUrl = defaultPoolUrl,
-            walletAddress = "",  // 清空錢包地址，因為不同幣種格式不同
-            soloDaemon = enablingSolo,
-            useTls = if (enablingSolo) false else currentConfig.useTls
+        updateConfig(
+            newConfig,
+            state.copy(
+                selectedCoinType = coinType,
+                filteredPools = filteredPools,
+                selectedPool = selectedPool,
+                validationError = error
+            )
         )
-
-        updateConfig(newConfig, state.copy(
-            selectedCoinType = coinType,
-            filteredPools = filteredPools,
-            selectedPool = if (enablingSolo) null else defaultPool?.takeIf { it.isStartAllowed() },
-            validationError = null
-        ))
         XmrigNativeCapabilities.assertStartAllowed(coinType)?.let { reason ->
             viewModelScope.launch {
                 _uiEffect.send(ConfigUiEffect.ShowError(reason))
@@ -129,37 +161,34 @@ class ConfigViewModel @Inject constructor(
 
     private fun handleWalletAddressChanged(address: String) {
         val state = _uiState.value as? ConfigUiState.Success ?: return
-        val newConfig = currentConfig.copy(walletAddress = address.trim())
-        val error = validateWalletAddress(address.trim(), state.selectedCoinType)
+        val trimmed = address.trim()
+        val newConfig = currentConfig.copy(walletAddress = trimmed)
+        val error = validateWalletAddress(trimmed, state.selectedCoinType)
         updateConfig(newConfig, state.copy(validationError = error))
     }
 
     private fun handleWorkerNameChanged(name: String) {
         val state = _uiState.value as? ConfigUiState.Success ?: return
-        val newConfig = currentConfig.copy(workerName = name)
-        updateConfig(newConfig, state)
+        updateConfig(currentConfig.copy(workerName = name), state)
     }
 
     private fun handleThreadsChanged(threads: Int) {
         val state = _uiState.value as? ConfigUiState.Success ?: return
         val max = Runtime.getRuntime().availableProcessors().coerceAtLeast(1)
-        val newConfig = currentConfig.copy(
-            threads = threads.coerceIn(1, max),
-            threadsAuto = false
+        updateConfig(
+            currentConfig.copy(threads = threads.coerceIn(1, max), threadsAuto = false),
+            state
         )
-        updateConfig(newConfig, state)
     }
 
     private fun handleThreadsAutoToggled(enabled: Boolean) {
         val state = _uiState.value as? ConfigUiState.Success ?: return
-        val newConfig = currentConfig.copy(threadsAuto = enabled)
-        updateConfig(newConfig, state)
+        updateConfig(currentConfig.copy(threadsAuto = enabled), state)
     }
 
     private fun handleMaxCpuUsageChanged(usage: Int) {
         val state = _uiState.value as? ConfigUiState.Success ?: return
-        val newConfig = currentConfig.copy(maxCpuUsage = usage.coerceIn(10, 100))
-        updateConfig(newConfig, state)
+        updateConfig(currentConfig.copy(maxCpuUsage = usage.coerceIn(10, 100)), state)
     }
 
     private fun handleTlsToggled(enabled: Boolean) {
@@ -187,8 +216,7 @@ class ConfigViewModel @Inject constructor(
 
     private fun handleCustomPoolUrlChanged(url: String) {
         val state = _uiState.value as? ConfigUiState.Success ?: return
-        val newConfig = currentConfig.copy(poolUrl = url)
-        updateConfig(newConfig, state.copy(selectedPool = null))
+        updateConfig(currentConfig.copy(poolUrl = url), state.copy(selectedPool = null))
     }
 
     private fun handleSoloDaemonToggled(enabled: Boolean) {
@@ -201,85 +229,119 @@ class ConfigViewModel @Inject constructor(
             }
             return
         }
-        val newConfig = if (enabled) {
-            currentConfig.copy(
-                soloDaemon = true,
-                useTls = false,
-                coinType = CoinType.MONERO.name,
-                poolUrl = when {
-                    currentConfig.poolUrl.contains("18081") -> currentConfig.poolUrl
-                    else -> MiningConfig.DEFAULT_SOLO_DAEMON_URL
-                }
-            )
-        } else {
-            val restored = availablePools
-                .filter { it.getCoinType() == CoinType.MONERO }
-                .firstOrNull()
-            currentConfig.copy(
-                soloDaemon = false,
-                poolUrl = restored?.getUrl(false)
-                    ?: MiningConfig.getDefaultPoolUrl(CoinType.MONERO)
-            )
-        }
-        val selectedPool = if (enabled) {
-            null
-        } else {
-            availablePools.find {
-                it.url == newConfig.poolUrl || it.sslUrl == newConfig.poolUrl
-            }
-        }
+        val (newConfig, selectedPool) = drafts.toggleSolo(currentConfig, state.selectedPool, enabled)
         updateConfig(newConfig, state.copy(selectedPool = selectedPool))
     }
 
     private fun handleSaveConfig() {
         val state = _uiState.value as? ConfigUiState.Success ?: return
-
-        if (!currentConfig.isValid()) {
+        val blocked = saveBlockedReason(currentConfig, state.validationError)
+        if (blocked != null) {
             viewModelScope.launch {
-                _uiEffect.send(ConfigUiEffect.ShowError("Please fill in all required fields"))
+                _uiEffect.send(ConfigUiEffect.ShowError(blocked))
             }
-            return
-        }
-
-        if (state.validationError != null) {
-            viewModelScope.launch {
-                _uiEffect.send(ConfigUiEffect.ShowError(state.validationError))
-            }
+            _uiState.value = state.copy(saveBlockedReason = blocked)
             return
         }
 
         viewModelScope.launch {
             try {
                 _uiState.value = state.copy(isValidating = true)
+                applyingRemote = true
                 configRepository.saveConfig(currentConfig)
+                savedConfig = currentConfig
+                drafts.clear()
+                drafts.stashFrom(currentConfig, state.selectedPool)
                 _uiEffect.send(ConfigUiEffect.ConfigSaved)
-                _uiState.value = state.copy(isValidating = false)
+                _uiState.value = state.copy(
+                    isValidating = false,
+                    isDirty = false,
+                    saveBlockedReason = null,
+                    config = currentConfig
+                )
             } catch (e: Exception) {
                 _uiState.value = state.copy(isValidating = false)
                 _uiEffect.send(ConfigUiEffect.ShowError(e.message ?: "Failed to save configuration"))
+            } finally {
+                applyingRemote = false
             }
         }
     }
 
-    private fun handleResetToDefaults() {
+    private fun handleRequestReset() {
+        val state = _uiState.value as? ConfigUiState.Success ?: return
+        _uiState.value = state.copy(showResetConfirm = true)
+    }
+
+    private fun handleCancelReset() {
+        val state = _uiState.value as? ConfigUiState.Success ?: return
+        _uiState.value = state.copy(showResetConfirm = false)
+    }
+
+    private fun handleConfirmReset() {
         viewModelScope.launch {
             try {
+                applyingRemote = true
                 configRepository.clear()
-                loadConfigAndPools()
+                drafts.clear()
+                val defaults = configRepository.getConfig().first()
+                applyingRemote = false
+                applySavedConfig(defaults)
             } catch (e: Exception) {
+                applyingRemote = false
                 _uiEffect.send(ConfigUiEffect.ShowError("Failed to reset configuration"))
             }
         }
     }
 
+    private fun handleRequestNavigateBack() {
+        val state = _uiState.value as? ConfigUiState.Success
+        if (state == null || !state.isDirty) {
+            viewModelScope.launch { _uiEffect.send(ConfigUiEffect.NavigateBack) }
+            return
+        }
+        _uiState.value = state.copy(showDiscardConfirm = true)
+    }
+
+    private fun handleConfirmDiscard() {
+        viewModelScope.launch {
+            currentConfig = savedConfig
+            drafts.clear()
+            applySavedConfig(savedConfig)
+            _uiEffect.send(ConfigUiEffect.NavigateBack)
+        }
+    }
+
+    private fun handleCancelDiscard() {
+        val state = _uiState.value as? ConfigUiState.Success ?: return
+        _uiState.value = state.copy(showDiscardConfirm = false)
+    }
+
     private fun updateConfig(newConfig: MiningConfig, newState: ConfigUiState.Success) {
         currentConfig = newConfig
-        _uiState.value = newState.copy(config = newConfig)
+        drafts.stashFrom(newConfig, newState.selectedPool)
+        _uiState.value = newState.copy(
+            config = newConfig,
+            isDirty = newConfig != savedConfig,
+            saveBlockedReason = saveBlockedReason(newConfig, newState.validationError)
+        )
+    }
+
+    internal fun saveBlockedReason(config: MiningConfig, validationError: String?): String? {
+        if (validationError != null) return validationError
+        if (config.walletAddress.isBlank()) return "Wallet address is required"
+        if (config.poolUrl.isBlank()) return "Pool / daemon endpoint is required"
+        if (!config.threadsAuto && config.threads <= 0) return "Thread count must be at least 1"
+        if (config.maxCpuUsage !in 10..100) return "Thread hint must be between 10 and 100"
+        if (config.soloDaemon && config.getCoin() != CoinType.MONERO) {
+            return "Solo / daemon mining is Monero-only in this release"
+        }
+        XmrigNativeCapabilities.assertStartAllowed(config.getCoin())?.let { return it }
+        return null
     }
 
     private fun validateWalletAddress(address: String, coinType: CoinType): String? {
         if (address.isBlank()) return "Wallet address is required"
-
         return when (coinType) {
             CoinType.MONERO -> validateMoneroAddress(address)
             CoinType.WOWNERO -> validateWowneroAddress(address)
@@ -288,34 +350,19 @@ class ConfigViewModel @Inject constructor(
     }
 
     private fun validateMoneroAddress(address: String): String? {
-        // Monero primary address validation (starts with 4, length 95)
-        if (address.startsWith("4") && address.length == 95) {
-            return null
-        }
-        // Monero integrated address (starts with 8, length 106)
-        if (address.startsWith("8") && address.length == 106) {
-            return null
-        }
-        // Monero subaddress (starts with 8, length 95)
-        if (address.startsWith("8") && address.length == 95) {
-            return null
-        }
+        if (address.startsWith("4") && address.length == 95) return null
+        if (address.startsWith("8") && address.length == 106) return null
+        if (address.startsWith("8") && address.length == 95) return null
         return "Invalid Monero wallet address (should start with 4 or 8)"
     }
 
     private fun validateWowneroAddress(address: String): String? {
-        // Wownero addresses start with "Wo" and are ~95-97 characters
-        if (address.startsWith("Wo") && address.length in 95..106) {
-            return null
-        }
+        if (address.startsWith("Wo") && address.length in 95..106) return null
         return "Invalid Wownero wallet address (should start with 'Wo')"
     }
 
     private fun validateDeroAddress(address: String): String? {
-        // DERO addresses start with "dero" and are 66 characters
-        if (address.startsWith("dero") && address.length >= 60) {
-            return null
-        }
+        if (address.startsWith("dero") && address.length >= 60) return null
         return "Invalid DERO wallet address (should start with 'dero')"
     }
 }

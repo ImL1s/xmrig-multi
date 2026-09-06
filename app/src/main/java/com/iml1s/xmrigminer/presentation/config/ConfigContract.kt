@@ -13,7 +13,13 @@ sealed interface ConfigUiState {
         val selectedCoinType: CoinType = CoinType.MONERO,
         val filteredPools: List<Pool> = pools.filter { it.getCoinType() == CoinType.MONERO },
         val isValidating: Boolean = false,
-        val validationError: String? = null
+        val validationError: String? = null,
+        /** True when the on-screen draft differs from the last saved profile (#52). */
+        val isDirty: Boolean = false,
+        val showResetConfirm: Boolean = false,
+        val showDiscardConfirm: Boolean = false,
+        /** Why Save is disabled — null when save is allowed. */
+        val saveBlockedReason: String? = null
     ) : ConfigUiState
     data class Error(val message: String) : ConfigUiState
 }
@@ -30,10 +36,18 @@ sealed interface ConfigUiEvent {
     data class CustomPoolUrlChanged(val url: String) : ConfigUiEvent
     data class SoloDaemonToggled(val enabled: Boolean) : ConfigUiEvent
     data object SaveConfig : ConfigUiEvent
-    data object ResetToDefaults : ConfigUiEvent
+    /** User tapped Reset — ask before destroying drafts (#52). */
+    data object RequestResetToDefaults : ConfigUiEvent
+    data object ConfirmResetToDefaults : ConfigUiEvent
+    data object CancelResetToDefaults : ConfigUiEvent
+    /** System/top-bar back — guard unsaved drafts (#52). */
+    data object RequestNavigateBack : ConfigUiEvent
+    data object ConfirmDiscardAndNavigateBack : ConfigUiEvent
+    data object CancelDiscardAndStay : ConfigUiEvent
 }
 
 sealed interface ConfigUiEffect {
     data object ConfigSaved : ConfigUiEffect
+    data object NavigateBack : ConfigUiEffect
     data class ShowError(val message: String) : ConfigUiEffect
 }
