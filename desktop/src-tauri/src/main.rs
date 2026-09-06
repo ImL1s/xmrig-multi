@@ -3,6 +3,7 @@
 
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod hardware;
 mod miner;
 
 use miner::MinerState;
@@ -46,6 +47,16 @@ fn get_system_info() -> miner::SystemInfo {
     miner::get_system_info()
 }
 
+#[tauri::command]
+fn get_hardware_snapshot() -> hardware::HardwareSnapshot {
+    hardware::capture_hardware_snapshot()
+}
+
+#[tauri::command]
+fn export_hardware_report() -> hardware::SanitizedHardwareReport {
+    hardware::sanitize_hardware_report(hardware::capture_hardware_snapshot())
+}
+
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
@@ -60,6 +71,8 @@ fn main() {
             get_mining_stats,
             is_mining,
             get_system_info,
+            get_hardware_snapshot,
+            export_hardware_report,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

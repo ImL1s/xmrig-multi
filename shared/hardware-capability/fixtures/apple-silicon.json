@@ -1,0 +1,53 @@
+{
+  "schemaVersion": 1,
+  "capturedAt": "2026-09-06T00:00:00.000Z",
+  "evidenceKind": "fixture",
+  "platform": {
+    "os": "macos",
+    "osVersion": { "value": "macOS fixture", "source": "fixture", "timestamp": "2026-09-06T00:00:00.000Z", "confidence": "high", "unknownReason": null },
+    "arch": "aarch64",
+    "abi": { "value": "arm64", "source": "fixture", "timestamp": "2026-09-06T00:00:00.000Z", "confidence": "high", "unknownReason": null },
+    "containerOrVm": { "value": false, "source": "fixture", "timestamp": "2026-09-06T00:00:00.000Z", "confidence": "high", "unknownReason": null }
+  },
+  "cpu": {
+    "name": { "value": "Apple Silicon Fixture", "source": "fixture", "timestamp": "2026-09-06T00:00:00.000Z", "confidence": "high", "unknownReason": null },
+    "logical": { "value": 10, "source": "fixture", "timestamp": "2026-09-06T00:00:00.000Z", "confidence": "high", "unknownReason": null },
+    "physical": { "value": 10, "source": "fixture", "timestamp": "2026-09-06T00:00:00.000Z", "confidence": "medium", "unknownReason": null },
+    "allowed": { "value": 10, "source": "fixture", "timestamp": "2026-09-06T00:00:00.000Z", "confidence": "medium", "unknownReason": null },
+    "smt": { "value": false, "source": "fixture", "timestamp": "2026-09-06T00:00:00.000Z", "confidence": "medium", "unknownReason": null },
+    "heterogeneous": { "value": true, "source": "fixture", "timestamp": "2026-09-06T00:00:00.000Z", "confidence": "high", "unknownReason": null },
+    "coreGroups": {
+      "value": [
+        { "kind": "performance", "logicalIds": [0, 1, 2, 3], "label": "P" },
+        { "kind": "efficiency", "logicalIds": [4, 5, 6, 7, 8, 9], "label": "E" }
+      ],
+      "source": "fixture",
+      "timestamp": "2026-09-06T00:00:00.000Z",
+      "confidence": "medium",
+      "unknownReason": null
+    },
+    "cache": {
+      "l2Bytes": { "value": null, "source": "fixture", "timestamp": "2026-09-06T00:00:00.000Z", "confidence": "unknown", "unknownReason": "apple-not-fully-exposed" },
+      "l3Bytes": { "value": null, "source": "fixture", "timestamp": "2026-09-06T00:00:00.000Z", "confidence": "unknown", "unknownReason": "apple-not-fully-exposed" }
+    },
+    "numaNodes": { "value": 1, "source": "fixture", "timestamp": "2026-09-06T00:00:00.000Z", "confidence": "low", "unknownReason": null }
+  },
+  "memory": {
+    "totalBytes": { "value": 17179869184, "source": "fixture", "timestamp": "2026-09-06T00:00:00.000Z", "confidence": "high", "unknownReason": null },
+    "availableBytes": { "value": null, "source": "fixture", "timestamp": "2026-09-06T00:00:00.000Z", "confidence": "unknown", "unknownReason": "approx-only-without-vm-stats" },
+    "processLimitBytes": { "value": null, "source": "fixture", "timestamp": "2026-09-06T00:00:00.000Z", "confidence": "unknown", "unknownReason": "not-probed" }
+  },
+  "power": {
+    "onAc": { "value": true, "source": "fixture", "timestamp": "2026-09-06T00:00:00.000Z", "confidence": "medium", "unknownReason": null },
+    "batteryPresent": { "value": true, "source": "fixture", "timestamp": "2026-09-06T00:00:00.000Z", "confidence": "medium", "unknownReason": null }
+  },
+  "sensors": {
+    "thermalReadable": { "value": false, "source": "fixture", "timestamp": "2026-09-06T00:00:00.000Z", "confidence": "low", "unknownReason": "sandbox" },
+    "powerReadable": { "value": false, "source": "fixture", "timestamp": "2026-09-06T00:00:00.000Z", "confidence": "low", "unknownReason": "sandbox" }
+  },
+  "engine": {
+    "abiSupported": { "value": true, "source": "fixture", "timestamp": "2026-09-06T00:00:00.000Z", "confidence": "high", "unknownReason": null },
+    "flags": ["apple-silicon"]
+  },
+  "invalidationHints": ["power-source-change", "thermal-throttle"]
+}

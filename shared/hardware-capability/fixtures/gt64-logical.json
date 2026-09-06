@@ -1,0 +1,44 @@
+{
+  "schemaVersion": 1,
+  "capturedAt": "2026-09-06T00:00:00.000Z",
+  "evidenceKind": "fixture",
+  "platform": {
+    "os": "windows",
+    "osVersion": { "value": "Windows Server fixture", "source": "fixture", "timestamp": "2026-09-06T00:00:00.000Z", "confidence": "high", "unknownReason": null },
+    "arch": "x86_64",
+    "abi": { "value": "x86_64", "source": "fixture", "timestamp": "2026-09-06T00:00:00.000Z", "confidence": "high", "unknownReason": null },
+    "containerOrVm": { "value": false, "source": "fixture", "timestamp": "2026-09-06T00:00:00.000Z", "confidence": "medium", "unknownReason": null }
+  },
+  "cpu": {
+    "name": { "value": "Many-CPU Fixture", "source": "fixture", "timestamp": "2026-09-06T00:00:00.000Z", "confidence": "high", "unknownReason": null },
+    "logical": { "value": 128, "source": "fixture", "timestamp": "2026-09-06T00:00:00.000Z", "confidence": "high", "unknownReason": null },
+    "physical": { "value": 64, "source": "fixture", "timestamp": "2026-09-06T00:00:00.000Z", "confidence": "high", "unknownReason": null },
+    "allowed": { "value": 128, "source": "fixture", "timestamp": "2026-09-06T00:00:00.000Z", "confidence": "medium", "unknownReason": null },
+    "smt": { "value": true, "source": "fixture", "timestamp": "2026-09-06T00:00:00.000Z", "confidence": "high", "unknownReason": null },
+    "heterogeneous": { "value": false, "source": "fixture", "timestamp": "2026-09-06T00:00:00.000Z", "confidence": "medium", "unknownReason": null },
+    "coreGroups": { "value": null, "source": "fixture", "timestamp": "2026-09-06T00:00:00.000Z", "confidence": "unknown", "unknownReason": "group-mask-beyond-64-needs-multi-group-api" },
+    "cache": {
+      "l2Bytes": { "value": null, "source": "fixture", "timestamp": "2026-09-06T00:00:00.000Z", "confidence": "unknown", "unknownReason": "not-probed" },
+      "l3Bytes": { "value": null, "source": "fixture", "timestamp": "2026-09-06T00:00:00.000Z", "confidence": "unknown", "unknownReason": "not-probed" }
+    },
+    "numaNodes": { "value": 2, "source": "fixture", "timestamp": "2026-09-06T00:00:00.000Z", "confidence": "medium", "unknownReason": null }
+  },
+  "memory": {
+    "totalBytes": { "value": 274877906944, "source": "fixture", "timestamp": "2026-09-06T00:00:00.000Z", "confidence": "high", "unknownReason": null },
+    "availableBytes": { "value": 137438953472, "source": "fixture", "timestamp": "2026-09-06T00:00:00.000Z", "confidence": "high", "unknownReason": null },
+    "processLimitBytes": { "value": null, "source": "fixture", "timestamp": "2026-09-06T00:00:00.000Z", "confidence": "unknown", "unknownReason": "no-job-object-limit" }
+  },
+  "power": {
+    "onAc": { "value": true, "source": "fixture", "timestamp": "2026-09-06T00:00:00.000Z", "confidence": "high", "unknownReason": null },
+    "batteryPresent": { "value": false, "source": "fixture", "timestamp": "2026-09-06T00:00:00.000Z", "confidence": "high", "unknownReason": null }
+  },
+  "sensors": {
+    "thermalReadable": { "value": false, "source": "fixture", "timestamp": "2026-09-06T00:00:00.000Z", "confidence": "low", "unknownReason": "not-probed" },
+    "powerReadable": { "value": false, "source": "fixture", "timestamp": "2026-09-06T00:00:00.000Z", "confidence": "low", "unknownReason": "not-probed" }
+  },
+  "engine": {
+    "abiSupported": { "value": true, "source": "fixture", "timestamp": "2026-09-06T00:00:00.000Z", "confidence": "high", "unknownReason": null },
+    "flags": ["gt64-logical"]
+  },
+  "invalidationHints": ["hotplug", "cpuset-change", "thermal-throttle"]
+}

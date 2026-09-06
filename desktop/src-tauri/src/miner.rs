@@ -365,162 +365,27 @@ fn xmrig_candidates() -> Vec<String> {
 }
 
 pub fn get_system_info() -> SystemInfo {
+    // Prefer HardwareSnapshot (#33). Legacy SystemInfo keeps 0 only as "unknown UI
+    // placeholder" when the snapshot field is null — callers should migrate to
+    // get_hardware_snapshot for confidence-aware values.
+    let snap = crate::hardware::capture_hardware_snapshot();
     SystemInfo {
-        cpu_name: get_cpu_name(),
-        cpu_cores: num_cpus::get_physical() as u32,
-        cpu_threads: num_cpus::get() as u32,
-        memory_total: get_total_memory(),
-        memory_available: get_available_memory(),
-        os_name: std::env::consts::OS.to_string(),
-        os_version: get_os_version(),
-        arch: std::env::consts::ARCH.to_string(),
-    }
-}
-
-fn get_cpu_name() -> String {
-    #[cfg(target_os = "macos")]
-    {
-        Command::new("sysctl")
-            .arg("-n")
-            .arg("machdep.cpu.brand_string")
-            .output()
-            .ok()
-            .and_then(|o| String::from_utf8(o.stdout).ok())
-            .map(|s| s.trim().to_string())
-            .unwrap_or_else(|| "Unknown CPU".to_string())
-    }
-    #[cfg(target_os = "windows")]
-    {
-        Command::new("wmic")
-            .args(["cpu", "get", "Name", "/value"])
-            .output()
-            .ok()
-            .and_then(|o| String::from_utf8(o.stdout).ok())
-            .and_then(|s| {
-                s.lines()
-                    .find(|l| l.starts_with("Name="))
-                    .map(|l| l.trim_start_matches("Name=").trim().to_string())
-            })
-            .filter(|s| !s.is_empty())
-            .unwrap_or_else(|| "Windows CPU".to_string())
-    }
-    #[cfg(target_os = "linux")]
-    {
-        std::fs::read_to_string("/proc/cpuinfo")
-            .ok()
-            .and_then(|s| {
-                s.lines()
-                    .find(|l| l.starts_with("model name"))
-                    .map(|l| l.split(':').nth(1).unwrap_or("").trim().to_string())
-            })
-            .unwrap_or_else(|| "Unknown CPU".to_string())
-    }
-}
-
-#[cfg(target_os = "linux")]
-fn parse_meminfo_kb(label: &str) -> Option<u64> {
-    let text = std::fs::read_to_string("/proc/meminfo").ok()?;
-    let line = text.lines().find(|l| l.starts_with(label))?;
-    let kb: u64 = line.split_whitespace().nth(1)?.parse().ok()?;
-    Some(kb * 1024)
-}
-
-fn get_total_memory() -> u64 {
-    #[cfg(target_os = "linux")]
-    {
-        return parse_meminfo_kb("MemTotal:").unwrap_or(0);
-    }
-    #[cfg(target_os = "macos")]
-    {
-        return Command::new("sysctl")
-            .arg("-n")
-            .arg("hw.memsize")
-            .output()
-            .ok()
-            .and_then(|o| String::from_utf8(o.stdout).ok())
-            .and_then(|s| s.trim().parse().ok())
-            .unwrap_or(0);
-    }
-    #[cfg(target_os = "windows")]
-    {
-        return wmic_memory_bytes("TotalVisibleMemorySize").unwrap_or(0);
-    }
-    #[allow(unreachable_code)]
-    0
-}
-
-fn get_available_memory() -> u64 {
-    #[cfg(target_os = "linux")]
-    {
-        return parse_meminfo_kb("MemAvailable:").unwrap_or(0);
-    }
-    #[cfg(target_os = "macos")]
-    {
-        return Command::new("sysctl")
-            .arg("-n")
-            .arg("hw.memsize")
-            .output()
-            .ok()
-            .and_then(|o| String::from_utf8(o.stdout).ok())
-            .and_then(|s| s.trim().parse::<u64>().ok())
-            .map(|total| total / 2)
-            .unwrap_or(0);
-    }
-    #[cfg(target_os = "windows")]
-    {
-        return wmic_memory_bytes("FreePhysicalMemory").unwrap_or(0);
-    }
-    #[allow(unreachable_code)]
-    0
-}
-
-#[cfg(target_os = "windows")]
-fn wmic_memory_bytes(field: &str) -> Option<u64> {
-    let output = Command::new("wmic")
-        .args(["OS", "get", field, "/value"])
-        .output()
-        .ok()?;
-    let text = String::from_utf8(output.stdout).ok()?;
-    let line = text.lines().find(|l| l.starts_with(&format!("{}=", field)))?;
-    let kb: u64 = line.split('=').nth(1)?.trim().parse().ok()?;
-    Some(kb * 1024)
-}
-
-fn get_os_version() -> String {
-    #[cfg(target_os = "macos")]
-    {
-        Command::new("sw_vers")
-            .arg("-productVersion")
-            .output()
-            .ok()
-            .and_then(|o| String::from_utf8(o.stdout).ok())
-            .map(|s| s.trim().to_string())
-            .unwrap_or_else(|| "Unknown".to_string())
-    }
-    #[cfg(target_os = "windows")]
-    {
-        Command::new("wmic")
-            .args(["os", "get", "Caption", "/value"])
-            .output()
-            .ok()
-            .and_then(|o| String::from_utf8(o.stdout).ok())
-            .and_then(|s| {
-                s.lines()
-                    .find(|l| l.starts_with("Caption="))
-                    .map(|l| l.trim_start_matches("Caption=").trim().to_string())
-            })
-            .unwrap_or_else(|| "Windows".to_string())
-    }
-    #[cfg(target_os = "linux")]
-    {
-        std::fs::read_to_string("/etc/os-release")
-            .ok()
-            .and_then(|s| {
-                s.lines()
-                    .find(|l| l.starts_with("PRETTY_NAME="))
-                    .map(|l| l.trim_start_matches("PRETTY_NAME=").replace('"', ""))
-            })
-            .unwrap_or_else(|| "Linux".to_string())
+        cpu_name: snap
+            .cpu
+            .name
+            .value
+            .unwrap_or_else(|| "Unknown CPU".to_string()),
+        cpu_cores: snap.cpu.physical.value.unwrap_or(0).max(1),
+        cpu_threads: snap.cpu.logical.value.unwrap_or(0).max(1),
+        memory_total: snap.memory.total_bytes.value.unwrap_or(0),
+        memory_available: snap.memory.available_bytes.value.unwrap_or(0),
+        os_name: snap.platform.os,
+        os_version: snap
+            .platform
+            .os_version
+            .value
+            .unwrap_or_else(|| "Unknown".to_string()),
+        arch: snap.platform.arch,
     }
 }
 
