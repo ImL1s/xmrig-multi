@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "id": "legacy-migrate",
+  "engine": "xmrig",
+  "coinType": "MONERO",
+  "poolUrl": "gulf.moneroocean.stream:10128",
+  "walletAddress": "44AFFq5kSiGBoZ4NMDwYtN18obc8AemS33DBLWs3H7otXft3XjrpDtQGv7SqSsaBYBb98uNbr2VBBEt7f2wfn3RVGQBEP3A",
+  "workerName": "rig1",
+  "threadsAuto": true,
+  "maxCpuUsage": 75,
+  "threads": 8,
+  "useTls": true,
+  "donateLevel": 1
+}

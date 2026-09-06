@@ -1,0 +1,147 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/ImL1s/xmrig-multi/shared/mining-profile/schema/mining-profile.schema.json",
+  "title": "MiningProfile",
+  "description": "Versioned cross-platform mining profile (#30). Platforms map to/from this contract; compile() produces resolved + native launch artifacts.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "id", "engine", "coin", "payoutAsset", "endpoint", "account", "cpu"],
+  "properties": {
+    "schemaVersion": {
+      "type": "integer",
+      "const": 1,
+      "description": "Profile schema version. Unknown future versions must be rejected or opened read-only."
+    },
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Stable profile id within a store (not globally unique across devices)."
+    },
+    "name": { "type": "string" },
+    "engine": {
+      "type": "string",
+      "enum": ["xmrig", "randomx-js", "dero-miner", "unknown"]
+    },
+    "coin": {
+      "type": "string",
+      "enum": ["monero", "wownero", "dero"]
+    },
+    "payoutAsset": {
+      "type": "string",
+      "enum": ["XMR", "WOW", "DERO"]
+    },
+    "endpoint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "url"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["stratum", "daemon", "p2pool", "web-proxy"]
+        },
+        "url": {
+          "type": "string",
+          "minLength": 1,
+          "description": "host:port or full URL for web-proxy"
+        },
+        "tls": {
+          "type": ["boolean", "null"],
+          "description": "null = unspecified (compiler decides from capabilities)"
+        },
+        "poolId": {
+          "type": ["string", "null"],
+          "description": "Stable registry id when using a bundled preset (#40)"
+        }
+      }
+    },
+    "account": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["user"],
+      "properties": {
+        "user": { "type": "string", "description": "Wallet / login" },
+        "pass": { "type": "string", "default": "x" },
+        "rigId": { "type": ["string", "null"] }
+      }
+    },
+    "cpu": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mode"],
+      "properties": {
+        "mode": {
+          "type": "string",
+          "enum": ["auto", "manual"],
+          "description": "Auto uses maxThreadsHintPercent only; manual uses threads. Never encode both meanings in one int."
+        },
+        "threads": {
+          "type": ["integer", "null"],
+          "minimum": 1,
+          "description": "Exact thread count when mode=manual; must be null when mode=auto"
+        },
+        "maxThreadsHintPercent": {
+          "type": ["integer", "null"],
+          "minimum": 1,
+          "maximum": 100,
+          "description": "XMRig cpu.max-threads-hint when mode=auto; ignored for manual"
+        },
+        "affinity": {
+          "type": ["array", "null"],
+          "items": { "type": "integer", "minimum": 0 }
+        }
+      }
+    },
+    "randomx": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "mode": {
+          "type": "string",
+          "enum": ["auto", "fast", "light"]
+        }
+      }
+    },
+    "network": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "autoReconnect": { "type": "boolean" },
+        "retries": { "type": "integer", "minimum": 0 },
+        "retryPauseSec": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "power": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "requireCharging": { "type": ["boolean", "null"] },
+        "minBatteryPercent": { "type": ["integer", "null"], "minimum": 0, "maximum": 100 }
+      }
+    },
+    "thermal": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "throttleCelsius": { "type": ["number", "null"] },
+        "resumeCelsius": { "type": ["number", "null"] }
+      }
+    },
+    "locks": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "fields": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Dot-paths the user locked; compiler must not override"
+        }
+      }
+    },
+    "donateLevel": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 100,
+      "default": 1
+    }
+  }
+}
