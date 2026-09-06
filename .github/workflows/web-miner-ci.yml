@@ -26,6 +26,7 @@ on:
       - 'shared/ios-capability/**'
       - 'shared/release-capability/**'
       - 'shared/gpu-capability/**'
+      - 'shared/energy-ledger/**'
       - 'app/src/main/assets/pools.json'
       - 'desktop/src/generated-pool-configs.json'
       - 'desktop/src/main.js'
@@ -48,6 +49,7 @@ on:
       - 'shared/pool-recommend/**'
       - 'shared/p2pool-connect/**'
       - 'shared/desktop-optimize/**'
+      - 'shared/energy-ledger/**'
       - 'shared/cpu-topology/**'
       - 'shared/thermal-policy/**'
       - 'shared/power-policy/**'
@@ -194,6 +196,10 @@ jobs:
       - name: Artifact smoke + evidence catalog (#64)
         working-directory: .
         run: node --test shared/artifact-smoke/test/*.test.js
+
+      - name: Energy ledger / kWh accounting (#70)
+        working-directory: .
+        run: node --test shared/energy-ledger/test/*.test.js
 
       - name: Build for Production
         run: npm run build
