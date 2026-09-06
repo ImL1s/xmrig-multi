@@ -1,6 +1,11 @@
 # Screenshots
 
-Device captures for contributors and reviewers. Taken on a Samsung Galaxy S21+ (SM-G9960, Android 15, arm64-v8a) against `gulf.moneroocean.stream:10128`.
+Captures for contributors and reviewers.
+
+The Android set below is from real hardware: a Samsung Galaxy S21+ (SM-G9960, Android 15,
+arm64-v8a) against `gulf.moneroocean.stream:10128`. The Web and Desktop sets are headless
+Chromium renders of the shipped markup at fixed viewport widths — accurate for layout, type and
+colour, but not proof that a miner ran.
 
 ## Android
 
@@ -20,3 +25,29 @@ Device captures for contributors and reviewers. Taken on a Samsung Galaxy S21+ (
 ![Mining running](android/04-mining-running.png)
 
 ![Statistics](android/05-stats.png)
+
+> The Android shots above predate the Kiln design system and are queued for a re-capture on the
+> same device.
+
+## Web
+
+Headless Chromium, `web/index.html`.
+
+| Shot | File | What it shows |
+|------|------|----------------|
+| Setup, ready to start | [web/01-setup-ready.png](web/01-setup-ready.png) | 1280px. Three-step flow, capability list marking WOW/DERO unavailable, launch summary, and the idle readout showing `–` rather than zeros |
+| Mining, narrow | [web/02-mining-mobile.png](web/02-mining-mobile.png) | 390px. Single-column layout with the hero hashrate, share ledger and worker-activity indicator |
+
+![Web setup](web/01-setup-ready.png)
+
+## Desktop
+
+Headless Chromium, `desktop/index.html`, hydrated with representative values (the real page needs
+the Tauri runtime).
+
+| Shot | File | What it shows |
+|------|------|----------------|
+| Mining | [desktop/01-mining.png](desktop/01-mining.png) | 1100px. Readout, controls, configuration and machine report in one window |
+| Idle, narrow | [desktop/02-idle-narrow.png](desktop/02-idle-narrow.png) | 760px. Placeholders in place of fabricated zeros; standing capability limits stated next to the coin picker |
+
+![Desktop mining](desktop/01-mining.png)

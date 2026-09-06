@@ -1,15 +1,55 @@
-/* XMRig Miner Desktop - Styles */
+/*
+ * XMRig Multi Desktop — "Kiln" console
+ *
+ * Same token vocabulary as web/css/style.css and the Android Compose theme; see
+ * docs/design-system.md. Desktop keeps a denser grid than the phone layout because a resizable
+ * window can show the system report and the miner state at the same time.
+ */
+
 :root {
-    --primary: #7c3aed;
-    --primary-dark: #5b21b6;
-    --success: #10b981;
-    --danger: #ef4444;
-    --warning: #f59e0b;
-    --bg-dark: #0f172a;
-    --bg-card: #1e293b;
-    --text-primary: #f8fafc;
-    --text-secondary: #94a3b8;
-    --border: #334155;
+    color-scheme: dark;
+
+    --ground: #0e0d0c;
+    --surface: #171614;
+    --surface-raised: #201e1b;
+    --surface-inset: #0a0908;
+    --hairline: #322e2a;
+
+    --ink: #f2ede4;
+    --ink-dim: #a8a093;
+    --ink-faint: #8a8276;
+
+    --ember: #e8722a;
+    --ember-ink: #2a1305;
+
+    --signal: #6fd3c7;
+    --signal-container: #10312e;
+    --caution: #e3b341;
+    --caution-container: #352a0e;
+    --halt: #e5534b;
+    --halt-ink: #ff9a93;
+    --halt-container: #3a1512;
+    --inert: #8a8276;
+    --inert-container: #232120;
+
+    --font-display: "Bahnschrift", "DIN Alternate", "Avenir Next Condensed", "Archivo Narrow",
+        "Roboto Condensed", "Noto Sans TC", "Microsoft JhengHei", sans-serif;
+    --font-text: "Segoe UI Variable Text", "Seravek", "Optima", "Noto Sans TC", "PingFang TC",
+        "Microsoft JhengHei", sans-serif;
+    --font-mono: "Cascadia Mono", "SFMono-Regular", "JetBrains Mono", "IBM Plex Mono",
+        "Roboto Mono", ui-monospace, Menlo, Consolas, monospace;
+
+    --sp-1: 4px;
+    --sp-2: 8px;
+    --sp-3: 12px;
+    --sp-4: 16px;
+    --sp-5: 24px;
+    --sp-6: 32px;
+
+    --radius: 7px;
+    --radius-sm: 5px;
+    --radius-xs: 3px;
+    --touch-target: 40px;
 }
 
 * {
@@ -18,195 +58,308 @@
     padding: 0;
 }
 
+[hidden] {
+    display: none !important;
+}
+
 body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-    background: var(--bg-dark);
-    color: var(--text-primary);
+    font-family: var(--font-text);
+    background-color: var(--ground);
+    background-image: repeating-linear-gradient(115deg,
+            transparent 0 22px,
+            rgba(255, 255, 255, 0.012) 22px 23px);
+    color: var(--ink);
     min-height: 100vh;
-    line-height: 1.5;
+    line-height: 1.55;
+    font-size: 15px;
 }
 
 #app {
-    max-width: 900px;
+    max-width: 960px;
     margin: 0 auto;
-    padding: 20px;
+    padding: var(--sp-4) var(--sp-5) var(--sp-6);
 }
 
-/* Header */
+:focus-visible {
+    outline: 2px solid var(--signal);
+    outline-offset: 2px;
+    border-radius: var(--radius-xs);
+}
+
+@media (prefers-reduced-motion: reduce) {
+
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.001ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.001ms !important;
+    }
+}
+
+.visually-hidden:not(:focus):not(:active) {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+}
+
+/* ---- Masthead ---- */
+
 .app-header {
     display: flex;
+    align-items: baseline;
     justify-content: space-between;
-    align-items: center;
-    padding: 16px 0;
-    border-bottom: 1px solid var(--border);
-    margin-bottom: 24px;
+    gap: var(--sp-3);
+    padding: var(--sp-3) 0 var(--sp-4);
+    border-bottom: 1px solid var(--hairline);
+    margin-bottom: var(--sp-5);
 }
 
 .app-header h1 {
-    font-size: 24px;
+    font-family: var(--font-display);
+    font-size: 1.6rem;
     font-weight: 700;
-    background: linear-gradient(135deg, var(--primary), #a78bfa);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--ink);
+}
+
+.app-header h1 .mark {
+    color: var(--ember);
 }
 
 .version {
-    color: var(--text-secondary);
-    font-size: 14px;
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    color: var(--ink-faint);
 }
 
-/* Cards */
+/* ---- Panels ---- */
+
 .card {
-    background: var(--bg-card);
-    border-radius: 12px;
-    padding: 20px;
-    margin-bottom: 20px;
-    border: 1px solid var(--border);
+    background: var(--surface);
+    border: 1px solid var(--hairline);
+    border-radius: var(--radius);
+    padding: var(--sp-5);
+    margin-bottom: var(--sp-4);
 }
 
 .card h2 {
-    font-size: 16px;
-    font-weight: 600;
-    color: var(--text-secondary);
-    margin-bottom: 16px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.16em;
     text-transform: uppercase;
-    letter-spacing: 0.5px;
+    color: var(--ink-faint);
+    margin-bottom: var(--sp-4);
 }
 
-/* System Info */
+/* ---- System report ---- */
+
 .info-grid {
     display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 16px;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: var(--sp-4);
 }
 
 .info-item {
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: var(--sp-1);
+    min-width: 0;
 }
 
 .info-item .label {
-    font-size: 12px;
-    color: var(--text-secondary);
+    font-size: 0.72rem;
+    letter-spacing: 0.06em;
+    color: var(--ink-faint);
 }
 
 .info-item .value {
-    font-size: 14px;
-    font-weight: 500;
+    font-family: var(--font-mono);
+    font-size: 0.88rem;
+    color: var(--ink);
+    overflow-wrap: anywhere;
 }
 
-/* Mining Status */
+/* ---- Miner state ---- */
+
 .status-header {
     display: flex;
     align-items: center;
-    gap: 12px;
-    margin-bottom: 20px;
+    gap: var(--sp-3);
+    margin-bottom: var(--sp-5);
 }
 
 .status-indicator {
-    width: 12px;
-    height: 12px;
+    width: 10px;
+    height: 10px;
     border-radius: 50%;
-    background: var(--text-secondary);
+    background: var(--inert);
+    flex: none;
 }
 
 .status-indicator.mining {
-    background: var(--success);
-    animation: pulse 2s infinite;
+    background: var(--signal);
+    animation: breathe 2.4s ease-in-out infinite;
 }
 
-@keyframes pulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.5; }
+@keyframes breathe {
+
+    0%,
+    100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.35;
+    }
 }
 
 .status-header h2 {
     margin: 0;
-    font-size: 20px;
+    font-family: var(--font-text);
+    font-size: 1.05rem;
     font-weight: 600;
-    color: var(--text-primary);
+    letter-spacing: 0;
     text-transform: none;
+    color: var(--ink-dim);
 }
 
-/* Stats Grid */
+.status-indicator.mining+h2 {
+    color: var(--signal);
+}
+
+/* Three secondary readouts, so a fixed track count keeps them even instead of leaving an
+   orphan column when auto-fit picks four. */
 .stats-grid {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 16px;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: var(--sp-4);
+}
+
+@media (max-width: 520px) {
+    .stats-grid {
+        grid-template-columns: minmax(0, 1fr);
+    }
 }
 
 .stat-item {
-    text-align: center;
-    padding: 12px;
-    background: rgba(0, 0, 0, 0.2);
-    border-radius: 8px;
+    padding: var(--sp-3);
+    background: var(--surface-raised);
+    border: 1px solid var(--hairline);
+    border-radius: var(--radius-sm);
+    min-width: 0;
 }
 
+/* The hero readout leads by size and column span, not by a gradient fill. */
 .stat-item.primary {
-    background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+    grid-column: 1 / -1;
+    background: var(--surface-inset);
 }
 
 .stat-value {
-    font-size: 24px;
-    font-weight: 700;
     display: block;
+    font-family: var(--font-mono);
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: var(--ink);
+    overflow-wrap: anywhere;
 }
 
 .stat-item.primary .stat-value {
-    font-size: 32px;
+    font-size: clamp(2rem, 1.2rem + 3vw, 2.9rem);
+    letter-spacing: -0.03em;
+}
+
+/* Values we do not have are dimmed rather than shown as zero (#54). */
+.stat-value[data-has-value="false"] {
+    color: var(--ink-faint);
 }
 
 .stat-label {
-    font-size: 11px;
-    color: var(--text-secondary);
+    display: block;
+    margin-top: var(--sp-1);
+    font-size: 0.7rem;
+    letter-spacing: 0.08em;
     text-transform: uppercase;
-    letter-spacing: 0.5px;
+    color: var(--ink-faint);
 }
 
-.stat-item.primary .stat-label {
-    color: rgba(255, 255, 255, 0.8);
+/* ---- Form ---- */
+
+.form-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: var(--sp-4);
 }
 
-/* Form */
 .form-group {
-    margin-bottom: 16px;
+    display: grid;
+    gap: var(--sp-2);
+    align-content: start;
+    min-width: 0;
+}
+
+.form-group.span-all {
+    grid-column: 1 / -1;
 }
 
 .form-group label {
-    display: block;
-    font-size: 14px;
-    color: var(--text-secondary);
-    margin-bottom: 8px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--ink-dim);
 }
 
-.form-group input,
+.form-group .hint {
+    font-size: 0.76rem;
+    color: var(--ink-faint);
+}
+
+.form-group input[type="text"],
 .form-group select {
     width: 100%;
-    padding: 12px;
-    background: rgba(0, 0, 0, 0.3);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    color: var(--text-primary);
-    font-size: 14px;
+    min-height: var(--touch-target);
+    padding: var(--sp-2) var(--sp-3);
+    background: var(--surface-inset);
+    border: 1px solid var(--hairline);
+    border-radius: var(--radius-sm);
+    color: var(--ink);
+    font-family: var(--font-mono);
+    font-size: 0.9rem;
+    transition: border-color 150ms ease;
 }
 
-.form-group input:focus,
-.form-group select:focus {
-    outline: none;
-    border-color: var(--primary);
+.form-group input[type="text"]:hover:not(:disabled),
+.form-group select:hover:not(:disabled) {
+    border-color: var(--ink-faint);
+}
+
+.form-group input[type="text"]:focus-visible,
+.form-group select:focus-visible {
+    border-color: var(--signal);
+}
+
+.form-group input[aria-invalid="true"] {
+    border-color: var(--halt);
 }
 
 .form-group input:disabled,
 .form-group select:disabled {
-    opacity: 0.5;
+    opacity: 0.6;
     cursor: not-allowed;
+}
+
+select option:disabled {
+    color: var(--ink-faint);
 }
 
 .profile-controls {
     display: flex;
     flex-wrap: wrap;
-    gap: 8px;
+    gap: var(--sp-2);
     align-items: center;
 }
 
@@ -217,134 +370,187 @@ body {
 
 .profile-controls .btn {
     flex: 0 0 auto;
-    padding: 8px 12px;
-    font-size: 13px;
-}
-
-.save-row {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    align-items: center;
-}
-
-.save-status {
-    font-size: 13px;
-    opacity: 0.85;
-}
-
-.save-status.error {
-    color: var(--danger, #e74c3c);
+    padding: var(--sp-2) var(--sp-3);
+    font-size: 0.82rem;
+    min-height: var(--touch-target);
 }
 
 .import-preview {
-    margin-top: 8px;
-    font-size: 13px;
+    grid-column: 1 / -1;
+    margin-top: var(--sp-1);
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
     white-space: pre-wrap;
-    opacity: 0.9;
+    color: var(--ink-dim);
 }
 
 input[type="range"] {
     -webkit-appearance: none;
-    height: 8px;
-    background: var(--border);
-    border-radius: 4px;
-    border: none;
+    appearance: none;
+    width: 100%;
+    height: 6px;
+    background: var(--surface-inset);
+    border: 1px solid var(--hairline);
+    border-radius: 3px;
 }
 
 input[type="range"]::-webkit-slider-thumb {
     -webkit-appearance: none;
     width: 20px;
     height: 20px;
-    background: var(--primary);
+    background: var(--ember);
+    border: 2px solid var(--ground);
     border-radius: 50%;
     cursor: pointer;
 }
 
-/* Controls */
+.field-error {
+    display: none;
+    gap: var(--sp-2);
+    font-size: 0.82rem;
+    color: var(--halt-ink);
+}
+
+.field-error[data-visible="true"] {
+    display: flex;
+}
+
+/* Saving is an explicit act, so its state is reported in words next to the control. */
+.save-row {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-3);
+    flex-wrap: wrap;
+}
+
+.save-row .btn {
+    flex: 0 0 auto;
+}
+
+.save-status {
+    font-size: 0.8rem;
+    color: var(--ink-faint);
+}
+
+.save-status.error {
+    color: var(--halt-ink);
+}
+
+/* Standing limitations of this build, stated where the user chooses a coin. */
+.notice {
+    display: flex;
+    gap: var(--sp-3);
+    padding: var(--sp-3);
+    border: 1px solid var(--caution);
+    background: var(--caution-container);
+    border-radius: var(--radius-sm);
+    font-size: 0.82rem;
+    color: var(--ink);
+}
+
+/* ---- Controls ---- */
+
 .controls {
     display: flex;
-    gap: 12px;
-    margin-bottom: 20px;
+    gap: var(--sp-3);
+    margin-bottom: var(--sp-4);
 }
 
 .btn {
     flex: 1;
-    padding: 14px 24px;
-    font-size: 16px;
+    min-height: 46px;
+    padding: var(--sp-3) var(--sp-5);
+    font-family: var(--font-text);
+    font-size: 0.95rem;
     font-weight: 600;
-    border: none;
-    border-radius: 8px;
+    border: 1px solid transparent;
+    border-radius: var(--radius-sm);
     cursor: pointer;
-    transition: all 0.2s;
+    transition: background-color 150ms ease, border-color 150ms ease, color 150ms ease;
 }
 
 .btn:disabled {
-    opacity: 0.5;
+    opacity: 0.45;
     cursor: not-allowed;
 }
 
 .btn-primary {
-    background: linear-gradient(135deg, var(--primary), var(--primary-dark));
-    color: white;
+    background: var(--ember);
+    color: var(--ember-ink);
 }
 
 .btn-primary:hover:not(:disabled) {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(124, 58, 237, 0.4);
+    background: #f0863f;
+}
+
+.btn-secondary {
+    min-height: var(--touch-target);
+    background: var(--surface-raised);
+    border-color: var(--hairline);
+    color: var(--ink);
+    font-size: 0.88rem;
+}
+
+.btn-secondary:hover:not(:disabled) {
+    border-color: var(--ink-faint);
 }
 
 .btn-danger {
-    background: var(--danger);
-    color: white;
+    background: transparent;
+    border-color: var(--hairline);
+    color: var(--ink-dim);
 }
 
 .btn-danger:hover:not(:disabled) {
-    background: #dc2626;
+    border-color: var(--halt);
+    color: var(--halt-ink);
 }
 
-/* Log Output */
+/* ---- Log ---- */
+
 .log-output {
-    background: rgba(0, 0, 0, 0.3);
-    border-radius: 8px;
-    padding: 12px;
-    max-height: 200px;
+    background: var(--surface-inset);
+    border: 1px solid var(--hairline);
+    border-radius: var(--radius-sm);
+    padding: var(--sp-3);
+    max-height: 220px;
     overflow-y: auto;
-    font-family: 'SF Mono', Monaco, 'Courier New', monospace;
-    font-size: 12px;
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    line-height: 1.6;
 }
 
 .log-line {
-    padding: 4px 0;
-    color: var(--text-secondary);
+    padding: 2px 0;
+    color: var(--ink-dim);
+    overflow-wrap: anywhere;
 }
 
 .log-line.log-success {
-    color: var(--success);
+    color: var(--signal);
 }
 
 .log-line.log-error {
-    color: var(--danger);
+    color: var(--halt-ink);
 }
 
 .log-line.log-warning {
-    color: var(--warning);
+    color: var(--caution);
 }
 
-/* Scrollbar */
 ::-webkit-scrollbar {
-    width: 8px;
+    width: 10px;
 }
 
 ::-webkit-scrollbar-track {
-    background: transparent;
+    background: var(--surface-inset);
 }
 
 ::-webkit-scrollbar-thumb {
-    background: var(--border);
-    border-radius: 4px;
+    background: var(--hairline);
+    border-radius: 5px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-    background: var(--text-secondary);
+    background: var(--ink-faint);
 }
