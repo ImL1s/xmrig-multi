@@ -38,6 +38,12 @@ pub struct MiningConfig {
     /// Optional CPU id list for >64 / multi-word cases. Prefer over truncated 32-bit masks (#36).
     #[serde(default)]
     pub cpu_ids: Option<Vec<u32>>,
+    /// XMRig pause-on-battery (#77).
+    #[serde(default)]
+    pub pause_on_battery: bool,
+    /// XMRig pause-on-active: None=off, Some(0)=true, Some(n)=idle seconds (#77).
+    #[serde(default)]
+    pub pause_on_active_seconds: Option<u32>,
 }
 
 fn default_randomx_mode() -> String {
@@ -344,6 +350,23 @@ impl MinerState {
         }
         for w in &affinity.warnings {
             eprintln!("[affinity] {w}");
+        }
+
+        let idle_plan = crate::idle_policy::plan_engine_flags(
+            std::env::consts::OS,
+            &crate::idle_policy::IdleEnginePrefs {
+                pause_on_battery: config.pause_on_battery,
+                pause_on_active_seconds: config.pause_on_active_seconds,
+            },
+        );
+        for arg in &idle_plan.argv {
+            cmd.arg(arg);
+        }
+        for w in &idle_plan.warnings {
+            eprintln!("[idle] {w}");
+        }
+        for d in &idle_plan.degradations {
+            eprintln!("[idle] degrade: {d}");
         }
 
         cmd.stdout(Stdio::piped()).stderr(Stdio::piped());
@@ -758,6 +781,8 @@ mod tests {
             yield_cpu: true,
             cpu_affinity: Some("0x15".into()),
             cpu_ids: Some(vec![0, 2, 4]),
+            pause_on_battery: false,
+            pause_on_active_seconds: None,
         };
         let serialized = serde_json::to_string(&config).unwrap();
         let deserialized: MiningConfig = serde_json::from_str(&serialized).unwrap();

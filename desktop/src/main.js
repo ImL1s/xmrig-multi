@@ -1,5 +1,6 @@
 // XMRig Multi Desktop - Frontend
 import { invoke } from '@tauri-apps/api/core';
+import { listen } from '@tauri-apps/api/event';
 import {
     applyImport,
     createProfile,
@@ -21,6 +22,8 @@ import {
     estimateShareWait,
     firstShareStatus
 } from '../../shared/pool-recommend/js/recommend.js';
+import { capabilityMatrix } from '../../shared/desktop-idle-policy/js/matrix.js';
+import { CLOSE_PREFS } from '../../shared/desktop-idle-policy/js/close.js';
 
 const elements = {
     cpuName: document.getElementById('cpu-name'),
@@ -58,6 +61,16 @@ const elements = {
     importPreview: document.getElementById('import-preview'),
     saveStatus: document.getElementById('save-status'),
     logOutput: document.getElementById('log-output'),
+    idleMineMinutes: document.getElementById('idle-mine-minutes'),
+    pauseOnActiveSeconds: document.getElementById('pause-on-active-seconds'),
+    pauseOnBattery: document.getElementById('pause-on-battery'),
+    pauseWhenActive: document.getElementById('pause-when-active'),
+    closePreference: document.getElementById('close-preference'),
+    loginAutostart: document.getElementById('login-autostart'),
+    resumeLastSession: document.getElementById('resume-last-session'),
+    keepAwakeConsent: document.getElementById('keep-awake-consent'),
+    idleCapabilityHint: document.getElementById('idle-capability-hint'),
+    idleStatusReason: document.getElementById('idle-status-reason'),
 };
 
 const poolConfigs = generatedPools.poolConfigs;
@@ -78,7 +91,159 @@ async function init() {
     await loadSystemInfo();
     setupEventListeners();
     restoreSettings();
+    await loadIdleCapability();
+    await setupClosePreferenceListener();
+    startIdleStatusLoop();
     log('Ready to mine!');
+}
+
+async function setupClosePreferenceListener() {
+    try {
+        await listen('close-preference-needed', async () => {
+            const remember = window.confirm(
+                'Close window: OK = Quit and stop mining.\nCancel = Minimize to tray (only if mining is already authorized).\n\nAfter choosing, use Idle & window policy to remember a preference.'
+            );
+            const choice = remember
+                ? CLOSE_PREFS.QUIT_AND_STOP
+                : CLOSE_PREFS.MINIMIZE_TO_TRAY;
+            const rememberChoice = window.confirm('Remember this close preference?');
+            const result = await invoke('apply_close_decision', {
+                req: {
+                    savedPreference: 'ask',
+                    userChoice: choice,
+                    rememberChoice,
+                    sessionAuthorized: isMining
+                }
+            });
+            if (result?.nextPreference && elements.closePreference) {
+                elements.closePreference.value = result.nextPreference;
+                persistSettings();
+            }
+            if (result?.reasons?.length && elements.idleStatusReason) {
+                elements.idleStatusReason.textContent = result.reasons.join(' · ');
+            }
+        });
+    } catch (error) {
+        log(`Close preference listener unavailable: ${error}`, 'error');
+    }
+}
+
+let idleStatusTimer = null;
+let enginePauseOnActiveArmed = false;
+
+function startIdleStatusLoop() {
+    if (idleStatusTimer) clearInterval(idleStatusTimer);
+    idleStatusTimer = setInterval(() => {
+        refreshIdleStatus().catch(() => {});
+    }, 5000);
+    refreshIdleStatus().catch(() => {});
+}
+
+async function refreshIdleStatus() {
+    if (!elements.idleStatusReason) return;
+    const c = collectConvenienceFromUi();
+    const osHint = (await invoke('get_system_info').catch(() => null))?.os_name || '';
+    const osKey = /windows/i.test(osHint) ? 'windows' : /mac/i.test(osHint) ? 'macos' : 'linux';
+    const matrix = capabilityMatrix(osKey);
+    const nativePoa = matrix.pauseOnActive?.state === 'available';
+    try {
+        const verdict = await invoke('evaluate_desktop_idle', {
+            req: {
+                userStopped: false,
+                miningArmed: isMining,
+                onBattery: null, // do not fabricate AC; unknown until probed
+                // App-layer idle timestamps are not probed yet — never assume idle.
+                idleMs: null,
+                idleReliable: false,
+                idleMineAfterMs: Math.max(1, c.idleMineAfterMinutes) * 60_000,
+                pauseWhenActive: c.pauseWhenActive,
+                pauseOnUnplug: c.pauseOnBattery,
+                systemSleeping: false,
+                keepAwakeConsent: c.keepAwakeConsent,
+                respectSleep: !c.keepAwakeConsent,
+                enginePauseOnActiveArmed: enginePauseOnActiveArmed && nativePoa
+            }
+        });
+        const reasons = (verdict.reasons || []).join(' · ');
+        elements.idleStatusReason.textContent = `${verdict.kind}: ${reasons}`;
+        const tip = await invoke('get_tray_status').catch(() => null);
+        if (tip) {
+            // tooltip is updated server-side; surface in log sparingly
+        }
+    } catch (error) {
+        elements.idleStatusReason.textContent = `Idle status error: ${error}`;
+    }
+}
+
+async function loadIdleCapability() {
+    try {
+        const matrix = await invoke('get_idle_capability_matrix');
+        const poa = matrix.pauseOnActive || matrix.pause_on_active;
+        if (elements.idleCapabilityHint && poa) {
+            elements.idleCapabilityHint.textContent =
+                `${poa.label}: ${poa.state} — ${(poa.reasons || []).join(' ')}`;
+        }
+        if (poa?.state !== 'available') {
+            if (elements.pauseWhenActive) {
+                elements.pauseWhenActive.checked = false;
+                elements.pauseWhenActive.disabled = true;
+            }
+            const hint = document.getElementById('pause-when-active-hint');
+            if (hint) {
+                hint.textContent =
+                    'Native pause-on-active unsupported on this OS — control disabled; idle is never assumed.';
+            }
+        }
+        const plan = await invoke('plan_idle_engine_flags', {
+            prefs: collectConveniencePrefsForEngine()
+        });
+        if (plan.degradations?.length) {
+            log(`Idle engine: ${plan.degradations.join('; ')}`, 'info');
+        }
+    } catch (error) {
+        log(`Idle capability unavailable: ${error}`, 'error');
+    }
+}
+
+function collectConvenienceFromUi() {
+    return {
+        idleMineAfterMinutes: Number(elements.idleMineMinutes?.value || 5),
+        pauseOnActiveSeconds: Number(elements.pauseOnActiveSeconds?.value ?? 60),
+        pauseOnBattery: Boolean(elements.pauseOnBattery?.checked),
+        pauseWhenActive: Boolean(elements.pauseWhenActive?.checked),
+        closePreference: elements.closePreference?.value || 'ask',
+        loginAutostart: Boolean(elements.loginAutostart?.checked),
+        resumeLastSessionOnLaunch: Boolean(elements.resumeLastSession?.checked),
+        keepAwakeConsent: Boolean(elements.keepAwakeConsent?.checked)
+    };
+}
+
+function collectConveniencePrefsForEngine() {
+    const c = collectConvenienceFromUi();
+    return {
+        pauseOnBattery: c.pauseOnBattery,
+        pauseOnActiveSeconds: c.pauseWhenActive ? c.pauseOnActiveSeconds : null
+    };
+}
+
+function applyConvenienceToUi(c) {
+    if (!c) return;
+    if (elements.idleMineMinutes) elements.idleMineMinutes.value = String(c.idleMineAfterMinutes ?? 5);
+    if (elements.pauseOnActiveSeconds) {
+        elements.pauseOnActiveSeconds.value = String(c.pauseOnActiveSeconds ?? 60);
+    }
+    if (elements.pauseOnBattery) elements.pauseOnBattery.checked = c.pauseOnBattery !== false;
+    if (elements.pauseWhenActive) elements.pauseWhenActive.checked = c.pauseWhenActive !== false;
+    if (elements.closePreference) elements.closePreference.value = c.closePreference || 'ask';
+    if (elements.loginAutostart) elements.loginAutostart.checked = Boolean(c.loginAutostart);
+    if (elements.resumeLastSession) {
+        elements.resumeLastSession.checked = Boolean(c.resumeLastSessionOnLaunch);
+    }
+    if (elements.keepAwakeConsent) elements.keepAwakeConsent.checked = Boolean(c.keepAwakeConsent);
+    // Keep Rust SessionPrefs in sync with restored UI (avoid close split-brain).
+    invoke('set_close_preference', {
+        req: { preference: c.closePreference || 'ask' }
+    }).catch(() => {});
 }
 
 async function loadSystemInfo() {
@@ -114,6 +279,7 @@ function restoreSettings() {
     refreshProfileSelect();
     const profile = getActiveProfile(settingsStore);
     applyProfileToUi(profile);
+    applyConvenienceToUi(settingsStore.convenience);
 }
 
 function refreshProfileSelect() {
@@ -187,6 +353,7 @@ function persistSettings() {
     const profile = collectProfileFromUi();
     settingsStore = {
         ...settingsStore,
+        convenience: collectConvenienceFromUi(),
         profiles: settingsStore.profiles.map((p) => (p.id === profile.id ? profile : p))
     };
     if (!settingsStore.profiles.some((p) => p.id === profile.id)) {
@@ -286,6 +453,24 @@ function setupEventListeners() {
         elements.threadValue.textContent = elements.threads.value;
         markDirty();
     });
+    elements.randomxMode?.addEventListener('change', markDirty);
+    elements.idleMineMinutes?.addEventListener('input', markDirty);
+    elements.pauseOnActiveSeconds?.addEventListener('input', markDirty);
+    elements.pauseOnBattery?.addEventListener('change', markDirty);
+    elements.pauseWhenActive?.addEventListener('change', markDirty);
+    elements.closePreference?.addEventListener('change', async () => {
+        markDirty();
+        try {
+            await invoke('set_close_preference', {
+                req: { preference: elements.closePreference.value }
+            });
+        } catch (_) {
+            /* ignore */
+        }
+    });
+    elements.loginAutostart?.addEventListener('change', markDirty);
+    elements.resumeLastSession?.addEventListener('change', markDirty);
+    elements.keepAwakeConsent?.addEventListener('change', markDirty);
     elements.startBtn.addEventListener('click', startMining);
     elements.stopBtn.addEventListener('click', stopMining);
     elements.saveBtn?.addEventListener('click', () => persistSettings());
@@ -516,6 +701,37 @@ async function startMining() {
     clearWalletError();
     persistSettings();
 
+    try {
+        await invoke('clear_user_stop');
+    } catch (_) {
+        /* older backend */
+    }
+
+    const convenience = collectConvenienceFromUi();
+    const osHint = (await invoke('get_system_info').catch(() => null))?.os_name || '';
+    const osKey = /windows/i.test(osHint) ? 'windows' : /mac/i.test(osHint) ? 'macos' : 'linux';
+    const matrix = capabilityMatrix(osKey);
+    const nativePoa = matrix.pauseOnActive?.state === 'available';
+
+    // Single coordinator: native pause-on-active owns Win/macOS; Linux degrades.
+    let pause_on_active_seconds = null;
+    enginePauseOnActiveArmed = false;
+    if (convenience.pauseWhenActive) {
+        if (nativePoa) {
+            // Idle minutes is the user-facing threshold; maps to engine seconds.
+            pause_on_active_seconds = Math.max(1, convenience.idleMineAfterMinutes) * 60;
+            enginePauseOnActiveArmed = true;
+            if (elements.pauseOnActiveSeconds) {
+                elements.pauseOnActiveSeconds.value = String(pause_on_active_seconds);
+            }
+        } else {
+            log(
+                'pause-on-active unsupported here — app will not assume idle; use manual Stop/Start',
+                'info'
+            );
+        }
+    }
+
     const config = {
         pool_url: poolUrl,
         wallet_address: wallet,
@@ -524,6 +740,8 @@ async function startMining() {
         coin_type: coin,
         algorithm: algo,
         randomx_mode: elements.randomxMode?.value || 'auto',
+        pause_on_battery: convenience.pauseOnBattery,
+        pause_on_active_seconds,
     };
 
     log(`Starting ${coin.toUpperCase()} mining...`);

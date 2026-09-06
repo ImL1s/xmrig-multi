@@ -134,6 +134,67 @@
                 </form>
             </section>
 
+            <section class="card config-section" aria-labelledby="idle-heading">
+                <h2 id="idle-heading">Idle &amp; window policy</h2>
+                <p class="hint" id="idle-capability-hint">
+                    Maps to XMRig pause-on-active / pause-on-battery where the OS supports them (#77).
+                    Linux does not claim native pause-on-active.
+                </p>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="idle-mine-minutes">Mine only after idle (minutes)</label>
+                        <input type="number" id="idle-mine-minutes" min="1" max="240" value="5">
+                        <p class="hint">On Windows/macOS this maps to XMRig pause-on-active seconds (minutes×60) when pause-when-active is on. Linux has no native idle mine timer yet.</p>
+                    </div>
+                    <div class="form-group">
+                        <label for="pause-on-active-seconds">Engine pause-on-active (seconds, 0=true)</label>
+                        <input type="number" id="pause-on-active-seconds" min="0" max="3600" value="60">
+                        <p class="hint">Ignored with a clear degradation note when unsupported.</p>
+                    </div>
+                    <div class="form-group span-all">
+                        <label>
+                            <input type="checkbox" id="pause-on-battery" checked>
+                            Pause when on battery / unplugged
+                        </label>
+                    </div>
+                    <div class="form-group span-all">
+                        <label>
+                            <input type="checkbox" id="pause-when-active" checked>
+                            Pause while the user is active (uses XMRig pause-on-active where supported)
+                        </label>
+                        <p class="hint" id="pause-when-active-hint">Unsupported OSes keep mining only under manual Start/Stop — idle is never assumed.</p>
+                    </div>
+                    <div class="form-group">
+                        <label for="close-preference">Close window</label>
+                        <select id="close-preference">
+                            <option value="ask">Ask each time (default)</option>
+                            <option value="quit-and-stop">Quit and stop mining</option>
+                            <option value="minimize-to-tray">Minimize to tray (authorized sessions only)</option>
+                        </select>
+                        <p class="hint">Never defaults to hide-and-mine.</p>
+                    </div>
+                    <div class="form-group span-all">
+                        <label>
+                            <input type="checkbox" id="login-autostart">
+                            Preference: launch app at login (OS registration not auto-written yet)
+                        </label>
+                    </div>
+                    <div class="form-group span-all">
+                        <label>
+                            <input type="checkbox" id="resume-last-session">
+                            Preference: resume last mining session on launch (separate from login; not auto-armed)
+                        </label>
+                    </div>
+                    <div class="form-group span-all">
+                        <label>
+                            <input type="checkbox" id="keep-awake-consent">
+                            Advanced consent: allow keep-awake requests (off = always respect sleep/lid; inhibitor not installed yet)
+                        </label>
+                    </div>
+                    <p class="hint span-all" id="idle-status-reason" role="status"></p>
+                </div>
+            </section>
+
             <section class="card system-info" aria-labelledby="system-heading">
                 <h2 id="system-heading">This machine</h2>
                 <div class="info-grid">

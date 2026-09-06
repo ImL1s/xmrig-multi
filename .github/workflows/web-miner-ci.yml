@@ -31,6 +31,7 @@ on:
       - 'shared/ambient-clock/**'
       - 'shared/economy-snapshot/**'
       - 'shared/automation-policy/**'
+      - 'shared/desktop-idle-policy/**'
       - 'app/src/main/assets/pools.json'
       - 'desktop/src/generated-pool-configs.json'
       - 'desktop/src/main.js'
@@ -57,6 +58,7 @@ on:
       - 'shared/ambient-clock/**'
       - 'shared/economy-snapshot/**'
       - 'shared/automation-policy/**'
+      - 'shared/desktop-idle-policy/**'
       - 'shared/cpu-topology/**'
       - 'shared/thermal-policy/**'
       - 'shared/power-policy/**'
@@ -224,6 +226,10 @@ jobs:
       - name: Automation policy / budget gates (#73)
         working-directory: .
         run: node --test shared/automation-policy/test/*.test.js
+
+      - name: Desktop idle / tray / close policy (#77)
+        working-directory: .
+        run: node --test shared/desktop-idle-policy/test/*.test.js
 
       - name: Build for Production
         run: npm run build
