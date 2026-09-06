@@ -4,6 +4,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod hardware;
+mod idle_policy;
 mod miner;
 mod optimize;
 
@@ -89,6 +90,105 @@ fn plan_desktop_optimize(req: OptimizeRequestDto) -> optimize::OptimizePlan {
     )
 }
 
+#[tauri::command]
+fn get_idle_capability_matrix() -> idle_policy::IdleCapabilityMatrix {
+    idle_policy::capability_matrix(std::env::consts::OS)
+}
+
+#[derive(Debug, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct IdleEnginePrefsDto {
+    #[serde(default)]
+    pause_on_battery: bool,
+    #[serde(default)]
+    pause_on_active_seconds: Option<u32>,
+}
+
+#[tauri::command]
+fn plan_idle_engine_flags(prefs: IdleEnginePrefsDto) -> idle_policy::IdleEnginePlan {
+    idle_policy::plan_engine_flags(
+        std::env::consts::OS,
+        &idle_policy::IdleEnginePrefs {
+            pause_on_battery: prefs.pause_on_battery,
+            pause_on_active_seconds: prefs.pause_on_active_seconds,
+        },
+    )
+}
+
+#[derive(Debug, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct CloseBehaviorDto {
+    #[serde(default)]
+    saved_preference: Option<String>,
+    #[serde(default)]
+    user_choice: Option<String>,
+    #[serde(default)]
+    remember_choice: bool,
+    #[serde(default)]
+    session_authorized: bool,
+}
+
+#[tauri::command]
+fn resolve_close_behavior(req: CloseBehaviorDto) -> idle_policy::CloseDecision {
+    idle_policy::resolve_close_behavior(
+        req.saved_preference.as_deref(),
+        req.user_choice.as_deref(),
+        req.remember_choice,
+        req.session_authorized,
+    )
+}
+
+#[derive(Debug, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct IdleEvalDto {
+    #[serde(default)]
+    user_stopped: bool,
+    #[serde(default)]
+    mining_armed: bool,
+    #[serde(default)]
+    on_battery: Option<bool>,
+    #[serde(default)]
+    idle_ms: Option<u64>,
+    #[serde(default)]
+    idle_reliable: bool,
+    #[serde(default = "default_idle_ms")]
+    idle_mine_after_ms: u64,
+    #[serde(default = "default_true")]
+    pause_when_active: bool,
+    #[serde(default = "default_true")]
+    pause_on_unplug: bool,
+    #[serde(default)]
+    system_sleeping: bool,
+    #[serde(default)]
+    keep_awake_consent: bool,
+    #[serde(default = "default_true")]
+    respect_sleep: bool,
+}
+
+fn default_idle_ms() -> u64 {
+    5 * 60_000
+}
+
+#[tauri::command]
+fn evaluate_desktop_idle(req: IdleEvalDto) -> idle_policy::IdleVerdict {
+    idle_policy::evaluate_idle(
+        std::env::consts::OS,
+        &idle_policy::IdleEvalInput {
+            user_stopped: req.user_stopped,
+            mining_armed: req.mining_armed,
+            on_battery: req.on_battery,
+            idle_ms: req.idle_ms,
+            idle_reliable: req.idle_reliable,
+            idle_mine_after_ms: req.idle_mine_after_ms,
+            pause_when_active: req.pause_when_active,
+            pause_on_unplug: req.pause_on_unplug,
+            system_sleeping: req.system_sleeping,
+            keep_awake_consent: req.keep_awake_consent,
+            respect_sleep: req.respect_sleep,
+        },
+    )
+}
+
 #[derive(Debug, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct OptimizeRequestDto {
@@ -141,6 +241,10 @@ fn main() {
             export_hardware_report,
             get_optimize_matrix,
             plan_desktop_optimize,
+            get_idle_capability_matrix,
+            plan_idle_engine_flags,
+            resolve_close_behavior,
+            evaluate_desktop_idle,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

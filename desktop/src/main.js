@@ -58,6 +58,16 @@ const elements = {
     importPreview: document.getElementById('import-preview'),
     saveStatus: document.getElementById('save-status'),
     logOutput: document.getElementById('log-output'),
+    idleMineMinutes: document.getElementById('idle-mine-minutes'),
+    pauseOnActiveSeconds: document.getElementById('pause-on-active-seconds'),
+    pauseOnBattery: document.getElementById('pause-on-battery'),
+    pauseWhenActive: document.getElementById('pause-when-active'),
+    closePreference: document.getElementById('close-preference'),
+    loginAutostart: document.getElementById('login-autostart'),
+    resumeLastSession: document.getElementById('resume-last-session'),
+    keepAwakeConsent: document.getElementById('keep-awake-consent'),
+    idleCapabilityHint: document.getElementById('idle-capability-hint'),
+    idleStatusReason: document.getElementById('idle-status-reason'),
 };
 
 const poolConfigs = generatedPools.poolConfigs;
@@ -78,7 +88,64 @@ async function init() {
     await loadSystemInfo();
     setupEventListeners();
     restoreSettings();
+    await loadIdleCapability();
     log('Ready to mine!');
+}
+
+async function loadIdleCapability() {
+    try {
+        const matrix = await invoke('get_idle_capability_matrix');
+        const poa = matrix.pauseOnActive || matrix.pause_on_active;
+        if (elements.idleCapabilityHint && poa) {
+            elements.idleCapabilityHint.textContent =
+                `${poa.label}: ${poa.state} — ${(poa.reasons || []).join(' ')}`;
+        }
+        const plan = await invoke('plan_idle_engine_flags', {
+            prefs: collectConveniencePrefsForEngine()
+        });
+        if (plan.degradations?.length) {
+            log(`Idle engine: ${plan.degradations.join('; ')}`, 'info');
+        }
+    } catch (error) {
+        log(`Idle capability unavailable: ${error}`, 'error');
+    }
+}
+
+function collectConvenienceFromUi() {
+    return {
+        idleMineAfterMinutes: Number(elements.idleMineMinutes?.value || 5),
+        pauseOnActiveSeconds: Number(elements.pauseOnActiveSeconds?.value ?? 60),
+        pauseOnBattery: Boolean(elements.pauseOnBattery?.checked),
+        pauseWhenActive: Boolean(elements.pauseWhenActive?.checked),
+        closePreference: elements.closePreference?.value || 'ask',
+        loginAutostart: Boolean(elements.loginAutostart?.checked),
+        resumeLastSessionOnLaunch: Boolean(elements.resumeLastSession?.checked),
+        keepAwakeConsent: Boolean(elements.keepAwakeConsent?.checked)
+    };
+}
+
+function collectConveniencePrefsForEngine() {
+    const c = collectConvenienceFromUi();
+    return {
+        pauseOnBattery: c.pauseOnBattery,
+        pauseOnActiveSeconds: c.pauseWhenActive ? c.pauseOnActiveSeconds : null
+    };
+}
+
+function applyConvenienceToUi(c) {
+    if (!c) return;
+    if (elements.idleMineMinutes) elements.idleMineMinutes.value = String(c.idleMineAfterMinutes ?? 5);
+    if (elements.pauseOnActiveSeconds) {
+        elements.pauseOnActiveSeconds.value = String(c.pauseOnActiveSeconds ?? 60);
+    }
+    if (elements.pauseOnBattery) elements.pauseOnBattery.checked = c.pauseOnBattery !== false;
+    if (elements.pauseWhenActive) elements.pauseWhenActive.checked = c.pauseWhenActive !== false;
+    if (elements.closePreference) elements.closePreference.value = c.closePreference || 'ask';
+    if (elements.loginAutostart) elements.loginAutostart.checked = Boolean(c.loginAutostart);
+    if (elements.resumeLastSession) {
+        elements.resumeLastSession.checked = Boolean(c.resumeLastSessionOnLaunch);
+    }
+    if (elements.keepAwakeConsent) elements.keepAwakeConsent.checked = Boolean(c.keepAwakeConsent);
 }
 
 async function loadSystemInfo() {
@@ -114,6 +181,7 @@ function restoreSettings() {
     refreshProfileSelect();
     const profile = getActiveProfile(settingsStore);
     applyProfileToUi(profile);
+    applyConvenienceToUi(settingsStore.convenience);
 }
 
 function refreshProfileSelect() {
@@ -187,6 +255,7 @@ function persistSettings() {
     const profile = collectProfileFromUi();
     settingsStore = {
         ...settingsStore,
+        convenience: collectConvenienceFromUi(),
         profiles: settingsStore.profiles.map((p) => (p.id === profile.id ? profile : p))
     };
     if (!settingsStore.profiles.some((p) => p.id === profile.id)) {
@@ -286,6 +355,15 @@ function setupEventListeners() {
         elements.threadValue.textContent = elements.threads.value;
         markDirty();
     });
+    elements.randomxMode?.addEventListener('change', markDirty);
+    elements.idleMineMinutes?.addEventListener('input', markDirty);
+    elements.pauseOnActiveSeconds?.addEventListener('input', markDirty);
+    elements.pauseOnBattery?.addEventListener('change', markDirty);
+    elements.pauseWhenActive?.addEventListener('change', markDirty);
+    elements.closePreference?.addEventListener('change', markDirty);
+    elements.loginAutostart?.addEventListener('change', markDirty);
+    elements.resumeLastSession?.addEventListener('change', markDirty);
+    elements.keepAwakeConsent?.addEventListener('change', markDirty);
     elements.startBtn.addEventListener('click', startMining);
     elements.stopBtn.addEventListener('click', stopMining);
     elements.saveBtn?.addEventListener('click', () => persistSettings());
@@ -516,6 +594,7 @@ async function startMining() {
     clearWalletError();
     persistSettings();
 
+    const convenience = collectConvenienceFromUi();
     const config = {
         pool_url: poolUrl,
         wallet_address: wallet,
@@ -524,6 +603,10 @@ async function startMining() {
         coin_type: coin,
         algorithm: algo,
         randomx_mode: elements.randomxMode?.value || 'auto',
+        pause_on_battery: convenience.pauseOnBattery,
+        pause_on_active_seconds: convenience.pauseWhenActive
+            ? convenience.pauseOnActiveSeconds
+            : null,
     };
 
     log(`Starting ${coin.toUpperCase()} mining...`);

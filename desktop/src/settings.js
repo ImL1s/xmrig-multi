@@ -43,7 +43,45 @@ export function defaultDesktopStore(cpuThreads = 4) {
     return {
         schemaVersion: 1,
         activeProfileId: 'default',
-        profiles: [defaultProfile(cpuThreads)]
+        profiles: [defaultProfile(cpuThreads)],
+        convenience: defaultConvenience()
+    };
+}
+
+export function defaultConvenience() {
+    return {
+        idleMineAfterMinutes: 5,
+        pauseOnActiveSeconds: 60,
+        pauseOnBattery: true,
+        pauseWhenActive: true,
+        closePreference: 'ask',
+        loginAutostart: false,
+        resumeLastSessionOnLaunch: false,
+        keepAwakeConsent: false
+    };
+}
+
+export function normalizeConvenience(raw) {
+    const d = defaultConvenience();
+    if (!raw || typeof raw !== 'object') return d;
+    const minutes = Number(raw.idleMineAfterMinutes);
+    const poa = Number(raw.pauseOnActiveSeconds);
+    const close = String(raw.closePreference || 'ask');
+    return {
+        idleMineAfterMinutes: Number.isFinite(minutes)
+            ? Math.max(1, Math.min(240, Math.floor(minutes)))
+            : d.idleMineAfterMinutes,
+        pauseOnActiveSeconds: Number.isFinite(poa)
+            ? Math.max(0, Math.min(3600, Math.floor(poa)))
+            : d.pauseOnActiveSeconds,
+        pauseOnBattery: raw.pauseOnBattery !== false,
+        pauseWhenActive: raw.pauseWhenActive !== false,
+        closePreference: ['ask', 'quit-and-stop', 'minimize-to-tray'].includes(close)
+            ? close
+            : 'ask',
+        loginAutostart: Boolean(raw.loginAutostart),
+        resumeLastSessionOnLaunch: Boolean(raw.resumeLastSessionOnLaunch),
+        keepAwakeConsent: Boolean(raw.keepAwakeConsent)
     };
 }
 
@@ -64,7 +102,12 @@ export function normalizeDesktopStore(raw, cpuThreads = 4) {
     if (!cleaned.some((p) => p.id === active)) active = cleaned[0].id;
     return {
         ok: true,
-        store: { schemaVersion: 1, activeProfileId: active, profiles: cleaned },
+        store: {
+            schemaVersion: 1,
+            activeProfileId: active,
+            profiles: cleaned,
+            convenience: normalizeConvenience(raw.convenience)
+        },
         error: null
     };
 }
