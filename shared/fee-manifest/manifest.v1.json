@@ -1,0 +1,121 @@
+{
+  "schemaVersion": 1,
+  "developerWallet": "8AfUwcnoJiRDMXnDGj3zX6bMgfaj9pM1WFGr2pakLm3jSYXVLD5fcDMBzkmk4AeSqWYQTA5aerXJ43W65AT82RMqG6NDBnC",
+  "developerPercent": 1,
+  "cycleSeconds": 6000,
+  "feeDurationSeconds": 60,
+  "basis": "mining-time-window",
+  "basisNote": "1% means ~60s of every 6000s mining time to the developer wallet — not an account balance deduction and not a pool fee.",
+  "platforms": {
+    "android": {
+      "artifact": "libxmrig.so via build_xmrig.sh + xmrig_custom_source",
+      "engineProvenance": "project-donate",
+      "layers": [
+        {
+          "id": "developer",
+          "kind": "developer",
+          "ratePercent": 1,
+          "basis": "mining-time-window",
+          "beneficiary": "project",
+          "implementation": "xmrig-donate-level",
+          "adjustable": false,
+          "minimumPercent": 1,
+          "destination": "developerWallet"
+        },
+        {
+          "id": "pool",
+          "kind": "pool",
+          "ratePercent": null,
+          "basis": "pool-policy",
+          "beneficiary": "pool-operator",
+          "implementation": "external",
+          "adjustable": false,
+          "note": "Pool fee is operator-defined; never display as 0% when unknown — show unknown from registry metadata."
+        }
+      ]
+    },
+    "desktop": {
+      "artifact": "bundled xmrig with --donate-level=1",
+      "engineProvenance": "project-donate",
+      "layers": [
+        {
+          "id": "developer",
+          "kind": "developer",
+          "ratePercent": 1,
+          "basis": "mining-time-window",
+          "beneficiary": "project",
+          "implementation": "xmrig-donate-level",
+          "adjustable": false,
+          "minimumPercent": 1,
+          "destination": "developerWallet"
+        },
+        {
+          "id": "pool",
+          "kind": "pool",
+          "ratePercent": null,
+          "basis": "pool-policy",
+          "beneficiary": "pool-operator",
+          "implementation": "external",
+          "adjustable": false,
+          "note": "Pool fee unknown unless registry provides feePercent."
+        }
+      ]
+    },
+    "ios": {
+      "artifact": "tracked ios/XMRigCore/output/libxmrig-ios-arm64.a",
+      "engineProvenance": "upstream-donate-until-rebuild",
+      "mismatch": true,
+      "mismatchNote": "Tracked binary still uses upstream donate.v2.xmrig.com until rebuild via ios/XMRigCore/scripts/build-ios.sh with project DonateStrategy.",
+      "layers": [
+        {
+          "id": "upstream-or-developer",
+          "kind": "developer",
+          "ratePercent": 1,
+          "basis": "mining-time-window",
+          "beneficiary": "upstream-or-project",
+          "implementation": "xmrig-donate-level",
+          "adjustable": false,
+          "minimumPercent": 1,
+          "note": "After rebuild with project sources, beneficiary is project wallet; until then upstream."
+        },
+        {
+          "id": "pool",
+          "kind": "pool",
+          "ratePercent": null,
+          "basis": "pool-policy",
+          "beneficiary": "pool-operator",
+          "implementation": "external",
+          "adjustable": false
+        }
+      ]
+    },
+    "web": {
+      "artifact": "browser RandomX.js + optional web/proxy",
+      "engineProvenance": "proxy-time-window",
+      "layers": [
+        {
+          "id": "developer-proxy",
+          "kind": "proxy-developer",
+          "ratePercent": 1,
+          "basis": "mining-time-window",
+          "beneficiary": "project",
+          "implementation": "web-proxy-login-rewrite",
+          "adjustable": false,
+          "appliesToCoins": ["monero"],
+          "destination": "developerWallet",
+          "note": "Only when traffic goes through this project's proxy; WOW/DERO sessions are not rewritten."
+        },
+        {
+          "id": "pool",
+          "kind": "pool",
+          "ratePercent": null,
+          "basis": "pool-policy",
+          "beneficiary": "pool-operator",
+          "implementation": "external",
+          "adjustable": false
+        }
+      ],
+      "stackingNote": "Native XMRig donate and web proxy fee are different stacks — do not run both on the same session. UI must not show only one when both could apply."
+    }
+  }
+}
