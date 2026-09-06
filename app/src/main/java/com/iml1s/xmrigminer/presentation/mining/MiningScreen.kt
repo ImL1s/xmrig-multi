@@ -300,11 +300,13 @@ private fun StatusPanel(isRunning: Boolean, stats: MiningStats) {
         Row(modifier = Modifier.fillMaxWidth()) {
             LedgerCell("已接受", stats.acceptedShares.toString(), Modifier.weight(1f), hasSession)
             LedgerCell("已拒絕", stats.rejectedShares.toString(), Modifier.weight(1f), hasSession)
+            val successRate = MetricFormat.shareSuccessRate(stats.acceptedShares, stats.rejectedShares)
             LedgerCell(
                 label = "成功率",
-                value = MetricFormat.shareSuccessRate(stats.acceptedShares, stats.rejectedShares).text,
+                value = successRate.text,
                 modifier = Modifier.weight(1f),
-                hasValue = hasSession
+                // Same rule as web: 0+0 shares is unavailable (–), not a measured 0.0%.
+                hasValue = hasSession && successRate.hasValue
             )
             LedgerCell("運行時間", uptime.text, Modifier.weight(1.3f), hasSession)
         }

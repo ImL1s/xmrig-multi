@@ -517,9 +517,11 @@ function stopStatsPolling() {
 }
 
 function updateStats(stats) {
-    // A running miner that reports 0 H/s is telling the truth, so that stays a number. Only the
-    // absence of a reading becomes a placeholder.
-    setStat(elements.hashrate, stats.hashrate.toFixed(2), true);
+    // Match Android/Web honesty: a running miner that has not closed its first sampling window is
+    // pending (–.––), not 0.00. Real zeros for shares stay numeric once a session is live.
+    const rate = Number(stats.hashrate);
+    const hasHashrate = Number.isFinite(rate) && rate > 0;
+    setStat(elements.hashrate, hasHashrate ? rate.toFixed(2) : HASHRATE_PLACEHOLDER, hasHashrate);
     setStat(elements.shares, `${stats.shares_accepted} / ${stats.shares_rejected}`, true);
     setStat(elements.difficulty, formatNumber(stats.difficulty), stats.difficulty > 0);
     setStat(elements.uptime, formatUptime(stats.uptime), true);

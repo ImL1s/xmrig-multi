@@ -613,6 +613,8 @@ class App {
         this.dom.poolSelect.disabled = !enabled;
         this.dom.customProxyUrl.disabled = !enabled;
         this.dom.threads.disabled = !enabled;
+        // Worker name only applies on the next start; lock it while mining like desktop does.
+        if (this.dom.workerName) this.dom.workerName.disabled = !enabled;
         if (this.dom.testProxyBtn) this.dom.testProxyBtn.disabled = !enabled;
         if (enabled) this.refreshSummary();
     }
