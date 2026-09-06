@@ -65,7 +65,8 @@ export function glancePresentation({
     qualityLabel = 'OFFLINE';
   } else {
     title = `${base} · snapshot`;
-    qualityLabel = String(syncQuality).toUpperCase();
+    // Never echo stored "live" when freshness gates failed (#132).
+    qualityLabel = 'SNAPSHOT';
   }
 
   let hashrateText = null;

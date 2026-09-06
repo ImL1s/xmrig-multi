@@ -206,7 +206,8 @@ enum GlancePresentation {
             qualityLabel = "OFFLINE"
         } else {
             title = "\(base) · snapshot"
-            qualityLabel = syncQuality.uppercased()
+            // Never echo stored "live" when freshness gates failed (#132).
+            qualityLabel = "SNAPSHOT"
         }
 
         let hashrateText: String?
