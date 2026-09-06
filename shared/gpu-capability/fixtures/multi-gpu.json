@@ -1,0 +1,9 @@
+{
+  "platform": "desktop",
+  "packagedBackends": { "opencl": false, "cuda": false, "metal": false, "webgpu": false },
+  "cpuMiningAvailable": true,
+  "devices": [
+    { "id": "gpu0", "name": "GPU A", "kind": "discrete", "vramMb": 8192, "backends": ["cuda"], "status": "unverified" },
+    { "id": "gpu1", "name": "GPU B", "kind": "discrete", "vramMb": 12288, "backends": ["opencl"], "status": "unverified" }
+  ]
+}

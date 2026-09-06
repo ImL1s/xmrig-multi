@@ -24,6 +24,8 @@ on:
       - 'shared/power-policy/**'
       - 'shared/diagnostics/**'
       - 'shared/ios-capability/**'
+      - 'shared/release-capability/**'
+      - 'shared/gpu-capability/**'
       - 'app/src/main/assets/pools.json'
       - 'desktop/src/generated-pool-configs.json'
       - 'desktop/src/main.js'
@@ -51,6 +53,8 @@ on:
       - 'shared/power-policy/**'
       - 'shared/diagnostics/**'
       - 'shared/ios-capability/**'
+      - 'shared/release-capability/**'
+      - 'shared/gpu-capability/**'
       - 'app/src/main/assets/pools.json'
       - 'desktop/src/generated-pool-configs.json'
       - 'desktop/src/main.js'
@@ -158,6 +162,14 @@ jobs:
       - name: iOS capability / JIT gate tests (#60)
         working-directory: .
         run: node --test shared/ios-capability/test/*.test.js
+
+      - name: Release capability manifest gate (#64)
+        working-directory: .
+        run: node --test shared/release-capability/test/*.test.js
+
+      - name: GPU capability visibility fixtures (#65)
+        working-directory: .
+        run: node --test shared/gpu-capability/test/*.test.js
 
       - name: Build for Production
         run: npm run build

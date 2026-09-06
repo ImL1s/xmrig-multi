@@ -1,0 +1,9 @@
+{
+  "platform": "desktop",
+  "pluginWrongAbi": true,
+  "packagedBackends": { "opencl": false, "cuda": true, "metal": false, "webgpu": false },
+  "cpuMiningAvailable": true,
+  "devices": [
+    { "id": "gpu0", "name": "NVIDIA", "kind": "discrete", "vramMb": 8192, "backends": ["cuda"], "status": "supported", "selftestPassed": true }
+  ]
+}

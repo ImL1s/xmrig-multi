@@ -1,0 +1,18 @@
+{
+  "platform": "desktop",
+  "packagedBackends": { "opencl": true, "cuda": false, "metal": false, "webgpu": false },
+  "cpuMiningAvailable": true,
+  "devices": [
+    {
+      "id": "gpu0",
+      "name": "Low VRAM",
+      "kind": "discrete",
+      "vramMb": 1024,
+      "minVramMb": 4096,
+      "backends": ["opencl"],
+      "status": "supported",
+      "selftestPassed": true,
+      "vramInsufficient": true
+    }
+  ]
+}

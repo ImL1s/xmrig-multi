@@ -1,0 +1,8 @@
+{
+  "platform": "ios",
+  "packagedBackends": { "opencl": false, "cuda": false, "metal": false, "webgpu": false },
+  "cpuMiningAvailable": true,
+  "devices": [
+    { "id": "apple-gpu", "name": "Apple GPU", "kind": "integrated", "backends": ["metal", "opencl"], "status": "supported" }
+  ]
+}

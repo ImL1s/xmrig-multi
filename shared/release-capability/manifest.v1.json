@@ -1,0 +1,107 @@
+{
+  "schemaVersion": 1,
+  "updated": "2026-09-06",
+  "poolRegistryDate": "see shared/pool-registry",
+  "platforms": {
+    "android": {
+      "engine": "libxmrig.so via scripts/build_xmrig.sh",
+      "tls": { "status": "unavailable", "note": "XmrigNativeCapabilities TLS off", "evidenceId": "android-native-capabilities" },
+      "coins": {
+        "monero": { "status": "supported", "evidenceId": "web-share-gate" },
+        "wownero": { "status": "unavailable", "evidenceId": "android-native-capabilities" },
+        "dero": { "status": "unavailable", "evidenceId": "android-native-capabilities" }
+      },
+      "opencl": { "status": "unavailable", "reason": "WITH_OPENCL=OFF in build_xmrig.sh", "evidenceId": "gpu-capability" },
+      "cuda": { "status": "unavailable", "reason": "WITH_CUDA=OFF in build_xmrig.sh", "evidenceId": "gpu-capability" },
+      "soloDaemon": { "status": "supported", "evidenceId": "daemon-endpoint" },
+      "p2pool": { "status": "supported", "evidenceId": "p2pool-connect" },
+      "knownLimits": [
+        "FGS/WorkManager quota on Android 14–16 unverified on OEM matrix (#61)",
+        "Battery/thermal policies present; overnight mining not guaranteed"
+      ]
+    },
+    "desktop": {
+      "engine": "bundled xmrig sidecar (scripts/build-xmrig.sh)",
+      "tls": { "status": "unverified", "note": "Depends on packaged binary build flags", "evidenceId": "desktop-optimize" },
+      "coins": {
+        "monero": { "status": "supported", "evidenceId": "web-share-gate" },
+        "wownero": { "status": "supported", "evidenceId": "mining-profile" },
+        "dero": { "status": "supported", "evidenceId": "mining-profile" }
+      },
+      "opencl": { "status": "unavailable", "reason": "WITH_OPENCL=OFF in desktop/scripts/build-xmrig.sh", "evidenceId": "gpu-capability" },
+      "cuda": { "status": "unavailable", "reason": "WITH_CUDA=OFF in desktop/scripts/build-xmrig.sh", "evidenceId": "gpu-capability" },
+      "soloDaemon": { "status": "supported", "evidenceId": "daemon-endpoint" },
+      "p2pool": { "status": "supported", "evidenceId": "p2pool-connect" },
+      "knownLimits": [
+        "Huge pages / MSR / 1GB pages gated by OS capability matrix (#37)",
+        "GPU mining not packaged — do not show startable GPU controls"
+      ]
+    },
+    "ios": {
+      "engine": "tracked libxmrig-ios-arm64.a (upstream donate until rebuild)",
+      "tls": { "status": "unavailable", "note": "Sideload-only; TLS not claimed", "evidenceId": "ios-capability" },
+      "coins": {
+        "monero": { "status": "unverified", "evidenceId": "ios-capability" },
+        "wownero": { "status": "unavailable", "evidenceId": "ios-capability" },
+        "dero": { "status": "unavailable", "evidenceId": "ios-capability" }
+      },
+      "opencl": { "status": "unavailable", "reason": "No Metal/OpenCL mining adapter", "evidenceId": "gpu-capability" },
+      "cuda": { "status": "unavailable", "reason": "Not applicable on iOS", "evidenceId": "gpu-capability" },
+      "soloDaemon": { "status": "unavailable", "evidenceId": "ios-capability" },
+      "p2pool": { "status": "unavailable", "evidenceId": "ios-capability" },
+      "knownLimits": [
+        "App Store bans mining; sideload only",
+        "Background mining not reliable; JIT/light gated by binary capability (#60)"
+      ]
+    },
+    "web": {
+      "engine": "RandomX.js / WASM",
+      "tls": { "status": "supported", "note": "Browser TLS to WSS proxy", "evidenceId": "web-share-gate" },
+      "coins": {
+        "monero": { "status": "supported", "evidenceId": "web-share-gate" },
+        "wownero": { "status": "supported", "evidenceId": "web-share-gate" },
+        "dero": { "status": "unavailable", "evidenceId": "web-share-gate" }
+      },
+      "opencl": { "status": "unavailable", "reason": "No WebGPU mining backend", "evidenceId": "gpu-capability" },
+      "cuda": { "status": "unavailable", "reason": "Not applicable in browser", "evidenceId": "gpu-capability" },
+      "wasm": { "status": "supported", "evidenceId": "web-runtime-preflight" },
+      "soloDaemon": { "status": "unavailable", "evidenceId": "web-share-gate" },
+      "p2pool": { "status": "unavailable", "note": "Via pool stratum only if configured", "evidenceId": "web-share-gate" },
+      "knownLimits": [
+        "Requires COOP/COEP + SAB for threads",
+        "Proxy required for Stratum; no native GPU"
+      ]
+    },
+    "wearos": {
+      "engine": "none (companion UI)",
+      "mining": { "status": "unavailable", "reason": "Stats + remote control only", "evidenceId": "companion-sync" },
+      "opencl": { "status": "unavailable", "evidenceId": "gpu-capability" },
+      "cuda": { "status": "unavailable", "evidenceId": "gpu-capability" },
+      "knownLimits": ["No on-watch mining"]
+    },
+    "watchos": {
+      "engine": "none (companion UI)",
+      "mining": { "status": "unavailable", "reason": "Stats viewer; Apple bans mining apps", "evidenceId": "companion-sync" },
+      "opencl": { "status": "unavailable", "evidenceId": "gpu-capability" },
+      "cuda": { "status": "unavailable", "evidenceId": "gpu-capability" },
+      "knownLimits": ["No on-watch mining"]
+    }
+  },
+  "evidenceCatalog": {
+    "web-share-gate": { "command": "cd web && npm test", "covers": "#25/#26/#29/#64" },
+    "web-runtime-preflight": { "command": "cd web && npm test", "covers": "#51" },
+    "mining-profile": { "command": "node --test shared/mining-profile/test/*.test.js", "covers": "#30" },
+    "daemon-endpoint": { "command": "node --test shared/daemon-endpoint/test/*.test.js", "covers": "#44" },
+    "p2pool-connect": { "command": "node --test shared/p2pool-connect/test/*.test.js", "covers": "#45" },
+    "desktop-optimize": { "command": "node --test shared/desktop-optimize/test/*.test.js", "covers": "#37" },
+    "android-native-capabilities": { "command": "./gradlew testDebugUnitTest --tests \"*XmrigNativeCapabilities*\"", "covers": "TLS/coin gates" },
+    "gpu-capability": { "command": "node --test shared/gpu-capability/test/*.test.js", "covers": "#65" },
+    "ios-capability": { "command": "see ios capability PR / XCTest when present", "covers": "#60" },
+    "companion-sync": { "command": "pending shared/companion-sync", "covers": "#62" }
+  },
+  "releaseChecklist": {
+    "verifiedPlatforms": ["web (CI)", "android unit (CI)"],
+    "unverifiedPlatforms": ["OEM overnight Android", "iOS sideload device matrix", "Desktop GPU (N/A)"],
+    "knownLimitsMustAppearInReleaseNotes": true
+  }
+}
