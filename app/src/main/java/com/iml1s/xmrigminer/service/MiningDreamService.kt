@@ -15,11 +15,13 @@ class MiningDreamService : DreamService() {
     private var phase = DreamMiningPolicy.Phase.PREVIEW
     private var clockView: TextView? = null
 
-    /** Injected for tests; production stays false until user setting + controller wiring. */
+    /** Injected for tests; production reads prefs / power / runtime gates. */
     var userOptedInClockAndMine: Boolean = false
     var powerAllows: Boolean = false
     var runtimeEligible: Boolean = false
-    var userStopped: Boolean = false
+
+    /** Override for tests; null means read [MiningSessionLatch]. */
+    var userStoppedOverride: Boolean? = null
 
     /** Side-effect counter for tests — production would call MiningController. */
     var mineRequestCount: Int = 0
@@ -36,12 +38,18 @@ class MiningDreamService : DreamService() {
             root.addView(it)
         }
         setContentView(root)
+        // Fail closed: stay preview until dreamingStarted confirms formal dream.
+        phase = DreamMiningPolicy.Phase.PREVIEW
         refreshClock()
     }
 
     override fun onDreamingStarted() {
         super.onDreamingStarted()
-        phase = DreamMiningPolicy.Phase.DREAMING
+        phase = if (detectPreviewMode()) {
+            DreamMiningPolicy.Phase.PREVIEW
+        } else {
+            DreamMiningPolicy.Phase.DREAMING
+        }
         applyDecision()
         refreshClock()
     }
@@ -64,7 +72,7 @@ class MiningDreamService : DreamService() {
             userOptedInClockAndMine = userOptedInClockAndMine,
             powerAllows = powerAllows,
             runtimeEligible = runtimeEligible,
-            userStopped = userStopped
+            userStopped = userStoppedOverride ?: MiningSessionLatch.isUserStopped()
         )
         if (decision.mayRequestMine) {
             mineRequestCount++
@@ -73,8 +81,28 @@ class MiningDreamService : DreamService() {
         return decision
     }
 
-    fun forcePreviewPhaseForTest() {
-        phase = DreamMiningPolicy.Phase.PREVIEW
+    /**
+     * Prefer public/hidden isInPreviewMode when present; otherwise fail closed to preview.
+     */
+    fun detectPreviewMode(): Boolean {
+        return try {
+            val m = DreamService::class.java.methods.firstOrNull {
+                it.name == "isInPreviewMode" && it.parameterCount == 0
+            }
+            if (m != null) {
+                m.isAccessible = true
+                m.invoke(this) as Boolean
+            } else {
+                // Unknown API — fail closed (treat as preview / do not mine).
+                true
+            }
+        } catch (_: Throwable) {
+            true
+        }
+    }
+
+    fun forcePhaseForTest(p: DreamMiningPolicy.Phase) {
+        phase = p
     }
 
     private fun refreshClock() {
