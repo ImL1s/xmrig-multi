@@ -119,7 +119,7 @@ fun AmbientScreen(
                 Text(text = statusLine, color = KilnDarkInkDim, fontSize = 16.sp)
             } else {
                 Text(
-                    text = "Clock only — mining not started",
+                    text = "Clock only — this screen does not control mining",
                     color = KilnDarkInkDim,
                     fontSize = 14.sp
                 )
