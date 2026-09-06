@@ -6,6 +6,14 @@
 import { randomx_init_cache } from './lib/randomx.js';
 import PoolProxy from './pool-proxy.js';
 import { runMiningPreflight, validateSeedHash } from './runtime-preflight.js';
+import {
+    beginSession,
+    createReconnectState,
+    onDisconnect,
+    onRetryDue,
+    onUserStop,
+    uiSnapshot
+} from '../../shared/reconnect/js/controller.js';
 
 class Miner {
     constructor() {
@@ -15,6 +23,9 @@ class Miner {
         this.isMining = false;
         this.readyWorkers = 0;
         this.generation = 0;
+        this._reconnect = createReconnectState({ autoReconnect: true });
+        this._reconnectTimer = null;
+        this.onReconnectStatus = null;
 
         this.stats = {
             hashrate: 0,
@@ -27,7 +38,8 @@ class Miner {
             isMining: false,
             preflight: null,
             workersReady: 0,
-            workersTotal: 0
+            workersTotal: 0,
+            reconnect: null
         };
 
         this.onLog = null;
@@ -46,19 +58,25 @@ class Miner {
     }
 
     setupProxyHandlers() {
-        this.proxy.onOpen = () => this.log('Connected to pool proxy');
+        this.proxy.onOpen = () => {
+            this.log('Connected to pool proxy');
+            if (this._reconnect.phase === 'reconnecting' || this._reconnect.phase === 'failover') {
+                this._reconnect = beginSession(this._reconnect, {
+                    endpointId: this._reconnect.activeEndpointId || 'primary'
+                });
+                this.emitReconnectStatus();
+            }
+        };
         this.proxy.onClose = (detail = {}) => {
             this.log('Pool connection closed');
-            if (this.onProxyFailure && detail.code) {
-                this.onProxyFailure({ code: detail.code, message: detail.reason });
-            }
-            this.stop();
+            this.handleProxyDisconnect({
+                code: detail.code ? 'proxy_close' : 'network',
+                message: detail.reason || 'connection closed'
+            });
         };
         this.proxy.onError = (err) => {
             this.log('Proxy error: ' + err.message);
-            if (this.onProxyFailure) {
-                this.onProxyFailure({ message: err.message });
-            }
+            this.handleProxyDisconnect({ message: err.message });
         };
 
         this.proxy.onJob = (job) => {
@@ -77,6 +95,71 @@ class Miner {
             this.log('Share rejected: ' + reason);
             this.updateStats();
         };
+    }
+
+    clearReconnectTimer() {
+        if (this._reconnectTimer) {
+            clearTimeout(this._reconnectTimer);
+            this._reconnectTimer = null;
+        }
+    }
+
+    emitReconnectStatus() {
+        this.stats.reconnect = uiSnapshot(this._reconnect);
+        if (this.onReconnectStatus) this.onReconnectStatus(this.stats.reconnect);
+        this.updateStats();
+    }
+
+    handleProxyDisconnect(detail) {
+        if (!this.isMining && this._reconnect.phase !== 'reconnecting') {
+            if (this.onProxyFailure) this.onProxyFailure(detail);
+            return;
+        }
+
+        // Soft-disconnect workers but keep session for reconnect (#43)
+        this.proxy.disconnect();
+        this.clearReconnectTimer();
+
+        const { state, action } = onDisconnect(this._reconnect, {
+            code: detail.code,
+            message: detail.message,
+            at: Date.now()
+        });
+        this._reconnect = state;
+        this.emitReconnectStatus();
+
+        if (action.type === 'wait') {
+            this.log(`Reconnecting in ${action.delayMs}ms (${state.reason}) — attempt ${state.attempt}/${state.maxAttempts}`);
+            this.isMining = true;
+            this.stats.isMining = true;
+            this._reconnectTimer = setTimeout(() => this.executeReconnect(), action.delayMs);
+            return;
+        }
+
+        // stop / pause / none
+        if (this.onProxyFailure) {
+            this.onProxyFailure({
+                ...detail,
+                reconnect: uiSnapshot(this._reconnect)
+            });
+        }
+        this.stop({ fromReconnect: true });
+    }
+
+    executeReconnect() {
+        const { state, action } = onRetryDue(this._reconnect, { at: Date.now() });
+        this._reconnect = state;
+        this.emitReconnectStatus();
+        if (action.type !== 'reconnect' || !this.config) {
+            this.stop({ fromReconnect: true });
+            return;
+        }
+        this.log(`Reconnect attempt to ${this.config.proxy}`);
+        try {
+            this.proxy.connect(this.config.proxy, this.config);
+        } catch (err) {
+            this.handleProxyDisconnect({ message: err.message || String(err) });
+        }
     }
 
     /**
@@ -110,6 +193,14 @@ class Miner {
         this.hashCount = 0;
         this.lastStatsTime = Date.now();
 
+        this._reconnect = createReconnectState({
+            autoReconnect: config.autoReconnect !== false,
+            maxAttempts: config.retries ?? 5,
+            baseMs: (config.retryPause ?? 5) * 1000
+        });
+        this._reconnect = beginSession(this._reconnect, { endpointId: 'primary' });
+        this.emitReconnectStatus();
+
         this.log(`Starting mining for wallet: ${config.walletAddress.substring(0, 8)}...`);
         this.log(`Coin: ${config.coin || 'monero'}`);
         this.log(`Pool: ${config.pool}`);
@@ -138,8 +229,14 @@ class Miner {
     /**
      * 停止挖礦
      */
-    stop() {
-        if (!this.isMining) {
+    stop(opts = {}) {
+        this.clearReconnectTimer();
+        if (!opts.fromReconnect) {
+            this._reconnect = onUserStop(this._reconnect);
+            this.emitReconnectStatus();
+        }
+
+        if (!this.isMining && this._reconnect.phase !== 'reconnecting') {
             this.stats.isMining = false;
             this.updateStats();
             return;
@@ -149,7 +246,7 @@ class Miner {
         this.stats.isMining = false;
         this.proxy.disconnect();
         this.terminateWorkers();
-        this.log('Mining stopped');
+        this.log(opts.fromReconnect ? 'Mining stopped after reconnect failure' : 'Mining stopped');
 
         if (this.statsTimer) clearInterval(this.statsTimer);
         this.statsTimer = null;

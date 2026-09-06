@@ -9,6 +9,7 @@ import androidx.work.ForegroundInfo
 import androidx.work.WorkerParameters
 import com.iml1s.xmrigminer.R
 import com.iml1s.xmrigminer.data.model.MiningConfig
+import com.iml1s.xmrigminer.data.network.ReconnectPolicy
 import com.iml1s.xmrigminer.data.repository.ConfigRepository
 import com.iml1s.xmrigminer.data.repository.StatsRepository
 import com.iml1s.xmrigminer.native.XmrigBinaryResolver
@@ -64,7 +65,22 @@ class MiningWorker @AssistedInject constructor(
             throw e
         } catch (e: Exception) {
             Timber.e(e, "Mining failed")
-            if (isStopped) Result.success() else Result.retry()
+            if (isStopped) {
+                Result.success()
+            } else {
+                // #43: only retry transient failures when autoReconnect is on.
+                // Auth / TLS / config failures must not create a WorkManager reconnect storm.
+                val config = runCatching { resolveLaunchConfig() }.getOrNull()
+                val classification = ReconnectPolicy.classify(
+                    code = null,
+                    message = e.message
+                )
+                val allow = ReconnectPolicy.workManagerShouldRetry(
+                    autoReconnect = config?.autoReconnect ?: true,
+                    classification = classification
+                )
+                if (allow) Result.retry() else Result.failure()
+            }
         } finally {
             withContext(NonCancellable) {
                 stopMining()
