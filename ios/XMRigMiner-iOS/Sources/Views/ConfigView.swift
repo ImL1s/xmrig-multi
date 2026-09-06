@@ -12,7 +12,8 @@ struct ConfigView: View {
     @State private var selectedCoin: CoinType = .monero
     @State private var walletAddress = ""
     @State private var selectedPool = 0
-    @State private var threads = 4
+    @State private var threads = 1
+    @State private var cpuPriority = 2
     @State private var workerName = ""
     @State private var validationError: String?
 
@@ -96,8 +97,14 @@ struct ConfigView: View {
                 }
 
                 // Performance Section
-                Section("Performance") {
-                    Stepper("Threads: \(threads)", value: $threads, in: 1...maxThreads)
+                Section {
+                    Stepper("Threads: \(threads)", value: $threads, in: 1...min(maxThreads, MiningConfig.iosMaxRecommendedThreads))
+
+                    HStack {
+                        Text("CPU priority")
+                        Spacer()
+                        Stepper("\(cpuPriority)", value: $cpuPriority, in: 0...5)
+                    }
 
                     HStack {
                         Text("CPU Cores")
@@ -105,6 +112,12 @@ struct ConfigView: View {
                         Text("\(maxThreads)")
                             .foregroundColor(.secondary)
                     }
+
+                    Text("Requested threads and priority are written into XMRig JSON. Effective threads are capped at \(MiningConfig.iosMaxRecommendedThreads) for iOS memory/thermal budget.")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                } header: {
+                    Text("Performance")
                 }
 
                 // Info Section
@@ -173,7 +186,8 @@ struct ConfigView: View {
 
         let config = MiningConfig(
             pool: pool,
-            threads: threads
+            threads: threads,
+            cpuPriority: cpuPriority
         )
 
         MiningConfigStore.save(config)

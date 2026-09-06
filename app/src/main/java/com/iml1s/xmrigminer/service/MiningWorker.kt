@@ -84,8 +84,8 @@ class MiningWorker @AssistedInject constructor(
                 config.walletAddress.isBlank() -> "錢包地址未設置"
                 config.poolUrl.isBlank() ->
                     if (config.soloDaemon) "節點 RPC 地址未設置" else "礦池地址未設置"
-                config.threads <= 0 -> "線程數無效"
-                config.maxCpuUsage !in 10..100 -> "CPU使用率設置無效"
+                !config.threadsAuto && config.threads <= 0 -> "線程數無效"
+                config.maxCpuUsage !in 10..100 -> "自動執行緒提示設置無效"
                 else -> "配置無效"
             }
             throw IllegalStateException(errorMsg)
@@ -98,7 +98,7 @@ class MiningWorker @AssistedInject constructor(
         val args = XmrigLaunchCommand.build(
             binaryPath = binaryPath,
             configFile = configFile,
-            threads = config.threads
+            threads = if (config.threadsAuto) null else config.threads
         )
 
         Timber.i(

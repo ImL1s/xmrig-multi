@@ -24,6 +24,7 @@ sealed interface ConfigUiEvent {
     data class WalletAddressChanged(val address: String) : ConfigUiEvent
     data class WorkerNameChanged(val name: String) : ConfigUiEvent
     data class ThreadsChanged(val threads: Int) : ConfigUiEvent
+    data class ThreadsAutoToggled(val enabled: Boolean) : ConfigUiEvent
     data class MaxCpuUsageChanged(val usage: Int) : ConfigUiEvent
     data class TlsToggled(val enabled: Boolean) : ConfigUiEvent
     data class CustomPoolUrlChanged(val url: String) : ConfigUiEvent

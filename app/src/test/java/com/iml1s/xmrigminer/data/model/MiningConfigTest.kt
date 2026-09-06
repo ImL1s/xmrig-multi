@@ -3,6 +3,7 @@ package com.iml1s.xmrigminer.data.model
 import com.iml1s.xmrigminer.data.repository.ConfigRepositoryDefaults
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.boolean
+import kotlinx.serialization.json.int
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
@@ -100,6 +101,44 @@ class MiningConfigTest {
     fun `default config has valid threads`() {
         val config = MiningConfig()
         assertTrue(config.threads > 0)
+    }
+
+    @Test
+    fun `defaultThreads never zero across CPU counts`() {
+        for (n in listOf(1, 2, 4, 8, 64)) {
+            val t = MiningConfig.defaultThreads(n)
+            assertTrue("n=$n -> $t", t in 1..n)
+        }
+        assertEquals(1, MiningConfig.defaultThreads(1))
+        assertEquals(1, MiningConfig.defaultThreads(0))
+        assertEquals(7, MiningConfig.defaultThreads(8))
+    }
+
+    @Test
+    fun `auto mode omits max-threads-hint conflict when manual`() {
+        val manual = MiningConfig(
+            poolUrl = "pool.supportxmr.com:3333",
+            walletAddress = "wallet",
+            threads = 4,
+            threadsAuto = false,
+            maxCpuUsage = 75
+        )
+        val cpu = Json.parseToJsonElement(manual.toJson()).jsonObject["cpu"]!!.jsonObject
+        assertNull(cpu["max-threads-hint"])
+    }
+
+    @Test
+    fun `auto mode writes max-threads-hint and stays valid with any threads field`() {
+        val auto = MiningConfig(
+            poolUrl = "pool.supportxmr.com:3333",
+            walletAddress = "wallet",
+            threads = 0,
+            threadsAuto = true,
+            maxCpuUsage = 50
+        )
+        assertTrue(auto.isValid())
+        val cpu = Json.parseToJsonElement(auto.toJson()).jsonObject["cpu"]!!.jsonObject
+        assertEquals(50, cpu["max-threads-hint"]!!.jsonPrimitive.int)
     }
 
     @Test
