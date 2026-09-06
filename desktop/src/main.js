@@ -290,6 +290,13 @@ function setMiningState(mining) {
 function startStatsPolling() {
     statsInterval = setInterval(async () => {
         try {
+            const running = await invoke('is_mining');
+            if (!running && isMining) {
+                log('Miner process exited — unlocking controls (#48)', 'error');
+                setMiningState(false);
+                stopStatsPolling();
+                return;
+            }
             const stats = await invoke('get_mining_stats');
             updateStats(stats);
         } catch (error) {

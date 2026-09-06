@@ -20,7 +20,8 @@ class Miner {
             rejectedShares: 0,
             startTime: null,
             uptime: 0,
-            currentJob: null
+            currentJob: null,
+            isMining: false
         };
 
         this.onLog = null;
@@ -91,14 +92,20 @@ class Miner {
      * 停止挖礦
      */
     stop() {
-        if (!this.isMining) return;
+        if (!this.isMining) {
+            this.stats.isMining = false;
+            this.updateStats();
+            return;
+        }
 
         this.isMining = false;
+        this.stats.isMining = false;
         this.proxy.disconnect();
         this.terminateWorkers();
         this.log('Mining stopped');
 
         if (this.statsTimer) clearInterval(this.statsTimer);
+        this.statsTimer = null;
         this.updateStats();
     }
 
