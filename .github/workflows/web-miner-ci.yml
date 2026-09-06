@@ -10,6 +10,7 @@ on:
       - 'shared/session-state/**'
       - 'shared/hardware-capability/**'
       - 'shared/randomx-memory/**'
+      - 'shared/auto-tune/**'
       - 'app/src/main/assets/pools.json'
       - 'desktop/src/generated-pool-configs.json'
       - 'desktop/src/main.js'
@@ -23,6 +24,7 @@ on:
       - 'shared/session-state/**'
       - 'shared/hardware-capability/**'
       - 'shared/randomx-memory/**'
+      - 'shared/auto-tune/**'
       - 'app/src/main/assets/pools.json'
       - 'desktop/src/generated-pool-configs.json'
       - 'desktop/src/main.js'
@@ -74,6 +76,10 @@ jobs:
       - name: RandomX memory budget tests (#35)
         working-directory: .
         run: node --test shared/randomx-memory/test/*.test.js
+
+      - name: Auto-tune contract tests (#34)
+        working-directory: .
+        run: node --test shared/auto-tune/test/*.test.js
 
       - name: Build for Production
         run: npm run build

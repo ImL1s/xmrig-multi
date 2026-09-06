@@ -1,0 +1,15 @@
+{
+  "id": "noisy-winner",
+  "description": "Best only 1% above baseline — keep baseline",
+  "baseline": { "threads": 4, "randomxMode": "light" },
+  "minImprovementPct": 3,
+  "map": {
+    "t1-light": { "hashrate": 100 },
+    "t4-light": { "hashrate": 400 },
+    "t4-fast": { "hashrate": 404 },
+    "t7-light": { "hashrate": 402 },
+    "t7-fast": { "hashrate": 403 },
+    "t8-light": { "hashrate": 401 },
+    "t8-fast": { "hashrate": 404 }
+  }
+}
