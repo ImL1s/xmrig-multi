@@ -82,6 +82,7 @@ class XMRigWrapper: ObservableObject {
         miningStartedAt = Date()
         startStatsTimer()
         watchCoordinator.pushStats()
+        publishGlanceSnapshot(quality: "live", reloadWidgets: true)
     }
     
     func stop() {
@@ -90,6 +91,7 @@ class XMRigWrapper: ObservableObject {
         miningStartedAt = nil
         stopStatsTimer()
         watchCoordinator.pushStats()
+        publishGlanceSnapshot(quality: "offline", reloadWidgets: true)
     }
 
     var uptimeSeconds: Int {
@@ -180,6 +182,28 @@ class XMRigWrapper: ObservableObject {
         if newStats != stats {
             stats = newStats
             watchCoordinator.pushStats()
+            publishGlanceSnapshot(quality: newStats.isMining ? "live" : "offline", reloadWidgets: false)
         }
+    }
+
+    /// App Group + Live Activity snapshot — never writes wallet/secrets (#78).
+    private func publishGlanceSnapshot(quality: String, reloadWidgets: Bool) {
+        let nowMs = Date().timeIntervalSince1970 * 1000
+        let snap = GlanceSnapshotStore.Snapshot(
+            status: isRunning ? "mining" : "stopped",
+            hashrateHs: stats.hashrate10s,
+            lastUpdatedAtMs: nowMs,
+            sessionId: miningStartedAt.map { String(Int($0.timeIntervalSince1970)) },
+            sourceDeviceId: UIDevice.current.identifierForVendor?.uuidString,
+            syncQuality: quality,
+            clockOnly: false,
+            todayKwh: nil,
+            todayCostFiat: nil
+        )
+        GlanceSnapshotStore.save(snap, reloadWidgets: reloadWidgets)
+        if reloadWidgets {
+            GlanceSnapshotStore.reloadWidgetsThrottled(nowMs: nowMs, force: true)
+        }
+        GlanceLiveActivityController.sync(from: snap)
     }
 }

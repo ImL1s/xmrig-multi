@@ -34,15 +34,19 @@ targets:
       - path: XMRigMiner-iOS/Sources
         excludes:
           - "**/.DS_Store"
+      - path: Shared
       - path: XMRigCore/include
         type: group
         buildPhase: none
+    entitlements:
+      path: XMRigMiner-iOS/XMRigMiner.entitlements
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.iml1s.xmrigminer
         TARGETED_DEVICE_FAMILY: "1,2"
         ONLY_ACTIVE_ARCH: NO
         ENABLE_BITCODE: NO
+        CODE_SIGN_ENTITLEMENTS: XMRigMiner-iOS/XMRigMiner.entitlements
         OTHER_LDFLAGS:
           - "-lxmrig-ios-arm64"
           - "-lc++"
@@ -50,12 +54,50 @@ targets:
         VALID_ARCHS: arm64
     info:
       path: XMRigMiner-iOS/Info.plist
+    dependencies:
+      - target: XMRigMinerWidgets
+        embed: true
+        codeSign: true
+      - sdk: WidgetKit.framework
+      - sdk: ActivityKit.framework
+
+  XMRigMinerWidgets:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: XMRigMinerWidgets
+        excludes:
+          - "**/.DS_Store"
+      - path: Shared
+    entitlements:
+      path: XMRigMinerWidgets/XMRigMinerWidgets.entitlements
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.iml1s.xmrigminer.widgets
+        SKIP_INSTALL: YES
+        CODE_SIGN_ENTITLEMENTS: XMRigMinerWidgets/XMRigMinerWidgets.entitlements
+        INFOPLIST_KEY_CFBundleDisplayName: XMRig Glance
+        LD_RUNPATH_SEARCH_PATHS:
+          - "$(inherited)"
+          - "@executable_path/Frameworks"
+          - "@executable_path/../../Frameworks"
+    info:
+      properties:
+        CFBundleDisplayName: XMRig Glance
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+    dependencies:
+      - sdk: SwiftUI.framework
+      - sdk: WidgetKit.framework
+      - sdk: AppIntents.framework
+      - sdk: ActivityKit.framework
 
 schemes:
   XMRigMiner:
     build:
       targets:
         XMRigMiner: all
+        XMRigMinerWidgets: all
     run:
       config: Debug
     test:
