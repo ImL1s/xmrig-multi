@@ -538,7 +538,7 @@ class App {
             return;
         }
 
-        const walletCheck = validateWalletAddress(walletAddress, coinSelection === 'xmr' ? 'monero' : coinSelection);
+        const walletCheck = validateWalletAddress(walletAddress, coinSelection);
         if (!walletCheck.ok) {
             this.showFieldError(
                 this.dom.walletError,
