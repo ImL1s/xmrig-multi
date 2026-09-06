@@ -41,6 +41,10 @@ sealed interface ConfigUiEvent {
     data class TlsToggled(val enabled: Boolean) : ConfigUiEvent
     data class CustomPoolUrlChanged(val url: String) : ConfigUiEvent
     data class SoloDaemonToggled(val enabled: Boolean) : ConfigUiEvent
+    data class RequireExternalPowerToggled(val enabled: Boolean) : ConfigUiEvent
+    data class PauseOnUnplugToggled(val enabled: Boolean) : ConfigUiEvent
+    data class ChargeBeforeMineToggled(val enabled: Boolean) : ConfigUiEvent
+    data class PauseOnNetDischargeToggled(val enabled: Boolean) : ConfigUiEvent
     /** Manual / save-time monerod RPC readiness check (#44). */
     data object ProbeDaemon : ConfigUiEvent
     data object SaveConfig : ConfigUiEvent

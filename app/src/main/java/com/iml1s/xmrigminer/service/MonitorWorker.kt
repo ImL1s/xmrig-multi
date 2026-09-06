@@ -39,6 +39,7 @@ class MonitorWorker @AssistedInject constructor(
     companion object {
         const val WORK_NAME = "monitor_work"
         const val KEY_SOLO_DAEMON = "solo_daemon"
+        const val KEY_SESSION_GENERATION = "session_generation"
         const val CHECK_INTERVAL = 5000L
         private const val DAEMON_PROBE_TIMEOUT_MS = 1500
     }
@@ -51,6 +52,9 @@ class MonitorWorker @AssistedInject constructor(
     private val soloDaemonAtLaunch: Boolean by lazy {
         inputData.getBoolean(KEY_SOLO_DAEMON, false)
     }
+    private val sessionGenerationAtLaunch: Long by lazy {
+        inputData.getLong(KEY_SESSION_GENERATION, 0L)
+    }
 
     private var thermalState = ThermalPolicy.State(
         phase = ThermalPolicy.Phase.ALLOWED,
@@ -59,6 +63,8 @@ class MonitorWorker @AssistedInject constructor(
     )
     private var powerIntent = PowerPolicy.armSession(PowerPolicy.Intent())
     private var lastSoftThrottleNotifyMs = 0L
+    private var lastAppliedSoftThreads: Int? = null
+    private var softThrottlePending = false
 
     override suspend fun doWork(): Result {
         Timber.i("MonitorWorker started")
@@ -95,7 +101,11 @@ class MonitorWorker @AssistedInject constructor(
     private fun updateThermalStats() {
         try {
             val reading = readBatteryTemperature()
-            statsRepository.updateTemperature(reading.tempC ?: 0f)
+            // Never invent healthy 0°C for unknown/sentinel (#125).
+            val temp = reading.tempC
+            if (temp != null && !(reading.suspectZero && temp == 0f)) {
+                statsRepository.updateTemperature(temp)
+            }
         } catch (e: Exception) {
             Timber.w(e, "Failed to update thermal stats")
         }
@@ -122,7 +132,7 @@ class MonitorWorker @AssistedInject constructor(
             observations = listOf(thermalObs),
             state = thermalState,
             nowMs = now,
-            userStopped = false
+            userStopped = MiningSessionLatch.isUserStopped()
         )
         thermalState = thermalDecision.nextState
 
@@ -134,27 +144,86 @@ class MonitorWorker @AssistedInject constructor(
                 return
             }
             ThermalPolicy.Phase.SOFT_THROTTLE -> {
-                if (now - lastSoftThrottleNotifyMs > 60_000L) {
-                    lastSoftThrottleNotifyMs = now
-                    val msg = buildString {
-                        append(thermalDecision.reasons.firstOrNull() ?: "Thermal soft throttle")
-                        thermalDecision.effectiveThreads?.let {
-                            append(" — effective threads $it")
-                            thermalState.permanentThreads?.let { p -> append(" (permanent $p unchanged)") }
-                        }
-                        thermalDecision.resumeWhen?.let { append(" — resume: $it") }
+                val requested = thermalDecision.effectiveThreads
+                if (thermalDecision.action == ThermalPolicy.Action.THROTTLE &&
+                    requested != null &&
+                    requested != lastAppliedSoftThreads
+                ) {
+                    softThrottlePending = true
+                    val applied = miningController.applyRuntimeThreadOverride(
+                        requested,
+                        thermalDecision.reasons.firstOrNull() ?: "soft throttle"
+                    )
+                    val outcome = if (applied == requested) {
+                        ThermalLoadActuator.Outcome(
+                            status = ThermalLoadActuator.Status.APPLIED,
+                            requestedThreads = requested,
+                            appliedThreads = applied,
+                            message = "Throttle applied via relaunch"
+                        )
+                    } else {
+                        ThermalLoadActuator.Outcome(
+                            status = ThermalLoadActuator.Status.UNSUPPORTED,
+                            requestedThreads = requested,
+                            appliedThreads = applied,
+                            message = "Engine could not apply soft throttle — pausing safely",
+                            shouldPauseSafely = true
+                        )
                     }
-                    com.iml1s.xmrigminer.util.NotificationHelper.showWarning(context, msg)
-                    Timber.w("Thermal soft throttle: %s", msg)
+                    when (outcome.status) {
+                        ThermalLoadActuator.Status.APPLIED -> {
+                            lastAppliedSoftThreads = outcome.appliedThreads
+                            softThrottlePending = false
+                            thermalState = thermalState.copy(effectiveThreads = outcome.appliedThreads)
+                            com.iml1s.xmrigminer.util.NotificationHelper.showWarning(
+                                context,
+                                "Thermal throttle applied: ${outcome.appliedThreads} threads"
+                            )
+                        }
+                        else -> {
+                            softThrottlePending = false
+                            if (outcome.shouldPauseSafely) {
+                                pauseMining(outcome.message, code = "thermal_throttle")
+                                return
+                            }
+                        }
+                    }
+                } else if (now - lastSoftThrottleNotifyMs > 60_000L) {
+                    lastSoftThrottleNotifyMs = now
+                    val status = when {
+                        softThrottlePending -> "pending"
+                        lastAppliedSoftThreads != null -> "applied ${lastAppliedSoftThreads}"
+                        else -> "not applied"
+                    }
+                    Timber.w(
+                        "Thermal soft throttle hold (%s) permanent=%s",
+                        status,
+                        thermalState.permanentThreads
+                    )
                 }
             }
-            ThermalPolicy.Phase.ALLOWED -> Unit
+            ThermalPolicy.Phase.ALLOWED -> {
+                if (thermalDecision.action == ThermalPolicy.Action.RESUME &&
+                    lastAppliedSoftThreads != null
+                ) {
+                    val restored = miningController.clearRuntimeThreadOverride("thermal resume")
+                    if (restored != null) {
+                        lastAppliedSoftThreads = null
+                        softThrottlePending = false
+                    } else {
+                        pauseMining("Failed to restore permanent threads", code = "thermal_resume")
+                        return
+                    }
+                }
+            }
         }
 
+        val powerConfig = launchConfig?.let { miningController.powerDefaultsFrom(it) }
+            ?: androidRuntimePowerDefaults()
         val powerVerdict = PowerPolicy.evaluate(
             observation = powerObs,
             intent = powerIntent,
-            config = androidRuntimePowerDefaults(),
+            config = powerConfig,
             nowMs = now
         )
         powerIntent = powerVerdict.nextIntent
@@ -270,8 +339,11 @@ class MonitorWorker @AssistedInject constructor(
 
         val batteryManager = context.getSystemService(Context.BATTERY_SERVICE) as? BatteryManager
         val currentUa = batteryManager?.getIntProperty(BatteryManager.BATTERY_PROPERTY_CURRENT_NOW)
-        // Android CURRENT_NOW: negative = discharging on most devices (µA).
-        val flowMa = currentUa?.let { it / 1000 }
+        // Int.MIN_VALUE is the Android "unsupported" sentinel — never treat as real flow (#125).
+        val flowMa = when {
+            currentUa == null || currentUa == Int.MIN_VALUE -> null
+            else -> currentUa / 1000
+        }
 
         return PowerPolicy.Observation(
             platformHasBattery = true,
@@ -324,12 +396,11 @@ class MonitorWorker @AssistedInject constructor(
         // CancellationException and skip any code after miningController.pauseForPolicy().
         com.iml1s.xmrigminer.util.NotificationHelper.showWarning(context, reason)
         // Policy pause must not latch UserStopped (#124 / #126).
-        miningController.pauseForPolicy(resetStats = false)
+        miningController.pauseForPolicy(resetStats = false, reason = code ?: "monitor")
     }
 
     /**
-     * Runtime profile until settings UI exposes PowerPolicy.DEFAULTS (#39).
-     * Keeps prior battery-mining behavior (min 20%, no AC-only / charge-first).
+     * Fallback when launch snapshot lacks power fields (legacy). Prefer [MiningConfig] values.
      */
     private fun androidRuntimePowerDefaults() = PowerPolicy.Defaults(
         requireExternalPower = false,
