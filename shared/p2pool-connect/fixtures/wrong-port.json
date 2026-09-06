@@ -1,0 +1,6 @@
+{
+  "name": "wrong-port",
+  "monerod": { "ok": false, "code": "wrong_service", "message": "Port spoke HTTP but not monerod RPC" },
+  "p2pool": { "ok": false, "code": "host_offline", "message": "Stratum port closed" },
+  "miner": { "ok": true, "code": "idle", "message": "miner idle" }
+}
