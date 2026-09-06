@@ -12,6 +12,7 @@ on:
       - 'shared/randomx-memory/**'
       - 'shared/auto-tune/**'
       - 'shared/wallet-address/**'
+      - 'shared/reconnect-policy/**'
       - 'app/src/main/assets/pools.json'
       - 'desktop/src/generated-pool-configs.json'
       - 'desktop/src/main.js'
@@ -27,6 +28,7 @@ on:
       - 'shared/randomx-memory/**'
       - 'shared/auto-tune/**'
       - 'shared/wallet-address/**'
+      - 'shared/reconnect-policy/**'
       - 'app/src/main/assets/pools.json'
       - 'desktop/src/generated-pool-configs.json'
       - 'desktop/src/main.js'
@@ -86,6 +88,10 @@ jobs:
       - name: Wallet address validation tests (#53)
         working-directory: .
         run: node --test shared/wallet-address/test/*.test.js
+
+      - name: Reconnect policy tests (#43)
+        working-directory: .
+        run: node --test shared/reconnect-policy/test/*.test.js
 
       - name: Build for Production
         run: npm run build

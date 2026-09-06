@@ -1,0 +1,6 @@
+{
+  "id": "dns-blip",
+  "error": { "code": "enotfound", "message": "getaddrinfo ENOTFOUND pool.example" },
+  "autoReconnect": true,
+  "expectAction": "retry"
+}

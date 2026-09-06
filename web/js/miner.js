@@ -6,6 +6,7 @@
 import { randomx_init_cache } from './lib/randomx.js';
 import PoolProxy from './pool-proxy.js';
 import { runMiningPreflight, validateSeedHash } from './runtime-preflight.js';
+import { decideReconnect } from '../../shared/reconnect-policy/js/decide.js';
 
 class Miner {
     constructor() {
@@ -15,6 +16,9 @@ class Miner {
         this.isMining = false;
         this.readyWorkers = 0;
         this.generation = 0;
+        this.reconnectAttempt = 0;
+        this._reconnectTimer = null;
+        this._userStopped = false;
 
         this.stats = {
             hashrate: 0,
@@ -27,7 +31,8 @@ class Miner {
             isMining: false,
             preflight: null,
             workersReady: 0,
-            workersTotal: 0
+            workersTotal: 0,
+            reconnect: null
         };
 
         this.onLog = null;
@@ -46,13 +51,22 @@ class Miner {
     }
 
     setupProxyHandlers() {
-        this.proxy.onOpen = () => this.log('Connected to pool proxy');
+        this.proxy.onOpen = () => {
+            this.log('Connected to pool proxy');
+            this.reconnectAttempt = 0;
+            this.stats.reconnect = null;
+            this.updateStats();
+        };
         this.proxy.onClose = (detail = {}) => {
             this.log('Pool connection closed');
             if (this.onProxyFailure && detail.code) {
                 this.onProxyFailure({ code: detail.code, message: detail.reason });
             }
-            this.stop();
+            this.handleProxyDisconnect({
+                code: detail.code === 1006 ? 'ws_close' : String(detail.code || 'ws_close'),
+                message: detail.reason || 'connection closed',
+                kind: 'disconnect'
+            });
         };
         this.proxy.onError = (err) => {
             this.log('Proxy error: ' + err.message);
@@ -101,6 +115,9 @@ class Miner {
 
         this.config = config;
         this.isMining = true;
+        this._userStopped = false;
+        this.reconnectAttempt = 0;
+        this.clearReconnectTimer();
         this.generation += 1;
         this.readyWorkers = 0;
         this.stats.workersReady = 0;
@@ -139,14 +156,18 @@ class Miner {
      * 停止挖礦
      */
     stop() {
-        if (!this.isMining) {
+        this._userStopped = true;
+        this.clearReconnectTimer();
+        if (!this.isMining && !this.stats.reconnect) {
             this.stats.isMining = false;
+            this.stats.reconnect = null;
             this.updateStats();
             return;
         }
 
         this.isMining = false;
         this.stats.isMining = false;
+        this.stats.reconnect = null;
         this.proxy.disconnect();
         this.terminateWorkers();
         this.log('Mining stopped');
@@ -154,6 +175,67 @@ class Miner {
         if (this.statsTimer) clearInterval(this.statsTimer);
         this.statsTimer = null;
         this.updateStats();
+    }
+
+    clearReconnectTimer() {
+        if (this._reconnectTimer) {
+            clearTimeout(this._reconnectTimer);
+            this._reconnectTimer = null;
+        }
+    }
+
+    /**
+     * Session-owner reconnect decision (#43). autoReconnect=false stops immediately.
+     */
+    handleProxyDisconnect(error) {
+        if (!this.isMining && !this.config) {
+            return;
+        }
+        const decision = decideReconnect({
+            autoReconnect: this.config?.autoReconnect !== false,
+            attempt: this.reconnectAttempt,
+            maxAttempts: this.config?.retries ?? 5,
+            error,
+            userStopped: this._userStopped,
+            backoff: {
+                baseMs: (this.config?.retryPause ?? 5) * 1000,
+                maxMs: 60_000
+            }
+        });
+        this.stats.reconnect = {
+            action: decision.action,
+            reason: decision.reason,
+            attempt: decision.attempt,
+            delayMs: decision.delayMs,
+            retryAt: decision.retryAt
+        };
+        this.updateStats();
+
+        if (decision.action !== 'retry') {
+            this.log(`Reconnect ${decision.action}: ${decision.reason}`);
+            this.stop();
+            return;
+        }
+
+        this.reconnectAttempt = decision.nextAttempt;
+        this.log(
+            `Reconnect scheduled in ${decision.delayMs}ms (attempt ${decision.nextAttempt}) — ${decision.reason}`
+        );
+        // Keep workers warm; only re-open proxy. Do not leave session in a fake idle stop.
+        this.proxy.disconnect();
+        this.clearReconnectTimer();
+        const gen = this.generation;
+        this._reconnectTimer = setTimeout(() => {
+            this._reconnectTimer = null;
+            if (this._userStopped || gen !== this.generation || !this.isMining) return;
+            const proxyUrl = this.config?.proxy;
+            if (!proxyUrl) {
+                this.stop();
+                return;
+            }
+            this.log('Reconnecting to pool proxy…');
+            this.proxy.connect(proxyUrl, this.config);
+        }, decision.delayMs);
     }
 
     /**

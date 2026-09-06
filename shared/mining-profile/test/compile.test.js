@@ -195,6 +195,16 @@ test('accepted-tune priority below user lock, above fallback', () => {
     assert.equal(locked.sources['cpu.maxThreadsHintPercent'], 'user-lock');
 });
 
+test('autoReconnect false forces XMRig retries to 0 (#43)', () => {
+    const profile = {
+        ...fixture('profile-android-manual.json'),
+        network: { autoReconnect: false, retries: 5, retryPauseSec: 5 }
+    };
+    const out = compile(profile, CAPS_XMRIG, HW);
+    assert.equal(out.ok, true);
+    assert.equal(out.native.json.retries, 0);
+});
+
 test('native argv is structured list (no shell join) and revision is stable', () => {
     const a = compile(fixture('profile-android-manual.json'), CAPS_XMRIG, HW);
     const b = compile(fixture('profile-android-manual.json'), CAPS_XMRIG, HW);

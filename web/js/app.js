@@ -596,7 +596,10 @@ class App {
             threads: parseInt(this.dom.threads.value, 10),
             workerName: this.dom.workerName.value.trim() || 'web-worker',
             password: this.dom.workerName.value.trim() || 'x',
-            proxy: resolved.url
+            proxy: resolved.url,
+            autoReconnect: true,
+            retries: 5,
+            retryPause: 5
         };
 
         this.saveSettings();

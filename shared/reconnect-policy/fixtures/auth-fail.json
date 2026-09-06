@@ -1,0 +1,6 @@
+{
+  "id": "auth-fail",
+  "error": { "code": "auth_fail", "message": "login error: invalid user" },
+  "autoReconnect": true,
+  "expectAction": "stop"
+}

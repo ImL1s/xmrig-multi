@@ -1,0 +1,6 @@
+{
+  "id": "tls-cert",
+  "error": { "code": "tls_cert", "message": "SSL certificate problem: self signed certificate" },
+  "autoReconnect": true,
+  "expectAction": "stop"
+}

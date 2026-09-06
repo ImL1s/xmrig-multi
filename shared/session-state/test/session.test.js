@@ -61,3 +61,29 @@ test('snapshot rebuilds UI from authoritative owner state', () => {
     assert.equal(s.phase, SessionPhase.Hashing);
     assert.equal(canStart(s), false);
 });
+
+test('reconnect path Hashing→Reconnecting→Connecting is allowed (#43/#64)', () => {
+    let s = createSession();
+    s = reduceSession(s, { type: 'BEGIN' });
+    s = reduceSession(s, {
+        type: 'TRANSITION',
+        phase: SessionPhase.Hashing,
+        processAlive: true,
+        workActive: true
+    });
+    s = reduceSession(s, {
+        type: 'TRANSITION',
+        phase: SessionPhase.Reconnecting,
+        reason: 'ws-close',
+        processAlive: false,
+        workActive: false
+    });
+    assert.equal(s.phase, SessionPhase.Reconnecting);
+    s = reduceSession(s, {
+        type: 'TRANSITION',
+        phase: SessionPhase.Connecting,
+        reason: 'backoff-elapsed'
+    });
+    assert.equal(s.phase, SessionPhase.Connecting);
+    assert.equal(canStop(s), true);
+});
