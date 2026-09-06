@@ -230,10 +230,14 @@ private fun CoinSelectionCard(
                             color = MaterialTheme.colorScheme.onSecondaryContainer
                         )
                         Text(
+                            // Honest memory copy (#35): scratchpad ≠ dataset / full RAM.
                             text = when (selectedCoinType) {
-                                CoinType.MONERO -> "RandomX - Full mode (2MB)"
-                                CoinType.WOWNERO -> "RandomWOW - Light mode (1MB)"
-                                CoinType.DERO -> "AstroBWT/v3 - CPU optimized"
+                                CoinType.MONERO ->
+                                    "RandomX — scratchpad 2 MiB/thread · cache ~256 MiB · dataset ~2080 MiB/NUMA (fast)"
+                                CoinType.WOWNERO ->
+                                    "RandomWOW — scratchpad 1 MiB/thread · cache ~256 MiB · dataset ~256 MiB (own constants)"
+                                CoinType.DERO ->
+                                    "AstroBWT/v3 — CPU optimized (not RandomX; fast/light N/A)"
                             },
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSecondaryContainer

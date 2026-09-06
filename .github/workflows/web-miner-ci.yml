@@ -9,6 +9,7 @@ on:
       - 'shared/pool-registry/**'
       - 'shared/session-state/**'
       - 'shared/hardware-capability/**'
+      - 'shared/randomx-memory/**'
       - 'app/src/main/assets/pools.json'
       - 'desktop/src/generated-pool-configs.json'
       - 'desktop/src/main.js'
@@ -21,6 +22,7 @@ on:
       - 'shared/pool-registry/**'
       - 'shared/session-state/**'
       - 'shared/hardware-capability/**'
+      - 'shared/randomx-memory/**'
       - 'app/src/main/assets/pools.json'
       - 'desktop/src/generated-pool-configs.json'
       - 'desktop/src/main.js'
@@ -68,6 +70,10 @@ jobs:
       - name: Hardware capability contract tests (#33)
         working-directory: .
         run: node --test shared/hardware-capability/test/*.test.js
+
+      - name: RandomX memory budget tests (#35)
+        working-directory: .
+        run: node --test shared/randomx-memory/test/*.test.js
 
       - name: Build for Production
         run: npm run build

@@ -45,7 +45,13 @@ object MiningProfileMapper {
                 affinity = null
             ),
             randomx = MiningProfile.RandomX(
-                mode = if (config.getCoin() == CoinType.WOWNERO) "light" else "auto"
+                mode = MiningConfig.normalizeRandomxMode(
+                    if (config.getCoin() == CoinType.WOWNERO && config.randomxMode == "auto") {
+                        "light"
+                    } else {
+                        config.randomxMode
+                    }
+                )
             ),
             network = MiningProfile.Network(
                 autoReconnect = config.autoReconnect,
@@ -80,7 +86,9 @@ object MiningProfileMapper {
             retries = profile.network.retries,
             retryPause = profile.network.retryPauseSec,
             coinType = coinType.name,
-            soloDaemon = profile.endpoint.type == "daemon"
+            soloDaemon = profile.endpoint.type == "daemon",
+            randomxMode = profile.randomx.mode,
+            randomxModeLocked = profile.locks.fields.contains("randomx.mode")
         )
     }
 }

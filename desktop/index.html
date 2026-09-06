@@ -101,6 +101,18 @@
                         <p class="hint">Leaving one thread free keeps the desktop responsive.</p>
                     </div>
 
+                    <div class="form-group">
+                        <label for="randomx-mode">RandomX memory mode</label>
+                        <select id="randomx-mode" aria-label="RandomX memory mode">
+                            <option value="auto">Auto (fast if RAM allows)</option>
+                            <option value="fast">Fast (dataset ~2080 MiB/NUMA + cache + scratchpads)</option>
+                            <option value="light">Light (cache ~256 MiB + scratchpads; no full dataset)</option>
+                        </select>
+                        <p id="randomx-memory-hint" class="hint">
+                            Scratchpad is ~2 MiB per thread — not the full Fast-mode RAM requirement (#35).
+                        </p>
+                    </div>
+
                     <div class="form-group span-all save-row">
                         <button type="button" id="save-settings-btn" class="btn btn-secondary">
                             Save settings

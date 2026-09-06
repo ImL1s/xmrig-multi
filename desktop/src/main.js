@@ -40,6 +40,7 @@ const elements = {
     worker: document.getElementById('worker'),
     threads: document.getElementById('threads'),
     threadValue: document.getElementById('thread-value'),
+    randomxMode: document.getElementById('randomx-mode'),
     startBtn: document.getElementById('start-btn'),
     stopBtn: document.getElementById('stop-btn'),
     saveBtn: document.getElementById('save-settings-btn'),
@@ -143,6 +144,9 @@ function applyProfileToUi(profile) {
     const threads = Math.max(1, Math.min(cpuThreadCount, profile.threads || 1));
     elements.threads.value = threads;
     elements.threadValue.textContent = String(threads);
+    if (elements.randomxMode) {
+        elements.randomxMode.value = profile.randomx_mode || 'auto';
+    }
     dirty = false;
 }
 
@@ -161,6 +165,7 @@ function collectProfileFromUi() {
         worker_name: elements.worker.value.trim() || 'desktop',
         threads: parseInt(elements.threads.value, 10),
         algorithm: poolOption?.dataset?.algo || 'rx/0',
+        randomx_mode: elements.randomxMode?.value || 'auto',
         locks: active.locks || [],
         localOverrides: { ...(active.localOverrides || {}), threads: true }
     };
@@ -442,11 +447,13 @@ async function startMining() {
         threads: parseInt(elements.threads.value, 10),
         coin_type: coin,
         algorithm: algo,
+        randomx_mode: elements.randomxMode?.value || 'auto',
     };
 
     log(`Starting ${coin.toUpperCase()} mining...`);
     log(`Pool: ${config.pool_url}`);
     log(`Threads: ${config.threads}`);
+    log(`RandomX mode: ${config.randomx_mode} (scratchpad ≠ full dataset RAM — #35)`);
 
     try {
         const result = await invoke('start_mining', { config });
@@ -482,6 +489,7 @@ function setMiningState(mining) {
     elements.wallet.disabled = mining;
     elements.worker.disabled = mining;
     elements.threads.disabled = mining;
+    if (elements.randomxMode) elements.randomxMode.disabled = mining;
     if (elements.profileSelect) elements.profileSelect.disabled = mining;
     if (elements.profileNewBtn) elements.profileNewBtn.disabled = mining;
     if (elements.profileDupBtn) elements.profileDupBtn.disabled = mining;

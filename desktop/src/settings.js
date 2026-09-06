@@ -31,6 +31,7 @@ export function defaultProfile(cpuThreads = 4, id = 'default', name = 'Default')
         worker_name: 'desktop',
         threads: Math.max(1, cpuThreads - 1),
         algorithm: 'rx/0',
+        randomx_mode: 'auto',
         locks: [],
         localOverrides: {
             threads: true
@@ -84,12 +85,19 @@ function normalizeProfile(p, i, cpuThreads, defaultThreads) {
         worker_name: typeof p?.worker_name === 'string' ? p.worker_name : 'desktop',
         threads,
         algorithm: typeof p?.algorithm === 'string' ? p.algorithm : 'rx/0',
+        randomx_mode: normalizeRandomxMode(p?.randomx_mode),
         locks: Array.isArray(p?.locks) ? p.locks.filter((x) => typeof x === 'string') : [],
         localOverrides: {
             threads: p?.localOverrides?.threads !== false,
             ...(p?.localOverrides && typeof p.localOverrides === 'object' ? p.localOverrides : {})
         }
     };
+}
+
+function normalizeRandomxMode(mode) {
+    const m = String(mode || 'auto').toLowerCase();
+    if (m === 'fast' || m === 'light' || m === 'auto') return m;
+    return 'auto';
 }
 
 export function loadDesktopStore(storage = globalThis.localStorage, cpuThreads = 4) {

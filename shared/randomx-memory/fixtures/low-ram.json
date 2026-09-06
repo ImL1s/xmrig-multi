@@ -1,0 +1,12 @@
+{
+  "id": "low-ram-1.5gib",
+  "description": "Phone with 1.5 GiB available — fast dataset impossible",
+  "algorithm": "rx/0",
+  "threads": 3,
+  "numaNodes": 1,
+  "availableBytes": 1610612736,
+  "totalBytes": 2147483648,
+  "processLimitBytes": null,
+  "expectedAutoApplied": "light",
+  "expectedFastBlocked": true
+}

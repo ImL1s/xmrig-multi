@@ -1,0 +1,12 @@
+{
+  "id": "wow-own-constants",
+  "description": "Wownero must not reuse Monero 2080 MiB dataset",
+  "algorithm": "rx/wow",
+  "threads": 2,
+  "numaNodes": 1,
+  "availableBytes": 4294967296,
+  "totalBytes": 8589934592,
+  "processLimitBytes": null,
+  "expectedDatasetMiB": 256,
+  "expectedScratchpadMiBPerThread": 1
+}

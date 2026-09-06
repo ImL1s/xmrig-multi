@@ -21,6 +21,21 @@ pub struct MiningConfig {
     pub threads: u32,
     pub coin_type: String,
     pub algorithm: String,
+    /// Requested RandomX mode: auto|fast|light (#35). Defaults to auto.
+    #[serde(default = "default_randomx_mode")]
+    pub randomx_mode: String,
+}
+
+fn default_randomx_mode() -> String {
+    "auto".to_string()
+}
+
+fn normalize_randomx_mode(mode: &str) -> &'static str {
+    match mode.to_ascii_lowercase().as_str() {
+        "fast" => "fast",
+        "light" => "light",
+        _ => "auto",
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -114,6 +129,10 @@ impl MinerState {
             .arg(config.threads.to_string())
             .arg("-a")
             .arg(&config.algorithm)
+            .arg(format!(
+                "--randomx-mode={}",
+                normalize_randomx_mode(&config.randomx_mode)
+            ))
             .arg("--donate-level=1")
             .arg("--no-color")
             .arg("--http-enabled")
@@ -402,10 +421,24 @@ mod tests {
             threads: 4,
             coin_type: "XMR".to_string(),
             algorithm: "rx/0".to_string(),
+            randomx_mode: "light".to_string(),
         };
         let serialized = serde_json::to_string(&config).unwrap();
         let deserialized: MiningConfig = serde_json::from_str(&serialized).unwrap();
         assert_eq!(config.pool_url, deserialized.pool_url);
+        assert_eq!(deserialized.randomx_mode, "light");
+        assert_eq!(normalize_randomx_mode("FAST"), "fast");
+        assert_eq!(normalize_randomx_mode("nope"), "auto");
+    }
+
+    #[test]
+    fn test_randomx_mode_defaults_when_omitted() {
+        let json = r#"{
+            "pool_url":"p","wallet_address":"w","worker_name":"n",
+            "threads":2,"coin_type":"XMR","algorithm":"rx/0"
+        }"#;
+        let c: MiningConfig = serde_json::from_str(json).unwrap();
+        assert_eq!(c.randomx_mode, "auto");
     }
 
     #[test]

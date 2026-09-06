@@ -1,0 +1,12 @@
+{
+  "id": "numa-2-nodes",
+  "description": "Desktop with 2 NUMA nodes — dataset doubles in fast mode",
+  "algorithm": "rx/0",
+  "threads": 8,
+  "numaNodes": 2,
+  "availableBytes": 34359738368,
+  "totalBytes": 68719476736,
+  "processLimitBytes": null,
+  "expectedAutoApplied": "fast",
+  "expectedDatasetMiB": 4160
+}

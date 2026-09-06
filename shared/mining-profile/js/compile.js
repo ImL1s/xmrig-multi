@@ -237,9 +237,40 @@ export function compile(rawProfile, capabilities = {}, hardware = {}, policy = {
         setSource(sources, 'cpu.affinity', affinity ?? null, affinity ? 'requested' : 'derived');
     }
 
-    const randomxMode = profile.randomx?.mode
+    const requestedRx = profile.randomx?.mode
         || (profile.coin === 'wownero' ? 'light' : 'auto');
-    setSource(sources, 'randomx.mode', randomxMode, profile.randomx?.mode ? 'requested' : 'conservative-fallback');
+    let randomxMode = requestedRx;
+    const memMb = hardware.availableMemoryMb;
+    const availableBytes = Number.isFinite(memMb) ? Math.floor(memMb * 1024 * 1024) : null;
+    // Conservative compile-time gate (#35): unknown or <2 GiB → light unless locked.
+    if (!locks.has('randomx.mode')) {
+        if (availableBytes == null) {
+            if (requestedRx === 'auto' || requestedRx === 'fast') {
+                randomxMode = 'light';
+                setSource(sources, 'randomx.mode', randomxMode, 'memory-unknown-fallback');
+                warnings.push({
+                    field: 'randomx.mode',
+                    code: 'memory_unknown',
+                    message: 'available RAM unknown — resolved light until probe (#35)'
+                });
+            }
+        } else if (availableBytes < 2 * 1024 * 1024 * 1024 && (requestedRx === 'auto' || requestedRx === 'fast')) {
+            randomxMode = 'light';
+            setSource(sources, 'randomx.mode', randomxMode, 'memory-budget');
+            warnings.push({
+                field: 'randomx.mode',
+                code: 'low_ram',
+                message: 'available RAM < 2 GiB — RandomX light (#35)'
+            });
+        } else {
+            setSource(sources, 'randomx.mode', randomxMode, profile.randomx?.mode ? 'requested' : 'conservative-fallback');
+        }
+    } else {
+        setSource(sources, 'randomx.mode', randomxMode, 'user-lock');
+    }
+    if (!sources['randomx.mode']) {
+        setSource(sources, 'randomx.mode', randomxMode, profile.randomx?.mode ? 'requested' : 'conservative-fallback');
+    }
 
     const donateLevel = profile.donateLevel ?? 1;
     setSource(sources, 'donateLevel', donateLevel, 'requested');

@@ -39,6 +39,8 @@ class ConfigRepository @Inject constructor(
         val DONATE_LEVEL = intPreferencesKey("donate_level")
         val CUSTOM_ARGS = stringPreferencesKey("custom_args")
         val SOLO_DAEMON = booleanPreferencesKey("solo_daemon")
+        val RANDOMX_MODE = stringPreferencesKey("randomx_mode")
+        val RANDOMX_MODE_LOCKED = booleanPreferencesKey("randomx_mode_locked")
     }
 
     fun getConfig(): Flow<MiningConfig> = context.dataStore.data.map { prefs ->
@@ -55,7 +57,9 @@ class ConfigRepository @Inject constructor(
             donateLevel = prefs[Keys.DONATE_LEVEL] ?: 1,
             customArgs = prefs[Keys.CUSTOM_ARGS] ?: "",
             coinType = prefs[Keys.COIN_TYPE] ?: "MONERO",
-            soloDaemon = prefs[Keys.SOLO_DAEMON] ?: false
+            soloDaemon = prefs[Keys.SOLO_DAEMON] ?: false,
+            randomxMode = MiningConfig.normalizeRandomxMode(prefs[Keys.RANDOMX_MODE] ?: "auto"),
+            randomxModeLocked = prefs[Keys.RANDOMX_MODE_LOCKED] ?: false
         )
     }
 
@@ -73,6 +77,8 @@ class ConfigRepository @Inject constructor(
             prefs[Keys.DONATE_LEVEL] = config.donateLevel
             prefs[Keys.CUSTOM_ARGS] = config.customArgs
             prefs[Keys.SOLO_DAEMON] = config.soloDaemon
+            prefs[Keys.RANDOMX_MODE] = MiningConfig.normalizeRandomxMode(config.randomxMode)
+            prefs[Keys.RANDOMX_MODE_LOCKED] = config.randomxModeLocked
         }
     }
 
