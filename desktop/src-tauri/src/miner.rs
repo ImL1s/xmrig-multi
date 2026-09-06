@@ -27,6 +27,9 @@ pub struct MiningConfig {
     /// Desktop optimize flags (#37). Optional; defaults are safe/non-elevating.
     #[serde(default)]
     pub huge_pages: bool,
+    /// Probe result for huge pages — must NOT be copied from [huge_pages] request (#131).
+    #[serde(default)]
+    pub huge_pages_available: bool,
     #[serde(default)]
     pub numa: bool,
     /// When false, pass --cpu-no-yield. Default true (yield).
@@ -88,7 +91,7 @@ pub fn resolve_affinity_argv(
         }
         return AffinityArgv {
             argv: vec![],
-            applied: "os-auto",
+            applied: "unsupported",
             warnings,
         };
     }
@@ -161,10 +164,126 @@ fn validate_affinity_hex(mask: &str, logical_max: u32) -> Result<(), String> {
     if hex.is_empty() || !hex.chars().all(|c| c.is_ascii_hexdigit()) {
         return Err("bad hex".into());
     }
+    if logical_max == 0 {
+        return Err("no allowed CPUs".into());
+    }
     if logical_max > 64 {
         return Err("use cpu_ids for >64 logical CPUs".into());
     }
+    // More than 16 hex digits cannot fit in a 64-bit mask.
+    if hex.len() > 16 {
+        return Err("mask exceeds 64 bits".into());
+    }
+    let value = u64::from_str_radix(hex, 16).map_err(|_| "bad hex".to_string())?;
+    if value == 0 {
+        return Err("mask is zero".into());
+    }
+    let allowed = if logical_max >= 64 {
+        u64::MAX
+    } else {
+        (1u64 << logical_max) - 1
+    };
+    if value & !allowed != 0 {
+        return Err(format!("bits outside allowed CPUs 0..{}", logical_max - 1));
+    }
     Ok(())
+}
+
+/// Compiled argv + capability notes for one start attempt (#131).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LaunchPlan {
+    pub argv: Vec<String>,
+    pub optimize_warnings: Vec<String>,
+    pub affinity_applied: String,
+    pub affinity_warnings: Vec<String>,
+    pub effective_huge_pages: bool,
+}
+
+/// Build XMRig argv from config. `logical_cpus` is the hardware upper bound —
+/// never expanded by the user's thread count (#131).
+pub fn compile_launch_plan(
+    config: &MiningConfig,
+    logical_cpus: u32,
+    os: &str,
+) -> Result<LaunchPlan, String> {
+    let mut argv = vec![
+        "-o".into(),
+        config.pool_url.clone(),
+        "-u".into(),
+        config.wallet_address.clone(),
+        "-p".into(),
+        config.worker_name.clone(),
+        "-t".into(),
+        config.threads.to_string(),
+        "-a".into(),
+        config.algorithm.clone(),
+        format!("--randomx-mode={}", normalize_randomx_mode(&config.randomx_mode)),
+        "--donate-level=1".into(),
+        "--no-color".into(),
+    ];
+
+    // Probe availability is authoritative — requested alone never implies available.
+    let opt = crate::optimize::plan_optimize(
+        os,
+        &crate::optimize::OptimizeRequest {
+            huge_pages: config.huge_pages,
+            huge_pages_available: config.huge_pages_available,
+            numa: config.numa,
+            yield_cpu: config.yield_cpu,
+            ..Default::default()
+        },
+    );
+    if !opt.errors.is_empty() {
+        return Err(opt.errors.join("; "));
+    }
+    argv.extend(opt.argv.iter().cloned());
+
+    let affinity = resolve_affinity_argv(
+        config.cpu_affinity.as_deref(),
+        config.cpu_ids.as_deref(),
+        logical_cpus,
+    );
+    let affinity_requested = config
+        .cpu_affinity
+        .as_ref()
+        .map(|s| !s.trim().is_empty())
+        .unwrap_or(false)
+        || config
+            .cpu_ids
+            .as_ref()
+            .map(|v| !v.is_empty())
+            .unwrap_or(false);
+    if affinity_requested && affinity.applied == "os-auto" {
+        // Invalid mask/ids — hard reject rather than silent success (#131).
+        let detail = affinity
+            .warnings
+            .first()
+            .cloned()
+            .unwrap_or_else(|| "affinity rejected".into());
+        return Err(detail);
+    }
+    argv.extend(affinity.argv.iter().cloned());
+
+    let idle_plan = crate::idle_policy::plan_engine_flags(
+        os,
+        &crate::idle_policy::IdleEnginePrefs {
+            pause_on_battery: config.pause_on_battery,
+            pause_on_active_seconds: config.pause_on_active_seconds,
+        },
+    );
+    argv.extend(idle_plan.argv.iter().cloned());
+
+    let effective_huge_pages = config.huge_pages
+        && config.huge_pages_available
+        && opt.argv.iter().any(|a| a == "--huge-pages");
+
+    Ok(LaunchPlan {
+        argv,
+        optimize_warnings: opt.warnings,
+        affinity_applied: affinity.applied.to_string(),
+        affinity_warnings: affinity.warnings,
+        effective_huge_pages,
+    })
 }
 
 fn ids_to_affinity_hex(ids: &[u32], logical_max: u32) -> Result<String, String> {
@@ -299,75 +418,29 @@ impl MinerState {
             *stats = MiningStats::default();
         }
 
-        let mut cmd = Command::new(&xmrig_path);
-        cmd.arg("-o")
-            .arg(&config.pool_url)
-            .arg("-u")
-            .arg(&config.wallet_address)
-            .arg("-p")
-            .arg(&config.worker_name)
-            .arg("-t")
-            .arg(config.threads.to_string())
-            .arg("-a")
-            .arg(&config.algorithm)
-            .arg(format!(
-                "--randomx-mode={}",
-                normalize_randomx_mode(&config.randomx_mode)
-            ))
-            .arg("--donate-level=1")
-            .arg("--no-color");
-
-        let opt = crate::optimize::plan_optimize(
-            std::env::consts::OS,
-            &crate::optimize::OptimizeRequest {
-                huge_pages: config.huge_pages,
-                huge_pages_available: config.huge_pages,
-                numa: config.numa,
-                yield_cpu: config.yield_cpu,
-                ..Default::default()
-            },
-        );
-        for arg in &opt.argv {
-            cmd.arg(arg);
-        }
-        for w in &opt.warnings {
+        let logical_cpus = num_cpus::get() as u32;
+        let plan = compile_launch_plan(&config, logical_cpus, std::env::consts::OS)?;
+        for w in &plan.optimize_warnings {
             eprintln!("[optimize] {w}");
+        }
+        for w in &plan.affinity_warnings {
+            eprintln!("[affinity] {w}");
+        }
+        if config.huge_pages && !plan.effective_huge_pages {
+            eprintln!(
+                "[optimize] huge pages requested but effective=false (probe/OS limited)"
+            );
+        }
+
+        let mut cmd = Command::new(&xmrig_path);
+        for arg in &plan.argv {
+            cmd.arg(arg);
         }
 
         cmd.arg("--http-enabled")
             .arg("--http-host=127.0.0.1")
             .arg(format!("--http-port={}", http_port))
             .arg(format!("--http-access-token={}", access_token));
-
-        let logical_max = std::cmp::max(config.threads, num_cpus::get() as u32);
-        let affinity = resolve_affinity_argv(
-            config.cpu_affinity.as_deref(),
-            config.cpu_ids.as_deref(),
-            logical_max,
-        );
-        for arg in &affinity.argv {
-            cmd.arg(arg);
-        }
-        for w in &affinity.warnings {
-            eprintln!("[affinity] {w}");
-        }
-
-        let idle_plan = crate::idle_policy::plan_engine_flags(
-            std::env::consts::OS,
-            &crate::idle_policy::IdleEnginePrefs {
-                pause_on_battery: config.pause_on_battery,
-                pause_on_active_seconds: config.pause_on_active_seconds,
-            },
-        );
-        for arg in &idle_plan.argv {
-            cmd.arg(arg);
-        }
-        for w in &idle_plan.warnings {
-            eprintln!("[idle] {w}");
-        }
-        for d in &idle_plan.degradations {
-            eprintln!("[idle] degrade: {d}");
-        }
 
         cmd.stdout(Stdio::piped()).stderr(Stdio::piped());
 
@@ -777,6 +850,7 @@ mod tests {
             algorithm: "rx/0".to_string(),
             randomx_mode: "light".to_string(),
             huge_pages: false,
+            huge_pages_available: false,
             numa: false,
             yield_cpu: true,
             cpu_affinity: Some("0x15".into()),
@@ -813,6 +887,97 @@ mod tests {
         let auto = resolve_affinity_argv(None, None, 8);
         assert_eq!(auto.applied, "os-auto");
         assert!(auto.argv.is_empty());
+    }
+
+    #[test]
+    fn affinity_hex_rejects_zero_oob_and_over_64bit() {
+        // 4 allowed CPUs: bits 0..3 only.
+        assert!(validate_affinity_hex("0x0", 4).is_err());
+        assert!(validate_affinity_hex("0x10", 4).is_err()); // bit 4
+        assert!(validate_affinity_hex("0x3", 4).is_ok()); // CPUs 0,1
+        assert!(validate_affinity_hex(
+            "0x1ffffffffffffffff", // >64 bits
+            64
+        )
+        .is_err());
+        // User threads must not expand hardware bound: 96 threads vs 4 CPUs.
+        assert!(validate_affinity_hex("0x10", 4).is_err());
+        assert!(ids_to_affinity_hex(&[0, 1, 2, 3], 4).is_ok());
+        assert!(ids_to_affinity_hex(&[4], 4).is_err());
+    }
+
+    #[test]
+    fn compile_plan_does_not_treat_requested_hugepages_as_available() {
+        let config = MiningConfig {
+            pool_url: "p".into(),
+            wallet_address: "w".into(),
+            worker_name: "n".into(),
+            threads: 2,
+            coin_type: "XMR".into(),
+            algorithm: "rx/0".into(),
+            randomx_mode: "auto".into(),
+            huge_pages: true,
+            huge_pages_available: false, // probe says no
+            numa: false,
+            yield_cpu: true,
+            cpu_affinity: None,
+            cpu_ids: None,
+            pause_on_battery: false,
+            pause_on_active_seconds: None,
+        };
+        let plan = compile_launch_plan(&config, 8, "linux").unwrap();
+        assert!(!plan.effective_huge_pages);
+        assert!(!plan.argv.iter().any(|a| a == "--huge-pages"));
+    }
+
+    #[test]
+    fn compile_plan_includes_advanced_flags_when_probed() {
+        let config = MiningConfig {
+            pool_url: "p".into(),
+            wallet_address: "w".into(),
+            worker_name: "n".into(),
+            threads: 2,
+            coin_type: "XMR".into(),
+            algorithm: "rx/0".into(),
+            randomx_mode: "auto".into(),
+            huge_pages: true,
+            huge_pages_available: true,
+            numa: true,
+            yield_cpu: false,
+            cpu_affinity: Some("0x3".into()),
+            cpu_ids: None,
+            pause_on_battery: false,
+            pause_on_active_seconds: None,
+        };
+        let plan = compile_launch_plan(&config, 4, "linux").unwrap();
+        assert!(plan.argv.iter().any(|a| a == "--huge-pages"));
+        assert!(plan.argv.iter().any(|a| a == "--numa"));
+        assert!(plan.argv.iter().any(|a| a == "--cpu-no-yield"));
+        assert!(plan.argv.iter().any(|a| a.starts_with("--cpu-affinity=")));
+        assert!(plan.effective_huge_pages);
+        assert_eq!(plan.affinity_applied, "affinity");
+    }
+
+    #[test]
+    fn compile_plan_rejects_invalid_affinity_mask() {
+        let config = MiningConfig {
+            pool_url: "p".into(),
+            wallet_address: "w".into(),
+            worker_name: "n".into(),
+            threads: 96, // must not expand allowed set
+            coin_type: "XMR".into(),
+            algorithm: "rx/0".into(),
+            randomx_mode: "auto".into(),
+            huge_pages: false,
+            huge_pages_available: false,
+            numa: false,
+            yield_cpu: true,
+            cpu_affinity: Some("0x10".into()), // bit4 with only 4 CPUs
+            cpu_ids: None,
+            pause_on_battery: false,
+            pause_on_active_seconds: None,
+        };
+        assert!(compile_launch_plan(&config, 4, "linux").is_err());
     }
 
     #[test]

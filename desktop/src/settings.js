@@ -32,6 +32,10 @@ export function defaultProfile(cpuThreads = 4, id = 'default', name = 'Default')
         threads: Math.max(1, cpuThreads - 1),
         algorithm: 'rx/0',
         randomx_mode: 'auto',
+        huge_pages: false,
+        numa: false,
+        yield_cpu: true,
+        cpu_affinity: '',
         locks: [],
         localOverrides: {
             threads: true
@@ -129,6 +133,10 @@ function normalizeProfile(p, i, cpuThreads, defaultThreads) {
         threads,
         algorithm: typeof p?.algorithm === 'string' ? p.algorithm : 'rx/0',
         randomx_mode: normalizeRandomxMode(p?.randomx_mode),
+        huge_pages: Boolean(p?.huge_pages),
+        numa: Boolean(p?.numa),
+        yield_cpu: p?.yield_cpu !== false,
+        cpu_affinity: typeof p?.cpu_affinity === 'string' ? p.cpu_affinity : '',
         locks: Array.isArray(p?.locks) ? p.locks.filter((x) => typeof x === 'string') : [],
         localOverrides: {
             threads: p?.localOverrides?.threads !== false,
