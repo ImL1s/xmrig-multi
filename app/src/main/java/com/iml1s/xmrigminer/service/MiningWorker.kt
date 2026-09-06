@@ -1,5 +1,6 @@
 package com.iml1s.xmrigminer.service
 
+import android.app.ActivityManager
 import android.content.Context
 import android.os.Build
 import androidx.core.app.NotificationCompat
@@ -8,6 +9,8 @@ import androidx.work.CoroutineWorker
 import androidx.work.ForegroundInfo
 import androidx.work.WorkerParameters
 import com.iml1s.xmrigminer.R
+import com.iml1s.xmrigminer.data.hardware.MemoryLaunchGate
+import com.iml1s.xmrigminer.data.model.CoinType
 import com.iml1s.xmrigminer.data.model.MiningConfig
 import com.iml1s.xmrigminer.data.network.ReconnectPolicy
 import com.iml1s.xmrigminer.data.repository.ConfigRepository
@@ -116,8 +119,32 @@ class MiningWorker @AssistedInject constructor(
             throw IllegalStateException(errorMsg)
         }
 
+        val memory = readMemoryObservation()
+        val memoryVerdict = if (config.getCoin() == CoinType.DERO) {
+            null
+        } else {
+            MemoryLaunchGate.evaluate(
+                config = config,
+                observation = memory
+            )
+        }
+        if (memoryVerdict != null && !memoryVerdict.allowed) {
+            throw IllegalStateException(
+                memoryVerdict.reasons.firstOrNull()
+                    ?: "Memory gate blocked RandomX launch (#129)"
+            )
+        }
+
         val logFile = File(applicationContext.filesDir, "xmrig.log")
-        val configFile = prepareConfigFile(config.toJson(logFile.absolutePath))
+        val configFile = prepareConfigFile(
+            config.toJson(
+                logFile = logFile.absolutePath,
+                availableMemoryBytes = memory.availableBytes,
+                totalMemoryBytes = memory.totalBytes,
+                processLimitBytes = memory.processLimitBytes,
+                appliedRandomxMode = memoryVerdict?.appliedMode
+            )
+        )
         val binaryPath = resolveBinary()
 
         val args = XmrigLaunchCommand.build(
@@ -173,6 +200,22 @@ class MiningWorker @AssistedInject constructor(
             }
         }
         return configRepository.getConfig().first()
+    }
+
+    private fun readMemoryObservation(): MemoryLaunchGate.Observation {
+        return try {
+            val am = applicationContext.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
+            val info = ActivityManager.MemoryInfo()
+            am.getMemoryInfo(info)
+            MemoryLaunchGate.Observation(
+                availableBytes = info.availMem,
+                totalBytes = info.totalMem,
+                processLimitBytes = null
+            )
+        } catch (e: Exception) {
+            Timber.w(e, "Memory observation failed in MiningWorker")
+            MemoryLaunchGate.Observation()
+        }
     }
 
     private fun resolveBinary(): String {

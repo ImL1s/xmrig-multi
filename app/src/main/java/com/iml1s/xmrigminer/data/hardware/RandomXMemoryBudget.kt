@@ -1,13 +1,21 @@
 package com.iml1s.xmrigminer.data.hardware
 
 /**
- * RandomX memory budget (#35). Mirrors shared/randomx-memory.
+ * RandomX memory budget (#35 / #129). Mirrors shared/randomx-memory.
  * Scratchpad ≠ full engine RAM; never label fast mode as "2 MB".
+ *
+ * Dataset MiB ceil comes from XMRig v6.21.0 RandomX_ConfigurationBase
+ * (DatasetBaseSize + DatasetExtraSize ≈ 2080 MiB). RandomWOW inherits that
+ * dataset; its 1 MiB value is per-thread scratchpad only.
  */
 object RandomXMemoryBudget {
     const val MIB = 1024L * 1024L
     const val DEFAULT_APP_RESERVE_MIB = 256
     const val SOFT_BUDGET_FRACTION = 0.75
+    const val ENGINE_VERSION = "6.21.0"
+    /** DatasetBaseSize + DatasetExtraSize from xmrig v6.21.0 randomx.h */
+    const val ENGINE_DATASET_BASE_PLUS_EXTRA_BYTES = 2147483648L + 33554368L
+    const val ENGINE_DATASET_MIB = 2080
 
     data class Algorithm(
         val id: String,
@@ -19,8 +27,8 @@ object RandomXMemoryBudget {
         val supportsLight: Boolean
     )
 
-    val RX0 = Algorithm("rx/0", "RandomX", 2080, 256, 2, true, true)
-    val RX_WOW = Algorithm("rx/wow", "RandomWOW", 256, 256, 1, true, true)
+    val RX0 = Algorithm("rx/0", "RandomX", ENGINE_DATASET_MIB, 256, 2, true, true)
+    val RX_WOW = Algorithm("rx/wow", "RandomWOW", ENGINE_DATASET_MIB, 256, 1, true, true)
     val ASTRO = Algorithm("astrobwt/v3", "AstroBWT/v3", null, 0, 20, false, false)
 
     data class Component(val name: String, val bytes: Long, val role: String)
@@ -137,7 +145,8 @@ object RandomXMemoryBudget {
 
         val miningBytes = cacheBytes + datasetBytes + scratchpadBytes
         val totalEstimated = miningBytes + appReserveBytes
-        val budgetBase = listOfNotNull(availableBytes, totalBytes, processLimitBytes).minOrNull()
+        // Soft budget uses available/total host RAM only — processLimit is the hard gate (#129).
+        val budgetBase = listOfNotNull(availableBytes, totalBytes).minOrNull()
         val softBudget = budgetBase?.let { (it * SOFT_BUDGET_FRACTION).toLong() }
         val confidence = when {
             availableBytes != null -> "high"
@@ -207,8 +216,9 @@ object RandomXMemoryBudget {
         }
 
         if (allocationFailed) {
-            val lightEst = estimate(algorithm, "light", threads, numaNodes, availableBytes, totalBytes, processLimitBytes)
+            // OOM retry uses the same evaluate / hard-limit gate as first launch (#129).
             if (locked && requested == "fast") {
+                val lightEst = estimate(algorithm, "light", threads, numaNodes, availableBytes, totalBytes, processLimitBytes)
                 return Selection(
                     ok = false,
                     mode = requested,
@@ -224,19 +234,27 @@ object RandomXMemoryBudget {
                     retryHint = "Switch to light mode and retry once — do not loop forever"
                 )
             }
+            reasons += "Previous allocation/OS pressure failure — evaluating light retry"
+            val trial = evaluate(algo, "light", threads, numaNodes, availableBytes, totalBytes, processLimitBytes, reasons)
+            val confirmedSoft = trial.requiresSoftConfirm && confirmSoftOverride && !trial.hardBlocked
+            val permitted = trial.ok || confirmedSoft
+            if (permitted && confirmedSoft) {
+                reasons += "User confirmed soft-budget override for light retry"
+            }
             return Selection(
-                ok = true,
-                mode = if (locked) requested else "light",
-                appliedMode = "light",
-                blocked = false,
-                reasons = listOf(
-                    "Previous allocation/OS pressure failure — retrying light mode once",
-                    "Will not infinite-restart on OOM"
+                ok = permitted,
+                mode = if (locked) requested else if (permitted) "light" else requested,
+                appliedMode = if (permitted) "light" else null,
+                blocked = !permitted,
+                reasons = reasons + listOf(
+                    if (permitted) "light retry permitted"
+                    else "light retry blocked — free memory, lower threads, or device unsupported"
                 ),
-                estimate = lightEst,
-                requiresSoftConfirm = false,
-                fallbackApplied = !locked,
-                retryHint = "Retry light once after freeing memory"
+                estimate = trial.estimate,
+                requiresSoftConfirm = !permitted && trial.requiresSoftConfirm,
+                fallbackApplied = permitted && !locked,
+                retryHint = if (permitted) "Retry light once after freeing memory"
+                else "Free memory or lower threads — light also blocked by hard/soft gate"
             )
         }
 

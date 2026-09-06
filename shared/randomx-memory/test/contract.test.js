@@ -170,9 +170,11 @@ test('worker scale increases scratchpad only', () => {
     assert.equal(sel.appliedMode, f.expectedAutoApplied);
 });
 
-test('Wownero uses own dataset/scratchpad constants', () => {
+test('Wownero shares dataset size with Monero but uses own scratchpad', () => {
     const f = fixture('wownero.json');
-    assert.notEqual(ALGORITHMS['rx/wow'].datasetMiB, ALGORITHMS['rx/0'].datasetMiB);
+    // XMRig 6.21.0: RandomWOW inherits DatasetBase+Extra; scratchpad is 1 MiB (#129).
+    assert.equal(ALGORITHMS['rx/wow'].datasetMiB, ALGORITHMS['rx/0'].datasetMiB);
+    assert.notEqual(ALGORITHMS['rx/wow'].scratchpadMiB, ALGORITHMS['rx/0'].scratchpadMiB);
     const est = estimateMemory({
         algorithm: f.algorithm,
         mode: 'fast',
@@ -181,6 +183,7 @@ test('Wownero uses own dataset/scratchpad constants', () => {
     });
     const dataset = est.components.find((c) => c.name === 'dataset');
     assert.equal(dataset.bytes / MIB, f.expectedDatasetMiB);
+    assert.ok(dataset.bytes >= f.engineDatasetBasePlusExtraBytes);
     const scratch = est.components.find((c) => c.name === 'scratchpad');
     assert.equal(scratch.bytes / MIB, f.expectedScratchpadMiBPerThread * f.threads);
 });

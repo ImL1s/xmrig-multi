@@ -16,6 +16,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.iml1s.xmrigminer.data.model.CoinType
 import com.iml1s.xmrigminer.data.model.MiningConfig
 import com.iml1s.xmrigminer.data.model.Pool
+import com.iml1s.xmrigminer.data.hardware.RandomXMemoryBudget
 import com.iml1s.xmrigminer.native.XmrigNativeCapabilities
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -307,14 +308,19 @@ private fun CoinSelectionCard(
                             color = MaterialTheme.colorScheme.onSecondaryContainer
                         )
                         Text(
-                            // Honest memory copy (#35): scratchpad ≠ dataset / full RAM.
-                            text = when (selectedCoinType) {
-                                CoinType.MONERO ->
-                                    "RandomX — scratchpad 2 MiB/thread · cache ~256 MiB · dataset ~2080 MiB/NUMA (fast)"
-                                CoinType.WOWNERO ->
-                                    "RandomWOW — scratchpad 1 MiB/thread · cache ~256 MiB · dataset ~256 MiB (own constants)"
-                                CoinType.DERO ->
-                                    "AstroBWT/v3 — CPU optimized (not RandomX; fast/light N/A)"
+                            // Honest memory copy (#35/#129): scratchpad ≠ dataset / full RAM.
+                            text = run {
+                                val (title, detail) = RandomXMemoryBudget.algorithmSummary(
+                                    selectedCoinType.name,
+                                    "auto",
+                                    threads = 1
+                                )
+                                if (selectedCoinType == CoinType.DERO) {
+                                    "$title — $detail"
+                                } else {
+                                    val name = RandomXMemoryBudget.resolveAlgorithm(selectedCoinType.name).displayName
+                                    "$name — $detail"
+                                }
                             },
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSecondaryContainer

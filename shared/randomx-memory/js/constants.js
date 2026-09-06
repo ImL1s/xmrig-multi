@@ -1,14 +1,33 @@
 /**
- * Algorithm memory constants (#35).
+ * Algorithm memory constants (#35 / #129).
  * Values are MiB unless noted. Scratchpad is per-worker, not total engine RAM.
  *
- * Sources: XMRig RandomX optimization guide + algorithms table.
- * WOW uses its own sizes — do not reuse Monero dataset constants.
+ * Engine pin: XMRig v6.21.0 (Android `scripts/build_xmrig.sh`).
+ * Dataset sizes come from `RandomX_ConfigurationBase` in
+ * https://github.com/xmrig/xmrig/blob/v6.21.0/src/crypto/randomx/randomx.h
+ *   DatasetBaseSize  = 2147483648
+ *   DatasetExtraSize = 33554368
+ *   sum              = 2181038016 bytes ≈ 2079.9999 MiB
+ * Estimator uses a conservative ceil to **2080 MiB** per NUMA node (fast mode).
+ * RandomWOW inherits the common dataset; its 1 MiB value is the per-thread
+ * scratchpad only — never treat cache (256 MiB) as the fast-mode dataset.
  */
 
 /** @typedef {'rx/0'|'rx/wow'|'astrobwt/v3'|'unknown'} AlgoId */
 
 export const MIB = 1024 * 1024;
+
+/** Pinned XMRig tag used for RandomX size tables. */
+export const ENGINE_VERSION = '6.21.0';
+
+/** Upstream dataset byte total (base + extra) for RandomX_ConfigurationBase. */
+export const ENGINE_DATASET_BASE_PLUS_EXTRA_BYTES = 2147483648 + 33554368;
+
+/**
+ * Page-aligned conservative MiB ceiling for fast-mode dataset estimates.
+ * Must cover ENGINE_DATASET_BASE_PLUS_EXTRA_BYTES.
+ */
+export const ENGINE_DATASET_MIB = 2080;
 
 /**
  * Default app / OS reserve kept out of the soft mining budget (MiB).
@@ -37,25 +56,28 @@ export const ALGORITHMS = {
         id: 'rx/0',
         displayName: 'RandomX',
         /** Full dataset ≈ 2080 MiB per NUMA node (fast mode). */
-        datasetMiB: 2080,
+        datasetMiB: ENGINE_DATASET_MIB,
         /** Dataset init / light-mode working set uses ~256 MiB cache. */
         cacheMiB: 256,
         /** Per-thread scratchpad — NOT the full-mode requirement. */
         scratchpadMiB: 2,
         supportsFast: true,
         supportsLight: true,
-        notes: 'Monero RandomX (rx/0)'
+        notes: `Monero RandomX (rx/0); dataset from XMRig ${ENGINE_VERSION}`
     },
     'rx/wow': {
         id: 'rx/wow',
         displayName: 'RandomWOW',
-        /** RandomWOW dataset is much smaller than Monero; still not "1 MB total". */
-        datasetMiB: 256,
+        /**
+         * Wownero inherits RandomX_ConfigurationBase dataset (same ~2080 MiB).
+         * Do not confuse with cache (256 MiB) or scratchpad (1 MiB/thread).
+         */
+        datasetMiB: ENGINE_DATASET_MIB,
         cacheMiB: 256,
         scratchpadMiB: 1,
         supportsFast: true,
         supportsLight: true,
-        notes: 'Wownero RandomWOW — own constants, not Monero copies'
+        notes: `Wownero RandomWOW — dataset from XMRig ${ENGINE_VERSION} base config; scratchpad 1 MiB`
     },
     'astrobwt/v3': {
         id: 'astrobwt/v3',

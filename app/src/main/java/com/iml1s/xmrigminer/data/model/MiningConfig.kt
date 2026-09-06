@@ -63,19 +63,25 @@ data class MiningConfig(
 ) {
     fun getCoin(): CoinType = CoinType.fromString(coinType)
 
-    fun resolvedRandomxMode(
+    fun selectRandomxMode(
         availableBytes: Long? = null,
         totalBytes: Long? = null,
         processLimitBytes: Long? = null,
-        allocationFailed: Boolean = false
-    ): String {
+        allocationFailed: Boolean = false,
+        confirmSoftOverride: Boolean = false
+    ): com.iml1s.xmrigminer.data.hardware.RandomXMemoryBudget.Selection {
         val coin = getCoin()
-        if (coin == CoinType.DERO) return "auto"
+        if (coin == CoinType.DERO) {
+            return com.iml1s.xmrigminer.data.hardware.RandomXMemoryBudget.select(
+                algorithm = coin.name,
+                requestedMode = "auto"
+            )
+        }
         val requested = when {
             coin == CoinType.WOWNERO && randomxMode == "auto" -> "light"
             else -> normalizeRandomxMode(randomxMode)
         }
-        val sel = com.iml1s.xmrigminer.data.hardware.RandomXMemoryBudget.select(
+        return com.iml1s.xmrigminer.data.hardware.RandomXMemoryBudget.select(
             algorithm = coin.name,
             requestedMode = requested,
             locked = randomxModeLocked,
@@ -83,22 +89,51 @@ data class MiningConfig(
             availableBytes = availableBytes,
             totalBytes = totalBytes,
             processLimitBytes = processLimitBytes,
+            confirmSoftOverride = confirmSoftOverride,
             allocationFailed = allocationFailed
         )
-        return sel.appliedMode ?: requested
+    }
+
+    /**
+     * Resolved RandomX mode for config JSON. Returns null when the memory gate
+     * blocks launch — callers must not invent a mode and start XMRig (#129).
+     */
+    fun resolvedRandomxMode(
+        availableBytes: Long? = null,
+        totalBytes: Long? = null,
+        processLimitBytes: Long? = null,
+        allocationFailed: Boolean = false
+    ): String? {
+        val coin = getCoin()
+        if (coin == CoinType.DERO) return "auto"
+        val sel = selectRandomxMode(
+            availableBytes = availableBytes,
+            totalBytes = totalBytes,
+            processLimitBytes = processLimitBytes,
+            allocationFailed = allocationFailed
+        )
+        if (sel.blocked || !sel.ok) return null
+        return sel.appliedMode
     }
 
     fun toJson(
         logFile: String? = null,
         availableMemoryBytes: Long? = null,
-        totalMemoryBytes: Long? = null
+        totalMemoryBytes: Long? = null,
+        processLimitBytes: Long? = null,
+        appliedRandomxMode: String? = null
     ): String {
         val coin = getCoin()
         val solo = soloDaemon && coin == CoinType.MONERO
-        val rxMode = resolvedRandomxMode(
-            availableBytes = availableMemoryBytes,
-            totalBytes = totalMemoryBytes
-        )
+        val rxMode = appliedRandomxMode
+            ?: resolvedRandomxMode(
+                availableBytes = availableMemoryBytes,
+                totalBytes = totalMemoryBytes,
+                processLimitBytes = processLimitBytes
+            )
+            ?: throw IllegalStateException(
+                "Memory gate blocked RandomX mode — refuse config launch (#129)"
+            )
         val pool = buildJsonObject {
             when {
                 solo -> put("coin", "monero")
