@@ -14,6 +14,7 @@ on:
       - 'shared/reconnect/**'
       - 'shared/wallet-address/**'
       - 'shared/daemon-endpoint/**'
+      - 'shared/fee-manifest/**'
       - 'app/src/main/assets/pools.json'
       - 'desktop/src/generated-pool-configs.json'
       - 'desktop/src/main.js'
@@ -31,6 +32,7 @@ on:
       - 'shared/reconnect/**'
       - 'shared/wallet-address/**'
       - 'shared/daemon-endpoint/**'
+      - 'shared/fee-manifest/**'
       - 'app/src/main/assets/pools.json'
       - 'desktop/src/generated-pool-configs.json'
       - 'desktop/src/main.js'
@@ -98,6 +100,10 @@ jobs:
       - name: Daemon endpoint parse/probe tests (#44)
         working-directory: .
         run: node --test shared/daemon-endpoint/test/*.test.js
+
+      - name: Fee transparency manifest tests (#63)
+        working-directory: .
+        run: node --test shared/fee-manifest/test/*.test.js
 
       - name: Build for Production
         run: npm run build
