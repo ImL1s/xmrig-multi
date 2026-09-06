@@ -15,6 +15,12 @@ import {
 } from './settings.js';
 import { parseAddressInput, validateWalletAddress } from '../../shared/wallet-address/js/validate.js';
 import generatedPools from './generated-pool-configs.json';
+import registryJson from '../../shared/pool-registry/registry.v1.json';
+import {
+    recommendPools,
+    estimateShareWait,
+    firstShareStatus
+} from '../../shared/pool-recommend/js/recommend.js';
 
 const elements = {
     cpuName: document.getElementById('cpu-name'),
@@ -34,6 +40,7 @@ const elements = {
     profileDeleteBtn: document.getElementById('profile-delete-btn'),
     coinType: document.getElementById('coin-type'),
     poolUrl: document.getElementById('pool-url'),
+    poolRecommendHint: document.getElementById('pool-recommend-hint'),
     customPoolGroup: document.getElementById('custom-pool-group'),
     customPoolUrl: document.getElementById('custom-pool-url'),
     wallet: document.getElementById('wallet'),
@@ -61,6 +68,7 @@ const HASHRATE_PLACEHOLDER = '\u2013.\u2013\u2013';
 
 let statsInterval = null;
 let isMining = false;
+let miningStartedAt = null;
 let settingsStore = null;
 let cpuThreadCount = 4;
 let dirty = false;
@@ -265,6 +273,7 @@ function setupEventListeners() {
     elements.poolUrl.addEventListener('change', () => {
         const custom = elements.poolUrl.value === '__custom__';
         elements.customPoolGroup.style.display = custom ? 'block' : 'none';
+        refreshPoolRecommendHintOnly();
         markDirty();
     });
     elements.customPoolUrl.addEventListener('input', markDirty);
@@ -374,15 +383,31 @@ function updatePoolOptions() {
     const coin = elements.coinType.value;
     const pools = poolConfigs[coin] || poolConfigs.monero;
     const previous = elements.poolUrl.value;
+    // Hashrate-aware labels (#42) — do not hardcode a single pool as "Recommended".
+    const chain = coin === 'wownero' ? 'wownero' : coin === 'dero' ? 'dero' : 'monero';
+    const asset = coin === 'wownero' ? 'WOW' : coin === 'dero' ? 'DERO' : 'XMR';
+    const measuredHs = Number.parseFloat(elements.hashrate?.textContent);
+    const hashrateHs = Number.isFinite(measuredHs) && measuredHs > 0 ? measuredHs : null;
+    const ranked = recommendPools({
+        entries: registryJson.entries || [],
+        hashrateHs,
+        miningChain: chain,
+        payoutAsset: asset
+    });
+    const reasonById = new Map(ranked.recommendations.map((r) => [r.poolId, r]));
+
     elements.poolUrl.innerHTML =
-        pools.map((p) =>
-            `<option value="${p.url}" data-algo="${p.algo}" data-status="${p.status || 'supported'}">${p.name}</option>`
-        ).join('') +
+        pools.map((p) => {
+            const rec = reasonById.get(p.id);
+            const tag = ranked.top?.poolId === p.id ? ' — suggested for current H/s' : '';
+            return `<option value="${p.url}" data-algo="${p.algo}" data-pool-id="${p.id}" data-status="${p.status || 'supported'}">${p.name}${tag}</option>`;
+        }).join('') +
         `<option value="__custom__" data-algo="rx/0" data-status="supported">Custom endpoint…</option>`;
     if ([...elements.poolUrl.options].some((o) => o.value === previous)) {
         elements.poolUrl.value = previous;
     }
     elements.customPoolGroup.style.display = elements.poolUrl.value === '__custom__' ? 'block' : 'none';
+    updatePoolRecommendHint(ranked, reasonById);
 
     // Say up front that the coin cannot run, instead of accepting a click and then refusing it.
     const blocked = isCoinBlocked();
@@ -392,6 +417,43 @@ function updatePoolOptions() {
     elements.startBtn.title = blocked
         ? `${coin.toUpperCase()} is not supported by this build`
         : '';
+}
+
+function updatePoolRecommendHint(ranked, reasonById) {
+    if (!elements.poolRecommendHint) return;
+    const selected = elements.poolUrl.selectedOptions[0];
+    const poolId = selected?.dataset?.poolId;
+    const rec = poolId ? reasonById.get(poolId) : ranked.top;
+    if (!rec) {
+        elements.poolRecommendHint.textContent =
+            'Pool ranking uses measured hashrate affinity — not a payout guarantee (#42).';
+        return;
+    }
+    const why = (rec.reasons || []).slice(0, 2).join('; ');
+    const wait = estimateShareWait({
+        difficulty: null,
+        hashrateHs: ranked.hashrateHs
+    });
+    const shareNote = wait.ok
+        ? wait.message
+        : 'First-share wait needs a difficulty sample (VARDIFF) after a job arrives.';
+    elements.poolRecommendHint.textContent =
+        `${rec.displayName}: ${why}. ${shareNote} Ranking never auto-replaces your selection.`;
+}
+
+function refreshPoolRecommendHintOnly() {
+    const coin = elements.coinType.value;
+    const chain = coin === 'wownero' ? 'wownero' : coin === 'dero' ? 'dero' : 'monero';
+    const asset = coin === 'wownero' ? 'WOW' : coin === 'dero' ? 'DERO' : 'XMR';
+    const measuredHs = Number.parseFloat(elements.hashrate?.textContent);
+    const hashrateHs = Number.isFinite(measuredHs) && measuredHs > 0 ? measuredHs : null;
+    const ranked = recommendPools({
+        entries: registryJson.entries || [],
+        hashrateHs,
+        miningChain: chain,
+        payoutAsset: asset
+    });
+    updatePoolRecommendHint(ranked, new Map(ranked.recommendations.map((r) => [r.poolId, r])));
 }
 
 /** True when every preset for the selected coin is gated off, so nothing can legally start. */
@@ -493,6 +555,7 @@ async function stopMining() {
 
 function setMiningState(mining) {
     isMining = mining;
+    miningStartedAt = mining ? Date.now() : null;
     elements.startBtn.disabled = mining || isCoinBlocked();
     elements.stopBtn.disabled = !mining;
     elements.statusIndicator.className = `status-indicator ${mining ? 'mining' : ''}`;
@@ -547,6 +610,27 @@ function updateStats(stats) {
     setStat(elements.shares, `${stats.shares_accepted} / ${stats.shares_rejected}`, true);
     setStat(elements.difficulty, formatNumber(stats.difficulty), stats.difficulty > 0);
     setStat(elements.uptime, formatUptime(stats.uptime), true);
+
+    if (isMining && elements.poolRecommendHint) {
+        const estimate = estimateShareWait({
+            difficulty: stats.difficulty > 0 ? stats.difficulty : null,
+            hashrateHs: hasHashrate ? rate : null
+        });
+        const waitedSeconds = miningStartedAt
+            ? (Date.now() - miningStartedAt) / 1000
+            : Number(stats.uptime) || 0;
+        const status = firstShareStatus({
+            acceptedShares: Number(stats.shares_accepted) || 0,
+            hasJob: Number(stats.difficulty) > 0 || hasHashrate,
+            authError: false,
+            initializing: !hasHashrate && (Number(stats.shares_accepted) || 0) === 0,
+            waitedSeconds,
+            estimate
+        });
+        if (status.code !== 'share_accepted') {
+            elements.poolRecommendHint.textContent = `${status.message}. ${estimate.disclaimer || ''}`.trim();
+        }
+    }
 }
 
 function resetStats() {
