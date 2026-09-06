@@ -9,6 +9,10 @@ import {
     assertWebCoinStartAllowed,
     WEB_ENGINE_CAPABILITIES
 } from './engine-capabilities.js';
+import {
+    loadWebSettingsFromStorage,
+    saveWebSettingsToStorage
+} from './web-settings.js';
 
 class App {
     constructor() {
@@ -73,12 +77,22 @@ class App {
         this.dom.coinSelect.addEventListener('change', () => this.onCoinSelectChange());
         this.dom.poolSelect.addEventListener('change', () => this.onPoolSelectChange());
 
-        // Build thread options before restoring saved selection (#47).
-        this.renderThreadOptions();
-        this.loadSettings();
-
         this.miner.onLog = (msg) => this.log(msg);
         this.miner.onStatsUpdate = (stats) => this.updateUI(stats);
+
+        // Model first, then options, then apply — do not let render overwrite saved threads (#47).
+        const cores = navigator.hardwareConcurrency || 4;
+        const loaded = loadWebSettingsFromStorage(localStorage, { cores });
+        this.settingsModel = loaded.settings;
+        this.settingsPersistable = loaded.ok;
+        this.renderThreadOptions(cores);
+        this.applySettingsModel(this.settingsModel);
+        for (const w of loaded.warnings || []) {
+            this.log(`設定: ${w}`);
+        }
+        if (!loaded.ok) {
+            this.log(`設定載入降級: ${loaded.error}`);
+        }
 
         this.onCoinSelectChange();
         this.onPoolSelectChange();
@@ -88,6 +102,60 @@ class App {
             .map(([k]) => k)
             .join(', ');
         this.log(`Web Miner 就緒 — 可啟動幣種: ${supported || '無'}（能力閘門 #26）`);
+        this.updateActivityMeter(false);
+    }
+
+    applySettingsModel(settings) {
+        if (settings.coinSelect) this.dom.coinSelect.value = settings.coinSelect;
+        if (settings.walletAddress != null) this.dom.walletAddress.value = settings.walletAddress;
+        if (settings.poolSelect) {
+            const opt = [...this.dom.poolSelect.options].find((o) => o.value === settings.poolSelect);
+            if (opt && !opt.disabled) this.dom.poolSelect.value = settings.poolSelect;
+        }
+        if (settings.customProxyUrl != null) this.dom.customProxyUrl.value = settings.customProxyUrl;
+        if (settings.threads != null) this.dom.threads.value = String(settings.threads);
+        if (settings.workerName != null) this.dom.workerName.value = settings.workerName;
+        if (settings.requestedThreads && settings.requestedThreads !== settings.threads) {
+            this.log(
+                `已保存執行緒 ${settings.requestedThreads} 超出目前 ${navigator.hardwareConcurrency || '?'} 核，改用 ${settings.threads}`
+            );
+        }
+    }
+
+    loadSettings() {
+        // Kept for compatibility; init uses loadWebSettingsFromStorage.
+        const cores = navigator.hardwareConcurrency || 4;
+        const loaded = loadWebSettingsFromStorage(localStorage, { cores });
+        this.applySettingsModel(loaded.settings);
+    }
+
+    saveSettings() {
+        const settings = {
+            coinSelect: this.dom.coinSelect.value,
+            walletAddress: this.dom.walletAddress.value,
+            poolSelect: this.dom.poolSelect.value,
+            customProxyUrl: this.dom.customProxyUrl.value,
+            threads: parseInt(this.dom.threads.value, 10),
+            workerName: this.dom.workerName.value
+        };
+        this.settingsModel = settings;
+        const result = saveWebSettingsToStorage(settings, localStorage);
+        if (!result.ok) {
+            this.log(`無法永久保存設定: ${result.error}`);
+            this.settingsPersistable = false;
+        } else {
+            this.settingsPersistable = true;
+        }
+    }
+
+    renderThreadOptions(cores = navigator.hardwareConcurrency || 4) {
+        this.dom.threads.innerHTML = '';
+        for (let i = 1; i <= cores; i++) {
+            const option = document.createElement('option');
+            option.value = i;
+            option.text = `${i} Threads`;
+            this.dom.threads.appendChild(option);
+        }
     }
 
     onCoinSelectChange() {
@@ -155,44 +223,6 @@ class App {
     onPoolSelectChange() {
         const isCustom = this.dom.poolSelect.value === 'custom';
         this.dom.customProxyGroup.style.display = isCustom ? 'block' : 'none';
-    }
-
-    loadSettings() {
-        const settings = JSON.parse(localStorage.getItem('xmrig_web_settings') || '{}');
-        if (settings.coinSelect) this.dom.coinSelect.value = settings.coinSelect;
-        if (settings.walletAddress) this.dom.walletAddress.value = settings.walletAddress;
-        if (settings.poolSelect) this.dom.poolSelect.value = settings.poolSelect;
-        if (settings.customProxyUrl) this.dom.customProxyUrl.value = settings.customProxyUrl;
-        if (settings.threads) this.dom.threads.value = settings.threads;
-        if (settings.workerName) this.dom.workerName.value = settings.workerName;
-    }
-
-    saveSettings() {
-        const settings = {
-            coinSelect: this.dom.coinSelect.value,
-            walletAddress: this.dom.walletAddress.value,
-            poolSelect: this.dom.poolSelect.value,
-            customProxyUrl: this.dom.customProxyUrl.value,
-            threads: this.dom.threads.value,
-            workerName: this.dom.workerName.value
-        };
-        localStorage.setItem('xmrig_web_settings', JSON.stringify(settings));
-    }
-
-    renderThreadOptions() {
-        const cores = navigator.hardwareConcurrency || 4;
-        const previous = this.dom.threads.value;
-        this.dom.threads.innerHTML = '';
-        for (let i = 1; i <= cores; i++) {
-            const option = document.createElement('option');
-            option.value = i;
-            option.text = `${i} Threads`;
-            if (i === Math.max(1, Math.floor(cores / 2))) option.selected = true;
-            this.dom.threads.appendChild(option);
-        }
-        if (previous && [...this.dom.threads.options].some((o) => o.value === previous)) {
-            this.dom.threads.value = previous;
-        }
     }
 
     startMining() {
@@ -282,11 +312,24 @@ class App {
         this.dom.hashes.textContent = stats.totalHashes;
         this.dom.shares.textContent = `${stats.acceptedShares} / ${stats.rejectedShares}`;
         this.dom.uptime.textContent = this.formatUptime(stats.uptime);
+        this.updateActivityMeter(stats.isMining);
+    }
 
-        // Placeholder bar until #54 wires a real measurement.
-        const progress = (Date.now() % 2000) / 20;
-        this.dom.cpuUsage.style.width = stats.isMining ? `${progress}%` : '0%';
-        this.dom.cpuUsage.title = '示意動畫，非實際 CPU 使用率 (#54)';
+    /** Browsers have no trustworthy CPU % API — show activity, not a fake utilization (#54). */
+    updateActivityMeter(isMining) {
+        const bar = this.dom.cpuUsage;
+        const label = document.getElementById('cpu-meter-label');
+        if (!isMining) {
+            bar.style.width = '0%';
+            bar.classList.remove('is-active');
+            bar.title = 'CPU 使用率：無法量測（瀏覽器無可信 API）';
+            if (label) label.textContent = 'CPU：無法量測';
+            return;
+        }
+        bar.style.width = '100%';
+        bar.classList.add('is-active');
+        bar.title = '挖礦活動中（非 CPU %）';
+        if (label) label.textContent = '挖礦活動中（非 CPU %）';
     }
 
     formatUptime(seconds) {
