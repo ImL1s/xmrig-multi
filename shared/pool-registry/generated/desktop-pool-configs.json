@@ -1,0 +1,103 @@
+{
+  "schemaVersion": 1,
+  "registryHash": "26bbd46e0993fa52a50c217b19f870e0ea31431a87d38a58c2a1c51ff879943f",
+  "generatedAt": "2026-09-06T00:00:00Z",
+  "poolConfigs": {
+    "monero": [
+      {
+        "id": "supportxmr",
+        "url": "pool.supportxmr.com:3333",
+        "name": "SupportXMR",
+        "algo": "rx/0",
+        "status": "supported",
+        "registry_status": "docs-verified",
+        "payout_asset": "XMR",
+        "kind": "stratum-pool"
+      },
+      {
+        "id": "hashvault",
+        "url": "pool.hashvault.pro:3333",
+        "name": "HashVault",
+        "algo": "rx/0",
+        "status": "supported",
+        "registry_status": "docs-verified",
+        "payout_asset": "XMR",
+        "kind": "stratum-pool"
+      },
+      {
+        "id": "moneroocean",
+        "url": "gulf.moneroocean.stream:10128",
+        "name": "MoneroOcean",
+        "algo": "rx/0",
+        "status": "supported",
+        "registry_status": "docs-verified",
+        "payout_asset": "XMR",
+        "kind": "stratum-pool"
+      },
+      {
+        "id": "c3pool",
+        "url": "xmr.c3pool.com:13333",
+        "name": "C3Pool (unverified)",
+        "algo": "rx/0",
+        "status": "supported",
+        "registry_status": "unverified",
+        "payout_asset": "XMR",
+        "kind": "stratum-pool"
+      },
+      {
+        "id": "2miners-xmr",
+        "url": "xmr.2miners.com:2222",
+        "name": "2Miners XMR (unverified)",
+        "algo": "rx/0",
+        "status": "supported",
+        "registry_status": "unverified",
+        "payout_asset": "XMR",
+        "kind": "stratum-pool"
+      }
+    ],
+    "wownero": [
+      {
+        "id": "herominers-wow",
+        "url": "",
+        "name": "HeroMiners WOW (unavailable)",
+        "algo": "rx/wow",
+        "status": "unavailable",
+        "registry_status": "unavailable",
+        "payout_asset": "WOW",
+        "kind": "stratum-pool"
+      },
+      {
+        "id": "cryptoknight-wow",
+        "url": "",
+        "name": "CryptoKnight WOW (unavailable)",
+        "algo": "rx/wow",
+        "status": "unavailable",
+        "registry_status": "unavailable",
+        "payout_asset": "WOW",
+        "kind": "stratum-pool"
+      }
+    ],
+    "dero": [
+      {
+        "id": "dero-official-node",
+        "url": "",
+        "name": "DERO Official Node (unavailable)",
+        "algo": "astrobwt/v3",
+        "status": "unavailable",
+        "registry_status": "unavailable",
+        "payout_asset": "DERO",
+        "kind": "dero-node"
+      },
+      {
+        "id": "dero-community-node",
+        "url": "",
+        "name": "DERO Node Network (unavailable)",
+        "algo": "astrobwt/v3",
+        "status": "unavailable",
+        "registry_status": "unavailable",
+        "payout_asset": "DERO",
+        "kind": "dero-node"
+      }
+    ]
+  }
+}

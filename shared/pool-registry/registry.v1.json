@@ -1,0 +1,570 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-09-06T00:00:00Z",
+  "notes": "Canonical pool registry (#40). Dispositions from docs review 2026-09-06 (#41). protocolVerifiedAt null until controlled probe exists. Fees must not invent 0 for unknown.",
+  "entries": [
+    {
+      "id": "supportxmr",
+      "displayName": "SupportXMR",
+      "kind": "stratum-pool",
+      "status": "docs-verified",
+      "miningChain": "monero",
+      "payoutAsset": "XMR",
+      "algorithms": ["rx/0"],
+      "engineRequirements": ["xmrig", "randomx-js"],
+      "endpoints": [
+        {
+          "id": "plain-3333",
+          "transport": "stratum-tcp",
+          "host": "pool.supportxmr.com",
+          "port": 3333,
+          "tls": false,
+          "region": null,
+          "difficultyHint": "vardiff",
+          "protocolVerifiedAt": null,
+          "notes": "Legacy default port; live handshake pending #41 probe"
+        },
+        {
+          "id": "tls-443",
+          "transport": "stratum-tls",
+          "host": "pool.supportxmr.com",
+          "port": 443,
+          "tls": true,
+          "region": null,
+          "difficultyHint": "vardiff",
+          "protocolVerifiedAt": null,
+          "notes": "Listed TLS port; confirm cert/policy before elevating to verified"
+        }
+      ],
+      "account": {
+        "user": "xmr-address",
+        "pass": "worker-or-x",
+        "rigId": "optional",
+        "notes": "Standard Stratum wallet login"
+      },
+      "fees": {
+        "poolFee": {
+          "status": "unknown",
+          "percent": null,
+          "asOf": null,
+          "note": "Do not treat historical 0.6% as current without fresh evidence (#41)"
+        },
+        "minPayout": {
+          "status": "unknown",
+          "amount": null,
+          "asset": "XMR",
+          "asOf": null,
+          "note": "Needs official page/API confirmation"
+        },
+        "payoutScheme": null
+      },
+      "sources": [
+        { "label": "SupportXMR", "url": "https://www.supportxmr.com/" }
+      ],
+      "lastReviewedAt": "2026-09-06",
+      "lastProtocolVerifiedAt": null,
+      "noviceDefault": true,
+      "disposition": "Keep as Monero preset; fee/minPayout unknown until re-verified; eligible novice default only as docs-verified not protocol-verified.",
+      "description": "Popular Monero Stratum pool",
+      "legacyNames": ["SupportXMR"]
+    },
+    {
+      "id": "hashvault",
+      "displayName": "HashVault",
+      "kind": "stratum-pool",
+      "status": "docs-verified",
+      "miningChain": "monero",
+      "payoutAsset": "XMR",
+      "algorithms": ["rx/0"],
+      "engineRequirements": ["xmrig", "randomx-js"],
+      "endpoints": [
+        {
+          "id": "plain-3333",
+          "transport": "stratum-tcp",
+          "host": "pool.hashvault.pro",
+          "port": 3333,
+          "tls": false,
+          "region": null,
+          "difficultyHint": "vardiff",
+          "protocolVerifiedAt": null,
+          "notes": ""
+        },
+        {
+          "id": "tls-443",
+          "transport": "stratum-tls",
+          "host": "pool.hashvault.pro",
+          "port": 443,
+          "tls": true,
+          "region": null,
+          "difficultyHint": "vardiff",
+          "protocolVerifiedAt": null,
+          "notes": ""
+        }
+      ],
+      "account": {
+        "user": "xmr-address",
+        "pass": "worker-or-x",
+        "rigId": "optional",
+        "notes": ""
+      },
+      "fees": {
+        "poolFee": {
+          "status": "unknown",
+          "percent": null,
+          "asOf": null,
+          "note": "Historical 0.9% not treated as current (#41)"
+        },
+        "minPayout": {
+          "status": "unknown",
+          "amount": null,
+          "asset": "XMR",
+          "asOf": null,
+          "note": ""
+        },
+        "payoutScheme": null
+      },
+      "sources": [
+        { "label": "HashVault getting started", "url": "https://hashvault.pro/monero/en/getting-started" }
+      ],
+      "lastReviewedAt": "2026-09-06",
+      "lastProtocolVerifiedAt": null,
+      "noviceDefault": false,
+      "disposition": "Keep Monero preset; re-verify region/TLS/fee before elevating status.",
+      "description": "Monero pool (docs entry located; protocol probe pending)",
+      "legacyNames": ["HashVault"]
+    },
+    {
+      "id": "moneroocean",
+      "displayName": "MoneroOcean",
+      "kind": "stratum-pool",
+      "status": "docs-verified",
+      "miningChain": "monero",
+      "payoutAsset": "XMR",
+      "algorithms": ["rx/0"],
+      "engineRequirements": ["xmrig", "randomx-js"],
+      "endpoints": [
+        {
+          "id": "plain-10128",
+          "transport": "stratum-tcp",
+          "host": "gulf.moneroocean.stream",
+          "port": 10128,
+          "tls": false,
+          "region": null,
+          "difficultyHint": "algo-switching",
+          "protocolVerifiedAt": null,
+          "notes": "Primary non-TLS port from old UI docs"
+        },
+        {
+          "id": "tls-20128",
+          "transport": "stratum-tls",
+          "host": "gulf.moneroocean.stream",
+          "port": 20128,
+          "tls": true,
+          "region": null,
+          "difficultyHint": "algo-switching",
+          "protocolVerifiedAt": null,
+          "notes": "SSL port from old UI docs"
+        },
+        {
+          "id": "plain-10001-legacy-ios",
+          "transport": "stratum-tcp",
+          "host": "gulf.moneroocean.stream",
+          "port": 10001,
+          "tls": false,
+          "region": null,
+          "difficultyHint": "low-hashrate-candidate",
+          "protocolVerifiedAt": null,
+          "notes": "Former iOS preset; not novice default until policy re-confirmed (#41)"
+        }
+      ],
+      "account": {
+        "user": "xmr-address-only",
+        "pass": "worker-or-x",
+        "rigId": "optional",
+        "notes": "Pays XMR only — never use WOW/DERO address (#29)"
+      },
+      "fees": {
+        "poolFee": {
+          "status": "unknown",
+          "percent": null,
+          "asOf": null,
+          "note": "Do not encode historical 0% as verified known"
+        },
+        "minPayout": {
+          "status": "unknown",
+          "amount": null,
+          "asset": "XMR",
+          "asOf": null,
+          "note": ""
+        },
+        "payoutScheme": "algo-switch → XMR"
+      },
+      "sources": [
+        { "label": "MoneroOcean", "url": "https://moneroocean.stream/" },
+        { "label": "MoneroOcean old UI", "url": "https://old.moneroocean.stream/" }
+      ],
+      "lastReviewedAt": "2026-09-06",
+      "lastProtocolVerifiedAt": null,
+      "noviceDefault": true,
+      "disposition": "XMR payout only; ports 10128/20128 preferred adapters; 10001 retained as non-default endpoint metadata.",
+      "description": "Algo-switching pool with XMR payout",
+      "legacyNames": ["MoneroOcean", "MoneroOcean (Recommended, XMR payout)", "MoneroOcean (XMR payout)"]
+    },
+    {
+      "id": "c3pool",
+      "displayName": "C3Pool",
+      "kind": "stratum-pool",
+      "status": "unverified",
+      "miningChain": "monero",
+      "payoutAsset": "XMR",
+      "algorithms": ["rx/0"],
+      "engineRequirements": ["xmrig"],
+      "endpoints": [
+        {
+          "id": "plain-13333",
+          "transport": "stratum-tcp",
+          "host": "xmr.c3pool.com",
+          "port": 13333,
+          "tls": false,
+          "region": null,
+          "difficultyHint": null,
+          "protocolVerifiedAt": null,
+          "notes": ""
+        },
+        {
+          "id": "alt-23333",
+          "transport": "stratum-tcp",
+          "host": "xmr.c3pool.com",
+          "port": 23333,
+          "tls": false,
+          "region": null,
+          "difficultyHint": "high-hashrate-candidate",
+          "protocolVerifiedAt": null,
+          "notes": "Setup scripts mention 23333 as high-hashrate candidate — NOT assumed TLS (#41)"
+        }
+      ],
+      "account": {
+        "user": "xmr-address",
+        "pass": "worker-or-x",
+        "rigId": "optional",
+        "notes": ""
+      },
+      "fees": {
+        "poolFee": {
+          "status": "unknown",
+          "percent": null,
+          "asOf": null,
+          "note": "Historical 0.9% not current evidence"
+        },
+        "minPayout": {
+          "status": "unknown",
+          "amount": null,
+          "asset": "XMR",
+          "asOf": null,
+          "note": ""
+        },
+        "payoutScheme": null
+      },
+      "sources": [
+        { "label": "C3Pool", "url": "https://c3pool.com/" },
+        { "label": "C3Pool xmrig setup script", "url": "https://github.com/C3Pool/xmrig_setup/blob/master/setup_c3pool_miner.sh" }
+      ],
+      "lastReviewedAt": "2026-09-06",
+      "lastProtocolVerifiedAt": null,
+      "noviceDefault": false,
+      "disposition": "Keep listed but unverified; remove false TLS assumption on 23333; not a novice default.",
+      "description": "Monero pool — TLS/difficulty need handshake confirmation",
+      "legacyNames": ["C3Pool"]
+    },
+    {
+      "id": "2miners-xmr",
+      "displayName": "2Miners XMR",
+      "kind": "stratum-pool",
+      "status": "unverified",
+      "miningChain": "monero",
+      "payoutAsset": "XMR",
+      "algorithms": ["rx/0"],
+      "engineRequirements": ["xmrig"],
+      "endpoints": [
+        {
+          "id": "plain-2222",
+          "transport": "stratum-tcp",
+          "host": "xmr.2miners.com",
+          "port": 2222,
+          "tls": false,
+          "region": null,
+          "difficultyHint": null,
+          "protocolVerifiedAt": null,
+          "notes": "Help page not readable in 2026-09-06 review; do not claim closed or verified"
+        }
+      ],
+      "account": {
+        "user": "xmr-address",
+        "pass": "worker-or-x",
+        "rigId": "optional",
+        "notes": ""
+      },
+      "fees": {
+        "poolFee": {
+          "status": "unknown",
+          "percent": null,
+          "asOf": null,
+          "note": ""
+        },
+        "minPayout": {
+          "status": "unknown",
+          "amount": null,
+          "asset": "XMR",
+          "asOf": null,
+          "note": ""
+        },
+        "payoutScheme": null
+      },
+      "sources": [
+        { "label": "2Miners XMR help", "url": "https://xmr.2miners.com/help" }
+      ],
+      "lastReviewedAt": "2026-09-06",
+      "lastProtocolVerifiedAt": null,
+      "noviceDefault": false,
+      "disposition": "Retain endpoint metadata as unverified; desktop/iOS may list with warning until probe.",
+      "description": "2Miners Monero endpoint (unverified)",
+      "legacyNames": ["2Miners", "2Miners XMR"]
+    },
+    {
+      "id": "herominers-wow",
+      "displayName": "HeroMiners WOW",
+      "kind": "stratum-pool",
+      "status": "unavailable",
+      "miningChain": "wownero",
+      "payoutAsset": "WOW",
+      "algorithms": ["rx/wow"],
+      "engineRequirements": ["xmrig"],
+      "endpoints": [
+        {
+          "id": "plain-1111",
+          "transport": "stratum-tcp",
+          "host": "wownero.herominers.com",
+          "port": 1111,
+          "tls": false,
+          "region": null,
+          "difficultyHint": null,
+          "protocolVerifiedAt": null,
+          "notes": "Hostname wownero.herominers.com (not wow.herominers.com)"
+        },
+        {
+          "id": "alt-1112",
+          "transport": "stratum-tcp",
+          "host": "wownero.herominers.com",
+          "port": 1112,
+          "tls": false,
+          "region": null,
+          "difficultyHint": null,
+          "protocolVerifiedAt": null,
+          "notes": "Former ssl_url; TLS not assumed"
+        }
+      ],
+      "account": {
+        "user": "wow-address",
+        "pass": "x",
+        "rigId": "optional",
+        "notes": "Blocked until Wownero signer/daemon flow (#28)"
+      },
+      "fees": {
+        "poolFee": {
+          "status": "unknown",
+          "percent": null,
+          "asOf": null,
+          "note": ""
+        },
+        "minPayout": {
+          "status": "unknown",
+          "amount": null,
+          "asset": "WOW",
+          "asOf": null,
+          "note": ""
+        },
+        "payoutScheme": null
+      },
+      "sources": [
+        { "label": "Wownero mining", "url": "https://wownero.org/mining.html" }
+      ],
+      "lastReviewedAt": "2026-09-06",
+      "lastProtocolVerifiedAt": null,
+      "noviceDefault": false,
+      "disposition": "Unavailable for start; keep for migration visibility only (#28).",
+      "description": "Unverified Wownero preset — blocked",
+      "legacyNames": ["HeroMiners WOW"]
+    },
+    {
+      "id": "cryptoknight-wow",
+      "displayName": "CryptoKnight WOW",
+      "kind": "stratum-pool",
+      "status": "unavailable",
+      "miningChain": "wownero",
+      "payoutAsset": "WOW",
+      "algorithms": ["rx/wow"],
+      "engineRequirements": ["xmrig"],
+      "endpoints": [
+        {
+          "id": "plain-50901",
+          "transport": "stratum-tcp",
+          "host": "wownero.ingest.cryptoknight.cc",
+          "port": 50901,
+          "tls": false,
+          "region": null,
+          "difficultyHint": null,
+          "protocolVerifiedAt": null,
+          "notes": ""
+        },
+        {
+          "id": "alt-50902",
+          "transport": "stratum-tcp",
+          "host": "wownero.ingest.cryptoknight.cc",
+          "port": 50902,
+          "tls": false,
+          "region": null,
+          "difficultyHint": null,
+          "protocolVerifiedAt": null,
+          "notes": "Former ssl_url; TLS not assumed"
+        }
+      ],
+      "account": {
+        "user": "wow-address",
+        "pass": "x",
+        "rigId": "optional",
+        "notes": "Insufficient protocol evidence; do not auto-recommend (#28/#41)"
+      },
+      "fees": {
+        "poolFee": {
+          "status": "unknown",
+          "percent": null,
+          "asOf": null,
+          "note": ""
+        },
+        "minPayout": {
+          "status": "unknown",
+          "amount": null,
+          "asset": "WOW",
+          "asOf": null,
+          "note": ""
+        },
+        "payoutScheme": null
+      },
+      "sources": [],
+      "lastReviewedAt": "2026-09-06",
+      "lastProtocolVerifiedAt": null,
+      "noviceDefault": false,
+      "disposition": "Mark unavailable/unverified; never novice default.",
+      "description": "Unverified Wownero preset — blocked",
+      "legacyNames": ["CryptoKnight WOW"]
+    },
+    {
+      "id": "dero-official-node",
+      "displayName": "DERO Official Node",
+      "kind": "dero-node",
+      "status": "unavailable",
+      "miningChain": "dero",
+      "payoutAsset": "DERO",
+      "algorithms": ["astrobwt/v3"],
+      "engineRequirements": ["dero-miner"],
+      "endpoints": [
+        {
+          "id": "rpc-10100",
+          "transport": "daemon-rpc",
+          "host": "minernode1.dero.io",
+          "port": 10100,
+          "tls": false,
+          "region": null,
+          "difficultyHint": null,
+          "protocolVerifiedAt": null,
+          "notes": "Not XMRig Stratum (#27)"
+        }
+      ],
+      "account": {
+        "user": "dero-wallet",
+        "pass": "n/a",
+        "rigId": "n/a",
+        "notes": "Requires dedicated DERO miner/node flow"
+      },
+      "fees": {
+        "poolFee": {
+          "status": "unknown",
+          "percent": null,
+          "asOf": null,
+          "note": "Not a pool fee model"
+        },
+        "minPayout": {
+          "status": "unknown",
+          "amount": null,
+          "asset": "DERO",
+          "asOf": null,
+          "note": ""
+        },
+        "payoutScheme": null
+      },
+      "sources": [
+        { "label": "DERO mining docs", "url": "https://docs.dero.io/Getting%20Started/mining/" }
+      ],
+      "lastReviewedAt": "2026-09-06",
+      "lastProtocolVerifiedAt": null,
+      "noviceDefault": false,
+      "disposition": "Wrong kind for XMRig Stratum; unavailable until dero-miner adapter (#27).",
+      "description": "DERO node endpoint (not Stratum)",
+      "legacyNames": ["DERO Official Node", "DERO Official (unavailable #27)"]
+    },
+    {
+      "id": "dero-community-node",
+      "displayName": "DERO Node Network",
+      "kind": "dero-node",
+      "status": "unavailable",
+      "miningChain": "dero",
+      "payoutAsset": "DERO",
+      "algorithms": ["astrobwt/v3"],
+      "engineRequirements": ["dero-miner"],
+      "endpoints": [
+        {
+          "id": "rpc-10100",
+          "transport": "daemon-rpc",
+          "host": "dero-node.mysrv.cloud",
+          "port": 10100,
+          "tls": false,
+          "region": null,
+          "difficultyHint": null,
+          "protocolVerifiedAt": null,
+          "notes": "Not XMRig Stratum (#27)"
+        }
+      ],
+      "account": {
+        "user": "dero-wallet",
+        "pass": "n/a",
+        "rigId": "n/a",
+        "notes": ""
+      },
+      "fees": {
+        "poolFee": {
+          "status": "unknown",
+          "percent": null,
+          "asOf": null,
+          "note": ""
+        },
+        "minPayout": {
+          "status": "unknown",
+          "amount": null,
+          "asset": "DERO",
+          "asOf": null,
+          "note": ""
+        },
+        "payoutScheme": null
+      },
+      "sources": [
+        { "label": "DERO mining docs", "url": "https://docs.dero.io/Getting%20Started/mining/" }
+      ],
+      "lastReviewedAt": "2026-09-06",
+      "lastProtocolVerifiedAt": null,
+      "noviceDefault": false,
+      "disposition": "Unavailable until dedicated adapter; kind=dero-node not stratum-pool.",
+      "description": "Community DERO node (not Stratum)",
+      "legacyNames": ["DERO Node Network", "DERO Community (unavailable #27)"]
+    }
+  ]
+}
