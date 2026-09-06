@@ -1,7 +1,12 @@
 // XMRig Multi Desktop - Frontend
 import { invoke } from '@tauri-apps/api/core';
+import {
+    getActiveProfile,
+    loadDesktopStore,
+    saveDesktopStore
+} from './settings.js';
+import generatedPools from './generated-pool-configs.json';
 
-// DOM Elements
 const elements = {
     cpuName: document.getElementById('cpu-name'),
     cpuThreads: document.getElementById('cpu-threads'),
@@ -15,6 +20,8 @@ const elements = {
     uptime: document.getElementById('uptime'),
     coinType: document.getElementById('coin-type'),
     poolUrl: document.getElementById('pool-url'),
+    customPoolGroup: document.getElementById('custom-pool-group'),
+    customPoolUrl: document.getElementById('custom-pool-url'),
     wallet: document.getElementById('wallet'),
     walletError: document.getElementById('wallet-error'),
     worker: document.getElementById('worker'),
@@ -22,52 +29,31 @@ const elements = {
     threadValue: document.getElementById('thread-value'),
     startBtn: document.getElementById('start-btn'),
     stopBtn: document.getElementById('stop-btn'),
+    saveBtn: document.getElementById('save-settings-btn'),
+    saveStatus: document.getElementById('save-status'),
     logOutput: document.getElementById('log-output'),
 };
 
-// Shown instead of a fabricated 0.00 before the miner reports anything (#54).
+const poolConfigs = generatedPools.poolConfigs;
+
+// Shown instead of a fabricated 0.00 before the miner has reported anything (#54).
 const PLACEHOLDER = '\u2013';
 const HASHRATE_PLACEHOLDER = '\u2013.\u2013\u2013';
 
-// Pool configurations per coin
-const poolConfigs = {
-    monero: [
-        { url: 'gulf.moneroocean.stream:10128', name: 'MoneroOcean (Recommended, XMR payout)', algo: 'rx/0', status: 'supported' },
-        { url: 'pool.supportxmr.com:3333', name: 'SupportXMR', algo: 'rx/0', status: 'supported' },
-        { url: 'pool.hashvault.pro:3333', name: 'HashVault', algo: 'rx/0', status: 'supported' },
-        { url: 'xmr.2miners.com:2222', name: '2Miners', algo: 'rx/0', status: 'supported' },
-    ],
-    wownero: [
-        {
-            url: '',
-            name: 'Wownero unavailable — need signer/daemon (#28)',
-            algo: 'rx/wow',
-            status: 'unavailable'
-        },
-    ],
-    dero: [
-        {
-            url: '',
-            name: 'DERO unavailable — need daemon adapter (#27)',
-            algo: 'astrobwt/v3',
-            status: 'unavailable'
-        },
-    ],
-};
-
 let statsInterval = null;
 let isMining = false;
+let settingsStore = null;
+let cpuThreadCount = 4;
+let dirty = false;
 
-// Initialize app
 async function init() {
     log('Initializing XMRig Multi Desktop...');
     await loadSystemInfo();
     setupEventListeners();
-    updatePoolOptions();
+    restoreSettings();
     log('Ready to mine!');
 }
 
-// Load system information from Rust backend
 async function loadSystemInfo() {
     try {
         const info = await invoke('get_system_info');
@@ -75,40 +61,152 @@ async function loadSystemInfo() {
         elements.cpuThreads.textContent = `${info.cpu_cores} / ${info.cpu_threads}`;
         elements.memory.textContent = formatBytes(info.memory_total);
         elements.osInfo.textContent = `${info.os_name} ${info.os_version} (${info.arch})`;
-
-        // Set max threads
+        cpuThreadCount = info.cpu_threads;
         elements.threads.max = info.cpu_threads;
+        // Hardware default only if no saved profile yet — applied in restoreSettings.
         elements.threads.value = Math.max(1, info.cpu_threads - 1);
         elements.threadValue.textContent = elements.threads.value;
-
         log(`System: ${info.cpu_name}, ${info.cpu_threads} threads`);
     } catch (error) {
         log(`Error loading system info: ${error}`, 'error');
     }
 }
 
-// Setup event listeners
-function setupEventListeners() {
-    elements.coinType.addEventListener('change', updatePoolOptions);
-    elements.threads.addEventListener('input', () => {
-        elements.threadValue.textContent = elements.threads.value;
-    });
-    elements.wallet.addEventListener('input', clearWalletError);
-    elements.startBtn.addEventListener('click', startMining);
-    elements.stopBtn.addEventListener('click', stopMining);
+function restoreSettings() {
+    const loaded = loadDesktopStore(localStorage, cpuThreadCount);
+    settingsStore = loaded.store;
+    if (!loaded.ok) {
+        setSaveStatus(`Load failed (${loaded.error}); using defaults`, true);
+        log(`Settings load failed: ${loaded.error}`, 'error');
+    } else if (loaded.fresh) {
+        setSaveStatus('No saved profile yet — defaults from hardware');
+    } else {
+        setSaveStatus('Saved profile restored');
+    }
+
+    const profile = getActiveProfile(settingsStore);
+    applyProfileToUi(profile);
 }
 
-// Update pool options based on selected coin
+function applyProfileToUi(profile) {
+    elements.coinType.value = profile.coin_type || 'monero';
+    updatePoolOptions();
+    if (profile.use_custom_pool && profile.custom_pool_url) {
+        elements.poolUrl.value = '__custom__';
+        elements.customPoolUrl.value = profile.custom_pool_url;
+        elements.customPoolGroup.style.display = 'block';
+    } else if (profile.pool_url) {
+        const match = [...elements.poolUrl.options].find((o) => o.value === profile.pool_url);
+        if (match) {
+            elements.poolUrl.value = profile.pool_url;
+        } else {
+            elements.poolUrl.value = '__custom__';
+            elements.customPoolUrl.value = profile.pool_url;
+            elements.customPoolGroup.style.display = 'block';
+        }
+    }
+    elements.wallet.value = profile.wallet_address || '';
+    elements.worker.value = profile.worker_name || 'desktop';
+    const threads = Math.max(1, Math.min(cpuThreadCount, profile.threads || 1));
+    elements.threads.value = threads;
+    elements.threadValue.textContent = String(threads);
+    dirty = false;
+}
+
+function collectProfileFromUi() {
+    const useCustom = elements.poolUrl.value === '__custom__';
+    const poolOption = elements.poolUrl.selectedOptions[0];
+    return {
+        id: settingsStore?.activeProfileId || 'default',
+        name: getActiveProfile(settingsStore || { profiles: [{ id: 'default', name: 'Default' }] }).name || 'Default',
+        coin_type: elements.coinType.value,
+        pool_url: useCustom ? (elements.customPoolUrl.value.trim() || '') : elements.poolUrl.value,
+        custom_pool_url: elements.customPoolUrl.value.trim(),
+        use_custom_pool: useCustom,
+        wallet_address: elements.wallet.value.trim(),
+        worker_name: elements.worker.value.trim() || 'desktop',
+        threads: parseInt(elements.threads.value, 10),
+        algorithm: poolOption?.dataset?.algo || 'rx/0'
+    };
+}
+
+function persistSettings() {
+    if (!settingsStore) {
+        settingsStore = loadDesktopStore(localStorage, cpuThreadCount).store;
+    }
+    const profile = collectProfileFromUi();
+    settingsStore = {
+        ...settingsStore,
+        profiles: settingsStore.profiles.map((p) => (p.id === profile.id ? profile : p))
+    };
+    if (!settingsStore.profiles.some((p) => p.id === profile.id)) {
+        settingsStore.profiles.push(profile);
+    }
+    settingsStore.activeProfileId = profile.id;
+    const result = saveDesktopStore(settingsStore, localStorage);
+    if (result.ok) {
+        dirty = false;
+        setSaveStatus('Saved');
+        log('Settings saved');
+    } else {
+        setSaveStatus(`Save failed: ${result.error}`, true);
+        log(`Settings save failed: ${result.error}`, 'error');
+    }
+    return result.ok;
+}
+
+function setSaveStatus(text, isError = false) {
+    if (!elements.saveStatus) return;
+    elements.saveStatus.textContent = text;
+    elements.saveStatus.classList.toggle('error', isError);
+}
+
+function markDirty() {
+    dirty = true;
+    setSaveStatus('Unsaved changes');
+}
+
+function setupEventListeners() {
+    elements.coinType.addEventListener('change', () => {
+        updatePoolOptions();
+        markDirty();
+    });
+    elements.poolUrl.addEventListener('change', () => {
+        const custom = elements.poolUrl.value === '__custom__';
+        elements.customPoolGroup.style.display = custom ? 'block' : 'none';
+        markDirty();
+    });
+    elements.customPoolUrl.addEventListener('input', markDirty);
+    elements.wallet.addEventListener('input', () => {
+        clearWalletError();
+        markDirty();
+    });
+    elements.worker.addEventListener('input', markDirty);
+    elements.threads.addEventListener('input', () => {
+        elements.threadValue.textContent = elements.threads.value;
+        markDirty();
+    });
+    elements.startBtn.addEventListener('click', startMining);
+    elements.stopBtn.addEventListener('click', stopMining);
+    elements.saveBtn?.addEventListener('click', () => persistSettings());
+}
+
 function updatePoolOptions() {
     const coin = elements.coinType.value;
     const pools = poolConfigs[coin] || poolConfigs.monero;
-
-    elements.poolUrl.innerHTML = pools.map(p =>
-        `<option value="${p.url}" data-algo="${p.algo}" data-status="${p.status || 'supported'}">${p.name}</option>`
-    ).join('');
+    const previous = elements.poolUrl.value;
+    elements.poolUrl.innerHTML =
+        pools.map((p) =>
+            `<option value="${p.url}" data-algo="${p.algo}" data-status="${p.status || 'supported'}">${p.name}</option>`
+        ).join('') +
+        `<option value="__custom__" data-algo="rx/0" data-status="supported">Custom endpoint…</option>`;
+    if ([...elements.poolUrl.options].some((o) => o.value === previous)) {
+        elements.poolUrl.value = previous;
+    }
+    elements.customPoolGroup.style.display = elements.poolUrl.value === '__custom__' ? 'block' : 'none';
 
     // Say up front that the coin cannot run, instead of accepting a click and then refusing it.
-    const blocked = pools.every(p => p.status === 'unavailable');
+    const blocked = isCoinBlocked();
     if (!isMining) {
         elements.startBtn.disabled = blocked;
     }
@@ -117,12 +215,12 @@ function updatePoolOptions() {
         : '';
 }
 
+/** True when every preset for the selected coin is gated off, so nothing can legally start. */
 function isCoinBlocked() {
     const pools = poolConfigs[elements.coinType.value] || poolConfigs.monero;
-    return pools.every(p => p.status === 'unavailable');
+    return pools.every((p) => p.status === 'unavailable');
 }
 
-// Start mining
 async function startMining() {
     const wallet = elements.wallet.value.trim();
     if (!wallet) {
@@ -140,14 +238,20 @@ async function startMining() {
         return;
     }
 
+    const useCustom = elements.poolUrl.value === '__custom__';
+    const poolUrl = useCustom ? elements.customPoolUrl.value.trim() : elements.poolUrl.value;
     const poolOption = elements.poolUrl.selectedOptions[0];
-    if (poolOption?.dataset?.status === 'unavailable' || !elements.poolUrl.value) {
+    if (!useCustom && (poolOption?.dataset?.status === 'unavailable' || !poolUrl)) {
         log('Selected pool is unavailable', 'error');
         return;
     }
-    const algo = poolOption.dataset.algo || 'rx/0';
+    if (!poolUrl) {
+        log('Enter a custom pool endpoint', 'error');
+        return;
+    }
+    const algo = poolOption?.dataset?.algo || 'rx/0';
 
-    if (elements.poolUrl.value.toLowerCase().includes('moneroocean')) {
+    if (poolUrl.toLowerCase().includes('moneroocean')) {
         const isXmr = (wallet.startsWith('4') || wallet.startsWith('8')) && wallet.length >= 95;
         if (!isXmr) {
             showWalletError('MoneroOcean pays out in XMR, so this must be a Monero address (#29).');
@@ -156,12 +260,13 @@ async function startMining() {
     }
 
     clearWalletError();
+    persistSettings();
 
     const config = {
-        pool_url: elements.poolUrl.value,
+        pool_url: poolUrl,
         wallet_address: wallet,
         worker_name: elements.worker.value || 'desktop',
-        threads: parseInt(elements.threads.value),
+        threads: parseInt(elements.threads.value, 10),
         coin_type: coin,
         algorithm: algo,
     };
@@ -180,7 +285,6 @@ async function startMining() {
     }
 }
 
-// Stop mining
 async function stopMining() {
     log('Stopping mining...');
     try {
@@ -193,26 +297,30 @@ async function stopMining() {
     }
 }
 
-// Set UI mining state
 function setMiningState(mining) {
     isMining = mining;
     elements.startBtn.disabled = mining || isCoinBlocked();
     elements.stopBtn.disabled = !mining;
     elements.statusIndicator.className = `status-indicator ${mining ? 'mining' : ''}`;
     elements.miningStatus.textContent = mining ? 'Mining' : 'Stopped';
-
-    // Disable config while mining
     elements.coinType.disabled = mining;
     elements.poolUrl.disabled = mining;
+    elements.customPoolUrl.disabled = mining;
     elements.wallet.disabled = mining;
     elements.worker.disabled = mining;
     elements.threads.disabled = mining;
 }
 
-// Start polling for stats
 function startStatsPolling() {
     statsInterval = setInterval(async () => {
         try {
+            const running = await invoke('is_mining');
+            if (!running && isMining) {
+                log('Miner process exited — unlocking controls (#48)', 'error');
+                setMiningState(false);
+                stopStatsPolling();
+                return;
+            }
             const stats = await invoke('get_mining_stats');
             updateStats(stats);
         } catch (error) {
@@ -221,7 +329,6 @@ function startStatsPolling() {
     }, 1000);
 }
 
-// Stop polling for stats
 function stopStatsPolling() {
     if (statsInterval) {
         clearInterval(statsInterval);
@@ -230,17 +337,15 @@ function stopStatsPolling() {
     resetStats();
 }
 
-// Update stats display
 function updateStats(stats) {
-    // A running miner with no accepted share yet reports 0 H/s honestly; that is a real
-    // measurement, not a placeholder, so it stays a number.
+    // A running miner that reports 0 H/s is telling the truth, so that stays a number. Only the
+    // absence of a reading becomes a placeholder.
     setStat(elements.hashrate, stats.hashrate.toFixed(2), true);
     setStat(elements.shares, `${stats.shares_accepted} / ${stats.shares_rejected}`, true);
     setStat(elements.difficulty, formatNumber(stats.difficulty), stats.difficulty > 0);
     setStat(elements.uptime, formatUptime(stats.uptime), true);
 }
 
-// Reset stats display
 function resetStats() {
     setStat(elements.hashrate, HASHRATE_PLACEHOLDER, false);
     setStat(elements.shares, PLACEHOLDER, false);
@@ -249,25 +354,30 @@ function resetStats() {
 }
 
 function setStat(node, text, hasValue) {
-    node.textContent = hasValue ? text : (node === elements.hashrate ? HASHRATE_PLACEHOLDER : PLACEHOLDER);
+    const placeholder = node === elements.hashrate ? HASHRATE_PLACEHOLDER : PLACEHOLDER;
+    node.textContent = hasValue ? text : placeholder;
     node.dataset.hasValue = String(hasValue);
 }
 
+/** Wallet problems belong beside the wallet field, not only at the bottom of the log. */
 function showWalletError(message) {
-    elements.walletError.textContent = message;
-    elements.walletError.dataset.visible = 'true';
+    if (elements.walletError) {
+        elements.walletError.textContent = message;
+        elements.walletError.dataset.visible = 'true';
+    }
     elements.wallet.setAttribute('aria-invalid', 'true');
     elements.wallet.focus();
     log(message, 'error');
 }
 
 function clearWalletError() {
-    elements.walletError.dataset.visible = 'false';
-    elements.walletError.textContent = '';
+    if (elements.walletError) {
+        elements.walletError.dataset.visible = 'false';
+        elements.walletError.textContent = '';
+    }
     elements.wallet.removeAttribute('aria-invalid');
 }
 
-// Log message to output
 function log(message, type = 'info') {
     const timestamp = new Date().toLocaleTimeString();
     const line = document.createElement('div');
@@ -277,7 +387,6 @@ function log(message, type = 'info') {
     elements.logOutput.scrollTop = elements.logOutput.scrollHeight;
 }
 
-// Utility functions
 function formatBytes(bytes) {
     const gb = bytes / (1024 * 1024 * 1024);
     return `${gb.toFixed(1)} GB`;
@@ -296,5 +405,4 @@ function formatUptime(seconds) {
     return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
 }
 
-// Initialize on load
 document.addEventListener('DOMContentLoaded', init);

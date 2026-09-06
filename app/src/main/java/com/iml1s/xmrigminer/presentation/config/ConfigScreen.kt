@@ -141,8 +141,10 @@ private fun ConfigContent(
         // Mining Settings
         MiningSettingsCard(
             threads = state.config.threads,
+            threadsAuto = state.config.threadsAuto,
             maxCpuUsage = state.config.maxCpuUsage,
             onThreadsChanged = { onEvent(ConfigUiEvent.ThreadsChanged(it)) },
+            onThreadsAutoToggled = { onEvent(ConfigUiEvent.ThreadsAutoToggled(it)) },
             onMaxCpuUsageChanged = { onEvent(ConfigUiEvent.MaxCpuUsageChanged(it)) }
         )
 
@@ -512,11 +514,13 @@ private fun WalletConfigCard(
 @Composable
 private fun MiningSettingsCard(
     threads: Int,
+    threadsAuto: Boolean,
     maxCpuUsage: Int,
     onThreadsChanged: (Int) -> Unit,
+    onThreadsAutoToggled: (Boolean) -> Unit,
     onMaxCpuUsageChanged: (Int) -> Unit
 ) {
-    val maxThreads = Runtime.getRuntime().availableProcessors()
+    val maxThreads = Runtime.getRuntime().availableProcessors().coerceAtLeast(1)
 
     Card(
         modifier = Modifier.fillMaxWidth()
@@ -531,27 +535,53 @@ private fun MiningSettingsCard(
                 color = MaterialTheme.colorScheme.primary
             )
 
-            // Threads
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("Auto threads")
+                    Text(
+                        text = "XMRig autoconfig via max-threads-hint (not a CPU % cap)",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Switch(
+                    checked = threadsAuto,
+                    onCheckedChange = onThreadsAutoToggled
+                )
+            }
+
+            Divider()
+
+            // Manual threads
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Text("CPU Threads")
+                    Text("CPU Threads (manual)")
                     Text(
-                        text = "$threads / $maxThreads",
+                        text = if (threadsAuto) "Auto" else "$threads / $maxThreads",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.primary
                     )
                 }
                 Slider(
-                    value = threads.toFloat(),
+                    value = threads.coerceIn(1, maxThreads).toFloat(),
                     onValueChange = { onThreadsChanged(it.toInt()) },
                     valueRange = 1f..maxThreads.toFloat(),
-                    steps = maxThreads - 2
+                    steps = (maxThreads - 2).coerceAtLeast(0),
+                    enabled = !threadsAuto
                 )
                 Text(
-                    text = "Number of CPU threads to use for mining",
+                    text = if (threadsAuto) {
+                        "Manual `-t` disabled while Auto is on"
+                    } else {
+                        "Requested $threads threads via `-t` (engine may use fewer if constrained)"
+                    },
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -559,13 +589,13 @@ private fun MiningSettingsCard(
 
             Divider()
 
-            // Max CPU Usage
+            // max-threads-hint (legacy field maxCpuUsage)
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Text("Max CPU Usage")
+                    Text("Auto thread hint")
                     Text(
                         text = "$maxCpuUsage%",
                         style = MaterialTheme.typography.bodyMedium,
@@ -576,10 +606,12 @@ private fun MiningSettingsCard(
                     value = maxCpuUsage.toFloat(),
                     onValueChange = { onMaxCpuUsageChanged(it.toInt()) },
                     valueRange = 10f..100f,
-                    steps = 8
+                    steps = 8,
+                    enabled = threadsAuto
                 )
                 Text(
-                    text = "Maximum CPU usage target",
+                    text = "Maps to XMRig max-threads-hint only in Auto mode. " +
+                        "Previously mislabeled as “Max CPU Usage”; 75 does not hard-cap load at 75%.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -601,7 +633,8 @@ private fun MiningSettingsCard(
                         tint = MaterialTheme.colorScheme.onTertiaryContainer
                     )
                     Text(
-                        text = "Higher CPU usage = better hashrate but more battery drain",
+                        text = "More threads usually raise hashrate and battery/heat. " +
+                            "There is no workload governor for true CPU % yet.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onTertiaryContainer
                     )

@@ -387,6 +387,27 @@ input[type="range"]::-webkit-slider-thumb {
     display: flex;
 }
 
+/* Saving is an explicit act, so its state is reported in words next to the control. */
+.save-row {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-3);
+    flex-wrap: wrap;
+}
+
+.save-row .btn {
+    flex: 0 0 auto;
+}
+
+.save-status {
+    font-size: 0.8rem;
+    color: var(--ink-faint);
+}
+
+.save-status.error {
+    color: var(--halt-ink);
+}
+
 /* Standing limitations of this build, stated where the user chooses a coin. */
 .notice {
     display: flex;
@@ -432,6 +453,18 @@ input[type="range"]::-webkit-slider-thumb {
 
 .btn-primary:hover:not(:disabled) {
     background: #f0863f;
+}
+
+.btn-secondary {
+    min-height: var(--touch-target);
+    background: var(--surface-raised);
+    border-color: var(--hairline);
+    color: var(--ink);
+    font-size: 0.88rem;
+}
+
+.btn-secondary:hover:not(:disabled) {
+    border-color: var(--ink-faint);
 }
 
 .btn-danger {

@@ -67,6 +67,7 @@ class ConfigViewModel @Inject constructor(
             is ConfigUiEvent.WalletAddressChanged -> handleWalletAddressChanged(event.address)
             is ConfigUiEvent.WorkerNameChanged -> handleWorkerNameChanged(event.name)
             is ConfigUiEvent.ThreadsChanged -> handleThreadsChanged(event.threads)
+            is ConfigUiEvent.ThreadsAutoToggled -> handleThreadsAutoToggled(event.enabled)
             is ConfigUiEvent.MaxCpuUsageChanged -> handleMaxCpuUsageChanged(event.usage)
             is ConfigUiEvent.TlsToggled -> handleTlsToggled(event.enabled)
             is ConfigUiEvent.CustomPoolUrlChanged -> handleCustomPoolUrlChanged(event.url)
@@ -141,7 +142,17 @@ class ConfigViewModel @Inject constructor(
 
     private fun handleThreadsChanged(threads: Int) {
         val state = _uiState.value as? ConfigUiState.Success ?: return
-        val newConfig = currentConfig.copy(threads = threads.coerceIn(1, Runtime.getRuntime().availableProcessors()))
+        val max = Runtime.getRuntime().availableProcessors().coerceAtLeast(1)
+        val newConfig = currentConfig.copy(
+            threads = threads.coerceIn(1, max),
+            threadsAuto = false
+        )
+        updateConfig(newConfig, state)
+    }
+
+    private fun handleThreadsAutoToggled(enabled: Boolean) {
+        val state = _uiState.value as? ConfigUiState.Success ?: return
+        val newConfig = currentConfig.copy(threadsAuto = enabled)
         updateConfig(newConfig, state)
     }
 

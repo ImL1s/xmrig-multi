@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "id": "web-auto",
+  "name": "Web Auto",
+  "engine": "randomx-js",
+  "coin": "monero",
+  "payoutAsset": "XMR",
+  "endpoint": {
+    "type": "web-proxy",
+    "url": "wss://example.invalid/proxy",
+    "tls": true,
+    "poolId": null
+  },
+  "account": {
+    "user": "44AFFq5kSiGBoZ4NMDwYtN18obc8AemS33DBLWs3H7otXft3XjrpDtQGv7SqSsaBYBb98uNbr2VBBEt7f2wfn3RVGQBEP3A",
+    "pass": "web",
+    "rigId": null
+  },
+  "cpu": {
+    "mode": "auto",
+    "threads": null,
+    "maxThreadsHintPercent": 50,
+    "affinity": null
+  },
+  "randomx": { "mode": "light" },
+  "network": {
+    "autoReconnect": true,
+    "retries": 5,
+    "retryPauseSec": 5
+  },
+  "power": {},
+  "thermal": {},
+  "locks": { "fields": [] },
+  "donateLevel": 1
+}

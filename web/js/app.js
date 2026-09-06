@@ -15,6 +15,10 @@ import {
     WEB_ENGINE_CAPABILITIES
 } from './engine-capabilities.js';
 import {
+    loadWebSettingsFromStorage,
+    saveWebSettingsToStorage
+} from './web-settings.js';
+import {
     HASHRATE_PLACEHOLDER,
     PLACEHOLDER,
     QUALITY_LABEL,
@@ -26,7 +30,6 @@ import {
 } from './format.js';
 
 const DEFAULT_LOCAL_PROXY = 'ws://localhost:3333';
-const SETTINGS_KEY = 'xmrig_web_settings';
 
 class App {
     constructor() {
@@ -126,9 +129,19 @@ class App {
         this.dom.walletAddress.addEventListener('input', () => this.clearFieldError(this.dom.walletError));
         this.dom.customProxyUrl.addEventListener('input', () => this.clearFieldError(this.dom.proxyError));
 
-        // Build thread options before restoring saved selection (#47).
-        this.renderThreadOptions();
-        this.loadSettings();
+        // Model first, then options, then apply — do not let render overwrite saved threads (#47).
+        const cores = navigator.hardwareConcurrency || 4;
+        const loaded = loadWebSettingsFromStorage(localStorage, { cores });
+        this.settingsModel = loaded.settings;
+        this.settingsPersistable = loaded.ok;
+        this.renderThreadOptions(cores);
+        this.applySettingsModel(this.settingsModel);
+        for (const w of loaded.warnings || []) {
+            this.log(`設定: ${w}`, 'warn');
+        }
+        if (!loaded.ok) {
+            this.log(`設定載入降級: ${loaded.error}`, 'warn');
+        }
 
         this.miner.onLog = (msg) => this.log(msg);
         this.miner.onStatsUpdate = (stats) => this.updateUI(stats);
@@ -254,21 +267,23 @@ class App {
         this.refreshSummary();
     }
 
-    loadSettings() {
-        let settings = {};
-        try {
-            settings = JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}') || {};
-        } catch {
-            // Corrupt storage should not take the console down with it (#47).
-            this.log('已保存的設定無法解析，改用預設值', 'warn');
-            settings = {};
-        }
+    /** Restores a validated settings model onto the controls. Blocked pools are never restored. */
+    applySettingsModel(settings) {
         if (settings.coinSelect) this.dom.coinSelect.value = settings.coinSelect;
-        if (settings.walletAddress) this.dom.walletAddress.value = settings.walletAddress;
-        if (settings.poolSelect) this.dom.poolSelect.value = settings.poolSelect;
-        if (settings.customProxyUrl) this.dom.customProxyUrl.value = settings.customProxyUrl;
-        if (settings.threads) this.dom.threads.value = settings.threads;
-        if (settings.workerName) this.dom.workerName.value = settings.workerName;
+        if (settings.walletAddress != null) this.dom.walletAddress.value = settings.walletAddress;
+        if (settings.poolSelect) {
+            const opt = [...this.dom.poolSelect.options].find((o) => o.value === settings.poolSelect);
+            if (opt && !opt.disabled) this.dom.poolSelect.value = settings.poolSelect;
+        }
+        if (settings.customProxyUrl != null) this.dom.customProxyUrl.value = settings.customProxyUrl;
+        if (settings.threads != null) this.dom.threads.value = String(settings.threads);
+        if (settings.workerName != null) this.dom.workerName.value = settings.workerName;
+        if (settings.requestedThreads && settings.requestedThreads !== settings.threads) {
+            this.log(
+                `已保存執行緒 ${settings.requestedThreads} 超出目前 ${navigator.hardwareConcurrency || '?'} 核，改用 ${settings.threads}`,
+                'warn'
+            );
+        }
     }
 
     saveSettings() {
@@ -277,18 +292,20 @@ class App {
             walletAddress: this.dom.walletAddress.value,
             poolSelect: this.dom.poolSelect.value,
             customProxyUrl: this.dom.customProxyUrl.value,
-            threads: this.dom.threads.value,
+            threads: parseInt(this.dom.threads.value, 10),
             workerName: this.dom.workerName.value
         };
-        try {
-            localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
-        } catch {
-            this.log('無法保存設定（瀏覽器儲存空間已滿或被封鎖）', 'warn');
+        this.settingsModel = settings;
+        const result = saveWebSettingsToStorage(settings, localStorage);
+        if (!result.ok) {
+            this.log(`無法永久保存設定: ${result.error}`, 'warn');
+            this.settingsPersistable = false;
+        } else {
+            this.settingsPersistable = true;
         }
     }
 
-    renderThreadOptions() {
-        const cores = navigator.hardwareConcurrency || 4;
+    renderThreadOptions(cores = navigator.hardwareConcurrency || 4) {
         const previous = this.dom.threads.value;
         this.dom.threads.innerHTML = '';
         for (let i = 1; i <= cores; i++) {
