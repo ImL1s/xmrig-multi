@@ -1,0 +1,6 @@
+{
+  "name": "sidechain-unsynced",
+  "monerod": { "ok": true, "code": "synced", "message": "monerod synced" },
+  "p2pool": { "ok": false, "code": "sidechain_syncing", "message": "P2Pool sidechain still syncing" },
+  "miner": { "ok": true, "code": "idle", "message": "miner idle" }
+}

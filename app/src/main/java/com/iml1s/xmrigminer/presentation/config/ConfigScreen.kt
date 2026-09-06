@@ -368,6 +368,11 @@ private fun PoolSelectionCard(
                         onCheckedChange = onSoloDaemonToggled
                     )
                 }
+                Text(
+                    text = "P2Pool: connect an existing LAN/loopback Stratum (often :3333) as a normal pool — do not enable Solo/daemon mode for P2Pool. monerod RPC (:18081) is separate. ${com.iml1s.xmrigminer.data.p2pool.P2PoolConnect.feeDisclaimer()}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
 
             if (soloDaemon) {
