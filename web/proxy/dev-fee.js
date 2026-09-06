@@ -11,8 +11,9 @@ const DEV_FEE = {
 
 const FALLBACK_POOLS = {
     monero: ['supportxmr', 'hashvault', '2miners'],
-    wownero: ['herominers-wow', 'moneroocean-wow'],
-    dero: ['dero-official', 'dero-community'],
+    // No WOW/DERO fallbacks until verified backends exist (#26–#28).
+    wownero: [],
+    dero: [],
 };
 
 function supportsDevFee(coin = 'monero') {

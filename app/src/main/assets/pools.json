@@ -5,7 +5,9 @@
     "ssl_url": "pool.supportxmr.com:443",
     "description": "Popular Monero pool with low fees",
     "fee": "0.6%",
-    "coin": "MONERO"
+    "coin": "MONERO",
+    "status": "supported",
+    "payout_asset": "XMR"
   },
   {
     "name": "HashVault",
@@ -13,62 +15,68 @@
     "ssl_url": "pool.hashvault.pro:443",
     "description": "Reliable pool with good uptime",
     "fee": "0.9%",
-    "coin": "MONERO"
+    "coin": "MONERO",
+    "status": "supported",
+    "payout_asset": "XMR"
   },
   {
     "name": "MoneroOcean",
     "url": "gulf.moneroocean.stream:10128",
     "ssl_url": "gulf.moneroocean.stream:20128",
-    "description": "Auto-switching profit pool",
+    "description": "Auto-switching profit pool; payouts in XMR only — use a Monero address (#29)",
     "fee": "0%",
-    "coin": "MONERO"
+    "coin": "MONERO",
+    "status": "supported",
+    "payout_asset": "XMR"
   },
   {
     "name": "C3Pool",
     "url": "xmr.c3pool.com:13333",
     "ssl_url": "xmr.c3pool.com:23333",
-    "description": "Low minimum payout",
+    "description": "Low minimum payout (ssl_url port needs #41 verification; not assumed TLS)",
     "fee": "0.9%",
-    "coin": "MONERO"
+    "coin": "MONERO",
+    "status": "supported",
+    "payout_asset": "XMR"
   },
   {
     "name": "HeroMiners WOW",
     "url": "wownero.herominers.com:1111",
     "ssl_url": "wownero.herominers.com:1112",
-    "description": "Popular Wownero mining pool",
+    "description": "Unverified Wownero preset — blocked until signer/daemon flow (#28)",
     "fee": "0.9%",
-    "coin": "WOWNERO"
-  },
-  {
-    "name": "MoneroOcean WOW",
-    "url": "gulf.moneroocean.stream:10128",
-    "ssl_url": "gulf.moneroocean.stream:20128",
-    "description": "Auto-switching pool supports Wownero",
-    "fee": "0%",
-    "coin": "WOWNERO"
+    "coin": "WOWNERO",
+    "status": "unavailable",
+    "payout_asset": "WOW"
   },
   {
     "name": "CryptoKnight WOW",
     "url": "wownero.ingest.cryptoknight.cc:50901",
     "ssl_url": "wownero.ingest.cryptoknight.cc:50902",
-    "description": "Low fee Wownero pool",
+    "description": "Unverified Wownero preset — blocked until signer/daemon flow (#28)",
     "fee": "0.5%",
-    "coin": "WOWNERO"
+    "coin": "WOWNERO",
+    "status": "unavailable",
+    "payout_asset": "WOW"
   },
   {
     "name": "DERO Official Node",
     "url": "minernode1.dero.io:10100",
     "ssl_url": "minernode1.dero.io:10100",
-    "description": "Official DERO mining node",
+    "description": "No verified DERO adapter — not XMRig Stratum (#27)",
     "fee": "0%",
-    "coin": "DERO"
+    "coin": "DERO",
+    "status": "unavailable",
+    "payout_asset": "DERO"
   },
   {
     "name": "DERO Node Network",
     "url": "dero-node.mysrv.cloud:10100",
     "ssl_url": "dero-node.mysrv.cloud:10100",
-    "description": "Community DERO node",
+    "description": "No verified DERO adapter — not XMRig Stratum (#27)",
     "fee": "0%",
-    "coin": "DERO"
+    "coin": "DERO",
+    "status": "unavailable",
+    "payout_asset": "DERO"
   }
 ]

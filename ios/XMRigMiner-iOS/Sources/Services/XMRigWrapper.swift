@@ -41,6 +41,24 @@ class XMRigWrapper: ObservableObject {
     }
     
     func initialize(config: MiningConfig) -> Bool {
+        switch config.pool.coin {
+        case .wownero:
+            logs.append("Wownero start blocked until verified signer/daemon flow (#28)")
+            return false
+        case .dero:
+            logs.append("DERO start blocked: needs dedicated daemon adapter (#27)")
+            return false
+        case .monero:
+            break
+        }
+        if config.pool.url.lowercased().contains("moneroocean") {
+            let addr = config.pool.user
+            let isXmr = (addr.hasPrefix("4") || addr.hasPrefix("8")) && addr.count >= 95
+            if !isXmr {
+                logs.append("MoneroOcean requires a Monero (XMR) payout address (#29)")
+                return false
+            }
+        }
         guard let jsonConfig = config.toJSON() else { return false }
         return bridge.initialize(withConfig: jsonConfig)
     }

@@ -4,6 +4,11 @@
  */
 
 import Miner from './miner.js';
+import {
+    assertMoneroOceanPayoutAddress,
+    assertWebCoinStartAllowed,
+    WEB_ENGINE_CAPABILITIES
+} from './engine-capabilities.js';
 
 class App {
     constructor() {
@@ -29,7 +34,6 @@ class App {
             algoBadge: document.getElementById('algo-badge')
         };
 
-        // 幣種設定
         this.coinConfigs = {
             monero: {
                 name: 'Monero',
@@ -43,18 +47,18 @@ class App {
             wownero: {
                 name: 'Wownero',
                 symbol: 'WOW',
-                algorithm: 'RandomWOW',
+                algorithm: 'RandomWOW (Web 未支援)',
                 walletLabel: 'Wownero 錢包地址',
-                walletHint: 'Wownero 地址以 Wo 開頭',
+                walletHint: 'Web 後端尚未支援 RandomWOW／簽署流程 (#26/#28)',
                 walletPlaceholder: 'Wo...',
                 validateAddress: (addr) => addr.startsWith('Wo') && addr.length >= 95
             },
             dero: {
                 name: 'DERO',
                 symbol: 'DERO',
-                algorithm: 'AstroBWT/v3',
+                algorithm: 'AstroBWT/v3 (Web 未支援)',
                 walletLabel: 'DERO 錢包地址',
-                walletHint: 'DERO 地址以 dero 開頭',
+                walletHint: 'Web 後端尚未支援 DERO daemon 協定 (#27)',
                 walletPlaceholder: 'dero...',
                 validateAddress: (addr) => addr.startsWith('dero') && addr.length >= 60
             }
@@ -64,40 +68,33 @@ class App {
     }
 
     init() {
-        // 載入儲存的設定
-        this.loadSettings();
-
-        // 綁定按鈕事件
         this.dom.startBtn.addEventListener('click', () => this.startMining());
         this.dom.stopBtn.addEventListener('click', () => this.stopMining());
-
-        // 綁定幣種選擇變更事件
         this.dom.coinSelect.addEventListener('change', () => this.onCoinSelectChange());
-
-        // 綁定礦池選擇變更事件
         this.dom.poolSelect.addEventListener('change', () => this.onPoolSelectChange());
 
-        // 渲染線程數選項
+        // Build thread options before restoring saved selection (#47).
         this.renderThreadOptions();
+        this.loadSettings();
 
-        // 設置 Miner 回調
         this.miner.onLog = (msg) => this.log(msg);
         this.miner.onStatsUpdate = (stats) => this.updateUI(stats);
 
-        // 初始化幣種和礦池顯示狀態
         this.onCoinSelectChange();
         this.onPoolSelectChange();
 
-        this.log('Web Miner 就緒 (支援 Monero/Wownero/DERO)');
+        const supported = Object.entries(WEB_ENGINE_CAPABILITIES.coins)
+            .filter(([, v]) => v.status === 'supported')
+            .map(([k]) => k)
+            .join(', ');
+        this.log(`Web Miner 就緒 — 可啟動幣種: ${supported || '無'}（能力閘門 #26）`);
     }
 
     onCoinSelectChange() {
         const selectedCoin = this.dom.coinSelect.value;
         const config = this.coinConfigs[selectedCoin];
-
         if (!config) return;
 
-        // 更新錢包標籤和提示
         if (this.dom.walletLabel) {
             this.dom.walletLabel.textContent = config.walletLabel;
         }
@@ -107,53 +104,51 @@ class App {
         if (this.dom.walletAddress) {
             this.dom.walletAddress.placeholder = config.walletPlaceholder;
         }
-
-        // 更新演算法 badge
         if (this.dom.algoBadge) {
             this.dom.algoBadge.textContent = config.algorithm;
         }
 
-        // 過濾礦池選項 - 只顯示對應幣種的礦池
         this.filterPoolOptions(selectedCoin);
 
-        this.log(`切換至 ${config.name} (${config.symbol}) - 演算法: ${config.algorithm}`);
+        const gate = assertWebCoinStartAllowed(selectedCoin);
+        if (!gate.allowed) {
+            this.log(`${config.name}: ${gate.status} — ${gate.reason}`);
+            this.dom.startBtn.title = gate.reason;
+        } else {
+            this.dom.startBtn.title = '';
+            this.log(`切換至 ${config.name} (${config.symbol}) - 演算法: ${config.algorithm}`);
+        }
     }
 
     filterPoolOptions(coin) {
         const poolSelect = this.dom.poolSelect;
         const optgroups = poolSelect.querySelectorAll('optgroup');
-
-        // 幣種對應的 optgroup id
         const coinToGroupId = {
-            'monero': 'xmr-pools',
-            'wownero': 'wow-pools',
-            'dero': 'dero-pools'
+            monero: 'xmr-pools',
+            wownero: 'wow-pools',
+            dero: 'dero-pools'
         };
 
         let firstValidOption = null;
-
-        optgroups.forEach(group => {
-            const groupId = group.id;
-            const shouldShow = groupId === coinToGroupId[coin];
-
-            // 隱藏/顯示 optgroup
+        optgroups.forEach((group) => {
+            const shouldShow = group.id === coinToGroupId[coin];
             group.style.display = shouldShow ? '' : 'none';
-
-            // 停用/啟用其中的選項
-            group.querySelectorAll('option').forEach(opt => {
-                opt.disabled = !shouldShow;
-                if (shouldShow && !firstValidOption) {
+            group.querySelectorAll('option').forEach((opt) => {
+                const blocked = opt.dataset.capability === 'unavailable';
+                opt.disabled = !shouldShow || blocked;
+                if (shouldShow && !blocked && !firstValidOption) {
                     firstValidOption = opt;
                 }
             });
         });
 
-        // 檢查當前選中的礦池是否屬於選中的幣種
         const currentOption = poolSelect.options[poolSelect.selectedIndex];
         const currentCoin = currentOption?.dataset?.coin;
-
-        if (currentCoin !== coin && firstValidOption) {
+        const currentBlocked = currentOption?.dataset?.capability === 'unavailable';
+        if ((currentCoin !== coin || currentBlocked) && firstValidOption) {
             poolSelect.value = firstValidOption.value;
+        } else if (currentCoin !== coin && !firstValidOption) {
+            poolSelect.value = 'custom';
         }
     }
 
@@ -186,6 +181,7 @@ class App {
 
     renderThreadOptions() {
         const cores = navigator.hardwareConcurrency || 4;
+        const previous = this.dom.threads.value;
         this.dom.threads.innerHTML = '';
         for (let i = 1; i <= cores; i++) {
             const option = document.createElement('option');
@@ -194,16 +190,24 @@ class App {
             if (i === Math.max(1, Math.floor(cores / 2))) option.selected = true;
             this.dom.threads.appendChild(option);
         }
+        if (previous && [...this.dom.threads.options].some((o) => o.value === previous)) {
+            this.dom.threads.value = previous;
+        }
     }
 
     startMining() {
         const poolSelection = this.dom.poolSelect.value;
         const coinSelection = this.dom.coinSelect.value;
         const isCustomProxy = poolSelection === 'custom';
-
-        // 驗證錢包地址
         const walletAddress = this.dom.walletAddress.value.trim();
         const coinConfig = this.coinConfigs[coinSelection];
+
+        const gate = assertWebCoinStartAllowed(coinSelection);
+        if (!gate.allowed) {
+            alert(`無法啟動 ${coinConfig?.name || coinSelection}\n\n${gate.reason}`);
+            this.log(`拒絕啟動: ${gate.reason}`);
+            return;
+        }
 
         if (!walletAddress) {
             alert('請輸入錢包地址');
@@ -215,22 +219,28 @@ class App {
             return;
         }
 
-        // Determine proxy URL and pool key
-        let proxyUrl, poolKey;
+        const moCheck = assertMoneroOceanPayoutAddress(poolSelection, coinSelection, walletAddress);
+        if (!moCheck.ok) {
+            alert(moCheck.error);
+            this.log(`拒絕啟動: ${moCheck.error}`);
+            return;
+        }
+
+        let proxyUrl;
+        let poolKey;
         if (isCustomProxy) {
             proxyUrl = this.dom.customProxyUrl.value.trim();
-            poolKey = null; // Custom proxy handles its own pool
+            poolKey = null;
         } else {
-            // Use local proxy with pool selection
             proxyUrl = 'ws://localhost:3333';
             poolKey = poolSelection;
         }
 
         const config = {
-            walletAddress: walletAddress,
-            pool: poolKey, // Pool key for server.js to route
-            coin: coinSelection, // 幣種類型
-            threads: parseInt(this.dom.threads.value),
+            walletAddress,
+            pool: poolKey,
+            coin: coinSelection,
+            threads: parseInt(this.dom.threads.value, 10),
             workerName: this.dom.workerName.value.trim() || 'web-worker',
             password: this.dom.workerName.value.trim() || 'x',
             proxy: proxyUrl
@@ -258,7 +268,6 @@ class App {
 
     stopMining() {
         this.miner.stop();
-
         this.dom.startBtn.disabled = false;
         this.dom.stopBtn.disabled = true;
         this.dom.walletAddress.readOnly = false;
@@ -274,9 +283,10 @@ class App {
         this.dom.shares.textContent = `${stats.acceptedShares} / ${stats.rejectedShares}`;
         this.dom.uptime.textContent = this.formatUptime(stats.uptime);
 
-        // 更新進度條
+        // Placeholder bar until #54 wires a real measurement.
         const progress = (Date.now() % 2000) / 20;
         this.dom.cpuUsage.style.width = stats.isMining ? `${progress}%` : '0%';
+        this.dom.cpuUsage.title = '示意動畫，非實際 CPU 使用率 (#54)';
     }
 
     formatUptime(seconds) {
@@ -293,15 +303,12 @@ class App {
         entry.textContent = `[${timestamp}] ${message}`;
         this.dom.console.appendChild(entry);
         this.dom.console.scrollTop = this.dom.console.scrollHeight;
-
-        // 限制日誌數量
         while (this.dom.console.children.length > 100) {
             this.dom.console.removeChild(this.dom.console.firstChild);
         }
     }
 }
 
-// 啟動應用
 window.addEventListener('load', () => {
     new App();
 });

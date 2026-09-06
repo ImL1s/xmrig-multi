@@ -70,6 +70,28 @@ impl MinerState {
             return Err("Wallet address is required".to_string());
         }
 
+        let coin = config.coin_type.to_lowercase();
+        if coin.contains("wow") {
+            return Err(
+                "Wownero start blocked until verified signer/daemon flow (#28)".to_string(),
+            );
+        }
+        if coin.contains("dero") {
+            return Err(
+                "DERO start blocked: needs dedicated daemon adapter, not XMRig Stratum (#27)"
+                    .to_string(),
+            );
+        }
+        if config.pool_url.to_lowercase().contains("moneroocean") {
+            let addr = config.wallet_address.trim();
+            let is_xmr = (addr.starts_with('4') || addr.starts_with('8')) && addr.len() >= 95;
+            if !is_xmr || coin.contains("wow") {
+                return Err(
+                    "MoneroOcean requires a Monero (XMR) payout address (#29)".to_string(),
+                );
+            }
+        }
+
         if let Ok(mut slot) = self.process.lock() {
             if let Some(mut leftover) = slot.take() {
                 let _ = leftover.kill();

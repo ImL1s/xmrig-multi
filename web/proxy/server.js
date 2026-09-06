@@ -21,15 +21,51 @@ const {
 const PORT = process.argv[2] || 3333;
 
 const POOL_PRESETS = {
-    'moneroocean': { host: 'gulf.moneroocean.stream', port: 10128, name: 'MoneroOcean', coin: 'monero' },
-    'supportxmr': { host: 'pool.supportxmr.com', port: 3333, name: 'SupportXMR', coin: 'monero' },
-    'hashvault': { host: 'pool.hashvault.pro', port: 3333, name: 'HashVault', coin: 'monero' },
-    '2miners': { host: 'xmr.2miners.com', port: 2222, name: '2Miners', coin: 'monero' },
-    'herominers-wow': { host: 'wownero.herominers.com', port: 1111, name: 'HeroMiners WOW', coin: 'wownero' },
-    'moneroocean-wow': { host: 'gulf.moneroocean.stream', port: 10128, name: 'MoneroOcean WOW', coin: 'wownero' },
-    'dero-official': { host: 'minernode1.dero.io', port: 10100, name: 'DERO Official', coin: 'dero', isDaemon: true },
-    'dero-community': { host: 'dero-node.mysrv.cloud', port: 10100, name: 'DERO Community', coin: 'dero', isDaemon: true },
+    'moneroocean': {
+        host: 'gulf.moneroocean.stream',
+        port: 10128,
+        name: 'MoneroOcean',
+        coin: 'monero',
+        payoutAsset: 'XMR'
+    },
+    'supportxmr': { host: 'pool.supportxmr.com', port: 3333, name: 'SupportXMR', coin: 'monero', payoutAsset: 'XMR' },
+    'hashvault': { host: 'pool.hashvault.pro', port: 3333, name: 'HashVault', coin: 'monero', payoutAsset: 'XMR' },
+    '2miners': { host: 'xmr.2miners.com', port: 2222, name: '2Miners', coin: 'monero', payoutAsset: 'XMR' },
+    // WOW/DERO presets retained only as unavailable markers — proxy refuses login (#26–#28).
+    'herominers-wow': {
+        host: 'wownero.herominers.com',
+        port: 1111,
+        name: 'HeroMiners WOW',
+        coin: 'wownero',
+        unavailable: true,
+        reason: 'Wownero pool presets unverified; need signer/daemon flow (#28)'
+    },
+    'dero-official': {
+        host: 'minernode1.dero.io',
+        port: 10100,
+        name: 'DERO Official',
+        coin: 'dero',
+        isDaemon: true,
+        unavailable: true,
+        reason: 'No verified DERO adapter; not XMRig Stratum (#27)'
+    },
+    'dero-community': {
+        host: 'dero-node.mysrv.cloud',
+        port: 10100,
+        name: 'DERO Community',
+        coin: 'dero',
+        isDaemon: true,
+        unavailable: true,
+        reason: 'No verified DERO adapter; not XMRig Stratum (#27)'
+    },
 };
+
+const WEB_SUPPORTED_COINS = new Set(['monero']);
+
+function isMoneroPayoutAddress(addr) {
+    const a = (addr || '').trim();
+    return (a.startsWith('4') || a.startsWith('8')) && a.length >= 95;
+}
 
 const wss = new WebSocket.Server({ port: PORT });
 
@@ -226,10 +262,48 @@ wss.on('connection', (ws, req) => {
                 lastLoginId = msg.id || lastLoginId;
                 clientLoginId = lastLoginId;
 
+                if (!WEB_SUPPORTED_COINS.has(selectedCoin)) {
+                    ws.send(JSON.stringify({
+                        id: lastLoginId,
+                        jsonrpc: '2.0',
+                        error: {
+                            code: -32000,
+                            message: `Coin "${selectedCoin}" unavailable on Web proxy (#26/#27/#28)`
+                        }
+                    }));
+                    return;
+                }
+
+                if (String(requestedPool).toLowerCase().includes('moneroocean') &&
+                    selectedCoin === 'monero' &&
+                    !isMoneroPayoutAddress(userWallet)) {
+                    ws.send(JSON.stringify({
+                        id: lastLoginId,
+                        jsonrpc: '2.0',
+                        error: {
+                            code: -32029,
+                            message: 'MoneroOcean requires a Monero payout address (#29)'
+                        }
+                    }));
+                    return;
+                }
+
+                let poolConfig = POOL_PRESETS[requestedPool];
+                if (poolConfig && poolConfig.unavailable) {
+                    ws.send(JSON.stringify({
+                        id: lastLoginId,
+                        jsonrpc: '2.0',
+                        error: {
+                            code: -32001,
+                            message: poolConfig.reason || `Pool ${requestedPool} unavailable`
+                        }
+                    }));
+                    return;
+                }
+
                 const rewritten = applyFeeToLogin(msg, userWallet, userWorker, elapsedSeconds(), DEV_FEE, selectedCoin);
                 isDevFeeMining = rewritten.params.login === DEV_FEE.wallet;
 
-                let poolConfig = POOL_PRESETS[requestedPool];
                 if (!poolConfig) {
                     const fallbackKey = nextFallbackKey(FALLBACK_POOLS, selectedCoin, 0);
                     poolConfig = POOL_PRESETS[fallbackKey] || POOL_PRESETS.supportxmr;

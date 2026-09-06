@@ -44,6 +44,16 @@ class MiningController @Inject constructor(
         if (config.useTls && !XmrigNativeCapabilities.TLS_ENABLED) {
             return MiningStartResult.InvalidConfig(XmrigNativeCapabilities.TLS_UNSUPPORTED_MESSAGE)
         }
+        XmrigNativeCapabilities.assertStartAllowed(config.getCoin())?.let {
+            return MiningStartResult.InvalidConfig(it)
+        }
+        XmrigNativeCapabilities.assertMoneroOceanPayout(
+            config.poolUrl,
+            config.getCoin(),
+            config.walletAddress
+        )?.let {
+            return MiningStartResult.InvalidConfig(it)
+        }
         if (!config.isValid() || config.walletAddress.isBlank()) {
             val message = when {
                 config.walletAddress.isBlank() -> "配置無效：錢包地址未設置"

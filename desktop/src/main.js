@@ -27,17 +27,26 @@ const elements = {
 // Pool configurations per coin
 const poolConfigs = {
     monero: [
-        { url: 'gulf.moneroocean.stream:10128', name: 'MoneroOcean (Recommended)', algo: 'rx/0' },
-        { url: 'pool.supportxmr.com:3333', name: 'SupportXMR', algo: 'rx/0' },
-        { url: 'pool.hashvault.pro:3333', name: 'HashVault', algo: 'rx/0' },
-        { url: 'xmr.2miners.com:2222', name: '2Miners', algo: 'rx/0' },
+        { url: 'gulf.moneroocean.stream:10128', name: 'MoneroOcean (Recommended, XMR payout)', algo: 'rx/0', status: 'supported' },
+        { url: 'pool.supportxmr.com:3333', name: 'SupportXMR', algo: 'rx/0', status: 'supported' },
+        { url: 'pool.hashvault.pro:3333', name: 'HashVault', algo: 'rx/0', status: 'supported' },
+        { url: 'xmr.2miners.com:2222', name: '2Miners', algo: 'rx/0', status: 'supported' },
     ],
     wownero: [
-        { url: 'wow.herominers.com:1111', name: 'HeroMiners WOW', algo: 'rx/wow' },
-        { url: 'gulf.moneroocean.stream:10128', name: 'MoneroOcean (Multi)', algo: 'rx/wow' },
+        {
+            url: '',
+            name: 'Wownero unavailable — need signer/daemon (#28)',
+            algo: 'rx/wow',
+            status: 'unavailable'
+        },
     ],
     dero: [
-        { url: 'dero-node.mysrv.cloud:10100', name: 'DERO Community', algo: 'astrobwt/v3' },
+        {
+            url: '',
+            name: 'DERO unavailable — need daemon adapter (#27)',
+            algo: 'astrobwt/v3',
+            status: 'unavailable'
+        },
     ],
 };
 
@@ -89,7 +98,7 @@ function updatePoolOptions() {
     const pools = poolConfigs[coin] || poolConfigs.monero;
 
     elements.poolUrl.innerHTML = pools.map(p =>
-        `<option value="${p.url}" data-algo="${p.algo}">${p.name}</option>`
+        `<option value="${p.url}" data-algo="${p.algo}" data-status="${p.status || 'supported'}">${p.name}</option>`
     ).join('');
 }
 
@@ -102,8 +111,29 @@ async function startMining() {
     }
 
     const coin = elements.coinType.value;
+    if (coin === 'wownero') {
+        log('Wownero start blocked until verified signer/daemon flow (#28)', 'error');
+        return;
+    }
+    if (coin === 'dero') {
+        log('DERO start blocked: needs dedicated daemon adapter (#27)', 'error');
+        return;
+    }
+
     const poolOption = elements.poolUrl.selectedOptions[0];
+    if (poolOption?.dataset?.status === 'unavailable' || !elements.poolUrl.value) {
+        log('Selected pool is unavailable', 'error');
+        return;
+    }
     const algo = poolOption.dataset.algo || 'rx/0';
+
+    if (elements.poolUrl.value.toLowerCase().includes('moneroocean')) {
+        const isXmr = (wallet.startsWith('4') || wallet.startsWith('8')) && wallet.length >= 95;
+        if (!isXmr) {
+            log('MoneroOcean requires a Monero (XMR) payout address (#29)', 'error');
+            return;
+        }
+    }
 
     const config = {
         pool_url: elements.poolUrl.value,

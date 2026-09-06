@@ -25,9 +25,14 @@ data class Pool(
     @SerialName("ssl_url") val sslUrl: String,
     val description: String,
     val fee: String,
-    val coin: String = "MONERO"  // 幣種類型
+    val coin: String = "MONERO",
+    /** supported | unavailable | unverified — see #26–#29 / #41 */
+    val status: String = "supported",
+    @SerialName("payout_asset") val payoutAsset: String? = null
 ) {
     fun getUrl(useTls: Boolean): String = if (useTls) sslUrl else url
 
     fun getCoinType(): CoinType = CoinType.fromString(coin)
+
+    fun isStartAllowed(): Boolean = status.equals("supported", ignoreCase = true)
 }
