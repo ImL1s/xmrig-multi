@@ -61,10 +61,11 @@ object QuickStartAuthorization {
     }
 
     private fun prune(nowMs: Long) {
-        if (tokens.size <= 64) {
-            tokens.entries.removeIf { it.value.expiresAtMs < nowMs }
+        if (tokens.size > 64) {
+            tokens.clear()
             return
         }
-        tokens.clear()
+        val expired = tokens.filterValues { it.expiresAtMs < nowMs }.keys
+        expired.forEach { tokens.remove(it) }
     }
 }
