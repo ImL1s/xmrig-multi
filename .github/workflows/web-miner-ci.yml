@@ -8,6 +8,7 @@ on:
       - 'shared/mining-profile/**'
       - 'shared/pool-registry/**'
       - 'shared/session-state/**'
+      - 'shared/hardware-capability/**'
       - 'app/src/main/assets/pools.json'
       - 'desktop/src/generated-pool-configs.json'
       - 'desktop/src/main.js'
@@ -19,6 +20,7 @@ on:
       - 'shared/mining-profile/**'
       - 'shared/pool-registry/**'
       - 'shared/session-state/**'
+      - 'shared/hardware-capability/**'
       - 'app/src/main/assets/pools.json'
       - 'desktop/src/generated-pool-configs.json'
       - 'desktop/src/main.js'
@@ -62,6 +64,10 @@ jobs:
       - name: Session state machine tests (#48)
         working-directory: .
         run: node --test shared/session-state/test/*.test.js
+
+      - name: Hardware capability contract tests (#33)
+        working-directory: .
+        run: node --test shared/hardware-capability/test/*.test.js
 
       - name: Build for Production
         run: npm run build
