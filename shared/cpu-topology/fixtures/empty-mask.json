@@ -1,0 +1,5 @@
+{
+  "description": "Empty affinity must reject",
+  "input": "",
+  "expectOk": false
+}

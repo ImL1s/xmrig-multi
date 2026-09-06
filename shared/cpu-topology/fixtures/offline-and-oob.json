@@ -1,0 +1,8 @@
+{
+  "description": "Out-of-range and offline ids against ARM big.LITTLE fixture",
+  "snapshotFixture": "arm-big-little.json",
+  "input": "0,1,99,4",
+  "expectOk": true,
+  "expectNormalized": true,
+  "expectIds": [0, 1, 4]
+}

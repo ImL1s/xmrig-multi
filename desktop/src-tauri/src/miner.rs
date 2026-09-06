@@ -24,6 +24,12 @@ pub struct MiningConfig {
     /// Requested RandomX mode: auto|fast|light (#35). Defaults to auto.
     #[serde(default = "default_randomx_mode")]
     pub randomx_mode: String,
+    /// Optional CPU affinity hex mask (≤64 logical). Empty / omitted = OS auto (#36).
+    #[serde(default)]
+    pub cpu_affinity: Option<String>,
+    /// Optional CPU id list for >64 / multi-word cases. Prefer over truncated 32-bit masks (#36).
+    #[serde(default)]
+    pub cpu_ids: Option<Vec<u32>>,
 }
 
 fn default_randomx_mode() -> String {
@@ -36,6 +42,135 @@ fn normalize_randomx_mode(mode: &str) -> &'static str {
         "light" => "light",
         _ => "auto",
     }
+}
+
+/// Affinity apply result for XMRig argv (#36). Never claims success when platform cannot bind.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AffinityArgv {
+    pub argv: Vec<String>,
+    pub applied: &'static str,
+    pub warnings: Vec<String>,
+}
+
+/// Resolve optional affinity into XMRig CLI args. macOS/mobile → OS auto with warning.
+pub fn resolve_affinity_argv(
+    cpu_affinity: Option<&str>,
+    cpu_ids: Option<&[u32]>,
+    logical_max: u32,
+) -> AffinityArgv {
+    let mut warnings = Vec::new();
+    #[cfg(any(target_os = "macos", target_os = "ios", target_os = "android"))]
+    {
+        if cpu_affinity.map(|s| !s.trim().is_empty()).unwrap_or(false)
+            || cpu_ids.map(|v| !v.is_empty()).unwrap_or(false)
+        {
+            warnings.push(
+                "hard CPU affinity unsupported on this OS — using OS scheduler (no root)".into(),
+            );
+        }
+        return AffinityArgv {
+            argv: vec![],
+            applied: "os-auto",
+            warnings,
+        };
+    }
+    #[cfg(not(any(target_os = "macos", target_os = "ios", target_os = "android")))]
+    {
+        if let Some(ids) = cpu_ids {
+            if !ids.is_empty() {
+                let max_id = *ids.iter().max().unwrap_or(&0);
+                if max_id >= 64 || logical_max > 64 {
+                    warnings.push(
+                        "cpu id list >64 requires JSON config rx thread pins; CLI affinity skipped"
+                            .into(),
+                    );
+                    return AffinityArgv {
+                        argv: vec![],
+                        applied: "os-auto",
+                        warnings,
+                    };
+                }
+                match ids_to_affinity_hex(ids, logical_max) {
+                    Ok(hex) => {
+                        return AffinityArgv {
+                            argv: vec![format!("--cpu-affinity={hex}")],
+                            applied: "affinity",
+                            warnings,
+                        };
+                    }
+                    Err(e) => {
+                        warnings.push(format!("affinity ids rejected ({e}) — OS auto fallback"));
+                        return AffinityArgv {
+                            argv: vec![],
+                            applied: "os-auto",
+                            warnings,
+                        };
+                    }
+                }
+            }
+        }
+        if let Some(raw) = cpu_affinity {
+            let trimmed = raw.trim();
+            if !trimmed.is_empty() {
+                if validate_affinity_hex(trimmed, logical_max).is_err() {
+                    warnings.push("affinity mask invalid — OS auto fallback".into());
+                    return AffinityArgv {
+                        argv: vec![],
+                        applied: "os-auto",
+                        warnings,
+                    };
+                }
+                return AffinityArgv {
+                    argv: vec![format!("--cpu-affinity={trimmed}")],
+                    applied: "affinity",
+                    warnings,
+                };
+            }
+        }
+        AffinityArgv {
+            argv: vec![],
+            applied: "os-auto",
+            warnings,
+        }
+    }
+}
+
+fn validate_affinity_hex(mask: &str, logical_max: u32) -> Result<(), String> {
+    let hex = mask
+        .strip_prefix("0x")
+        .or_else(|| mask.strip_prefix("0X"))
+        .unwrap_or(mask);
+    if hex.is_empty() || !hex.chars().all(|c| c.is_ascii_hexdigit()) {
+        return Err("bad hex".into());
+    }
+    if logical_max > 64 {
+        return Err("use cpu_ids for >64 logical CPUs".into());
+    }
+    Ok(())
+}
+
+fn ids_to_affinity_hex(ids: &[u32], logical_max: u32) -> Result<String, String> {
+    if ids.is_empty() {
+        return Err("empty".into());
+    }
+    let mut seen = std::collections::BTreeSet::new();
+    let mut value: u64 = 0;
+    for &id in ids {
+        if id >= logical_max {
+            return Err(format!("id {id} out of range"));
+        }
+        if id >= 64 {
+            return Err("id >= 64".into());
+        }
+        if !seen.insert(id) {
+            continue;
+        }
+        value |= 1u64 << id;
+    }
+    if value == 0 {
+        return Err("empty after dedupe".into());
+    }
+    Ok(format!("0x{value:x}"))
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -166,9 +301,22 @@ impl MinerState {
             .arg("--http-enabled")
             .arg("--http-host=127.0.0.1")
             .arg(format!("--http-port={}", http_port))
-            .arg(format!("--http-access-token={}", access_token))
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped());
+            .arg(format!("--http-access-token={}", access_token));
+
+        let logical_max = std::cmp::max(config.threads, num_cpus::get() as u32);
+        let affinity = resolve_affinity_argv(
+            config.cpu_affinity.as_deref(),
+            config.cpu_ids.as_deref(),
+            logical_max,
+        );
+        for arg in &affinity.argv {
+            cmd.arg(arg);
+        }
+        for w in &affinity.warnings {
+            eprintln!("[affinity] {w}");
+        }
+
+        cmd.stdout(Stdio::piped()).stderr(Stdio::piped());
 
         // Drop local token copy; live copy stays in http_token mutex only.
         drop(access_token);
@@ -575,11 +723,15 @@ mod tests {
             coin_type: "XMR".to_string(),
             algorithm: "rx/0".to_string(),
             randomx_mode: "light".to_string(),
+            cpu_affinity: Some("0x15".into()),
+            cpu_ids: Some(vec![0, 2, 4]),
         };
         let serialized = serde_json::to_string(&config).unwrap();
         let deserialized: MiningConfig = serde_json::from_str(&serialized).unwrap();
         assert_eq!(config.pool_url, deserialized.pool_url);
         assert_eq!(deserialized.randomx_mode, "light");
+        assert_eq!(deserialized.cpu_affinity.as_deref(), Some("0x15"));
+        assert_eq!(deserialized.cpu_ids.as_deref(), Some(&[0, 2, 4][..]));
         assert_eq!(normalize_randomx_mode("FAST"), "fast");
         assert_eq!(normalize_randomx_mode("nope"), "auto");
     }
@@ -592,6 +744,17 @@ mod tests {
         }"#;
         let c: MiningConfig = serde_json::from_str(json).unwrap();
         assert_eq!(c.randomx_mode, "auto");
+        assert!(c.cpu_affinity.is_none());
+        assert!(c.cpu_ids.is_none());
+    }
+
+    #[test]
+    fn affinity_hex_from_ids_and_rejects_oob() {
+        assert_eq!(ids_to_affinity_hex(&[0, 2, 4], 8).unwrap(), "0x15");
+        assert!(ids_to_affinity_hex(&[9], 8).is_err());
+        let auto = resolve_affinity_argv(None, None, 8);
+        assert_eq!(auto.applied, "os-auto");
+        assert!(auto.argv.is_empty());
     }
 
     #[test]
