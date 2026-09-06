@@ -34,14 +34,15 @@ cd xmrig-multi
 
 ### Rebuild XMRig
 
-Prerequisites: Android NDK r26+ (`ANDROID_NDK_HOME`), CMake 3.22.1+, Git, Linux or macOS.
+Prerequisites: Android NDK r26c (`ANDROID_NDK_HOME`), CMake 3.22.1+, Git, curl, Python 3, Linux or macOS. App `minSdk` is **24** (libuv / getifaddrs).
 
 ```bash
 export ANDROID_NDK_HOME="$HOME/Library/Android/sdk/ndk/26.3.11579264"
 ./scripts/build_xmrig.sh
+./scripts/native/smoke-native.sh
 ```
 
-The script clones XMRig **v6.21.0**, copies `xmrig_custom_source/donate.h` and `DonateStrategy.cpp`, builds `arm64-v8a`, and overwrites `jniLibs` and `assets`. Expected time: 10–30 minutes.
+The script (#134) sources `scripts/native/versions.env`, builds pinned OpenSSL+libuv in an isolated `mktemp` work dir (`KEEP_XMRIG_WORK=1` to keep), clones XMRig **v6.21.0**, applies `xmrig_custom_source/` fee patches, and configures `WITH_HTTP=ON` `WITH_TLS=ON` `WITH_BENCHMARK=ON` `WITH_HWLOC=OFF`. It writes `jniLibs`, `assets/xmrig_arm64`, and `assets/native-capabilities.json`. Pool TLS uses **fingerprint** trust (not full CA/hostname). Expected time: 10–30 minutes.
 
 ### Verify on device
 
@@ -58,8 +59,8 @@ adb logcat | grep -i xmrig
 |---------|-------------|
 | `ANDROID_NDK_HOME is not set` | Export the NDK path (see above) |
 | CMake not found | `brew install cmake` or `sudo apt-get install cmake` |
-| Build errors | NDK r26+, CMake 3.22.1+, `rm -rf /tmp/xmrig` and re-run the script |
-| Mining never starts | Confirm `libxmrig.so` or `xmrig_arm64` is present, then reinstall the debug APK |
+| Build errors | NDK r26c, CMake 3.22.1+, unset `KEEP_XMRIG_WORK` and re-run (script uses a fresh mktemp dir) |
+| Mining never starts | Confirm `libxmrig.so` or `xmrig_arm64` + `native-capabilities.json` hash match, then reinstall the debug APK |
 
 ## Desktop (macOS / Windows / Linux)
 

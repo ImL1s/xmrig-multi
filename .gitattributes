@@ -1,0 +1,3 @@
+# Force LF for shell scripts and pinned native env (Windows checkouts / #134).
+*.sh text eol=lf
+scripts/native/versions.env text eol=lf

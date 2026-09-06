@@ -6,12 +6,15 @@ import android.app.NotificationManager
 import android.os.Build
 import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
+import com.iml1s.xmrigminer.native.XmrigBinaryResolver
+import com.iml1s.xmrigminer.native.XmrigNativeCapabilities
 import com.iml1s.xmrigminer.service.MiningSessionLatch
 import com.iml1s.xmrigminer.service.MiningWorker
 import com.iml1s.xmrigminer.service.PrefsSessionIntentStore
 import com.iml1s.xmrigminer.wear.WearStatsSyncer
 import dagger.hilt.android.HiltAndroidApp
 import timber.log.Timber
+import java.io.File
 import javax.inject.Inject
 
 @HiltAndroidApp
@@ -40,9 +43,41 @@ class XMRigApplication : Application(), Configuration.Provider {
         // Restore UserStopped / automation across process death (#123/#124).
         MiningSessionLatch.attach(PrefsSessionIntentStore(this))
 
+        loadNativeCapabilities()
+
         createNotificationChannel()
         wearStatsSyncer.start()
         Timber.i("XMRig Multi Application started")
+    }
+
+    private fun loadNativeCapabilities() {
+        runCatching {
+            val resolver = XmrigBinaryResolver(
+                nativeLibraryDir = File(applicationInfo.nativeLibraryDir),
+                filesDir = filesDir,
+                openAsset = { name ->
+                    try {
+                        assets.open(name)
+                    } catch (_: Exception) {
+                        null
+                    }
+                }
+            )
+            val binary = resolver.resolve()
+            XmrigNativeCapabilities.load(
+                openAsset = { name ->
+                    try {
+                        assets.open(name)
+                    } catch (_: Exception) {
+                        null
+                    }
+                },
+                binaryFile = binary
+            )
+        }.onFailure { e ->
+            Timber.w(e, "Native capabilities load failed — feature gates stay locked (#134)")
+            XmrigNativeCapabilities.resetForTests()
+        }
     }
 
     private fun createNotificationChannel() {

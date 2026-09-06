@@ -1,0 +1,121 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-09-06T14:54:55Z",
+  "issue": "#134",
+  "engine": {
+    "name": "xmrig",
+    "tag": "v6.21.0",
+    "commit": "8084ff37a5c8935c649a2e362da0fe570c79a2c2",
+    "customPatchHash": "3fae6eefb6a59877531c6271cf92752bf518e9095fc98cf83f01d6b73391c07d"
+  },
+  "toolchain": {
+    "ndk": "android-ndk-r26c",
+    "api": 24,
+    "abi": "arm64-v8a",
+    "triple": "aarch64-linux-android",
+    "host": "Linux-x86_64",
+    "march": "armv8-a+crypto"
+  },
+  "dependencies": {
+    "openssl": {
+      "version": "3.0.15",
+      "url": "https://github.com/openssl/openssl/releases/download/openssl-3.0.15/openssl-3.0.15.tar.gz",
+      "sha256": "23c666d0edf20f14249b3d8f0368acaee9ab585b09e1de82107c66e1f3ec9533",
+      "license": "Apache-2.0",
+      "linkage": "static",
+      "library": "lib/libssl.a+libcrypto.a"
+    },
+    "libuv": {
+      "version": "1.48.0",
+      "url": "https://dist.libuv.org/dist/v1.48.0/libuv-v1.48.0.tar.gz",
+      "sha256": "7f1db8ac368d89d1baf163bac1ea5fe5120697a73910c8ae6b2fffb3551d59fb",
+      "license": "MIT",
+      "linkage": "static",
+      "library": "lib/libuv.a"
+    }
+  },
+  "cmake": {
+    "WITH_HTTP": "ON",
+    "WITH_TLS": "ON",
+    "WITH_BENCHMARK": "ON",
+    "WITH_HWLOC": "OFF",
+    "WITH_OPENCL": "OFF",
+    "WITH_CUDA": "OFF"
+  },
+  "binary": {
+    "path": "libxmrig.so",
+    "asset": "xmrig_arm64",
+    "sha256": "92b51088237adb4b4402e6598d6a603eb6fe163d33691ad93278869dd166fadc",
+    "size": 5829056,
+    "file": "ELF 64-bit LSB pie executable, ARM aarch64, version 1 (SYSV), dynamically linked, interpreter /system/bin/linker64, BuildID[sha1]=62b374441f7065862349f6c0ad7d593c8c49ba75, stripped"
+  },
+  "cpu": {
+    "requiredInstructions": [
+      "armv8-a",
+      "crypto"
+    ],
+    "march": "armv8-a+crypto",
+    "sigillPolicy": "refuse-start-when-features-missing"
+  },
+  "capabilities": {
+    "httpApi": {
+      "declared": true,
+      "selftest": "pass",
+      "deviceVerified": false,
+      "bind": "127.0.0.1",
+      "auth": "per-session-token",
+      "remoteControlDefault": false,
+      "writeEndpoints": "token-required-loopback-only"
+    },
+    "tls": {
+      "declared": true,
+      "selftest": "pass",
+      "deviceVerified": false,
+      "trustModel": "fingerprint",
+      "note": "XMRig pool TLS verifies certificate fingerprint when configured; this is not full CA/hostname identity verification."
+    },
+    "benchmark": {
+      "declared": true,
+      "selftest": "pass",
+      "deviceVerified": false,
+      "offline": true,
+      "note": "Offline RandomX --bench; not network stress."
+    },
+    "daemon": {
+      "declared": true,
+      "selftest": "pass",
+      "deviceVerified": false,
+      "note": "XMRig solo/daemon requires WITH_HTTP=ON per upstream CMake docs."
+    },
+    "hwloc": {
+      "declared": false,
+      "selftest": "n/a",
+      "deviceVerified": false,
+      "note": "No Android hwloc package in this build; topology remains limited."
+    },
+    "algorithms": {
+      "declared": [
+        "rx/0"
+      ],
+      "selftest": "pending",
+      "deviceVerified": false
+    },
+    "cpuBackend": {
+      "declared": true,
+      "selftest": "pending",
+      "deviceVerified": false
+    },
+    "effectiveReadback": {
+      "declared": true,
+      "selftest": "pass",
+      "deviceVerified": false,
+      "via": "httpApi"
+    }
+  },
+  "uiGates": {
+    "tlsToggle": true,
+    "httpHotApply": true,
+    "offlineBenchmark": true,
+    "soloDaemon": true
+  }
+}

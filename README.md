@@ -11,7 +11,7 @@
 
 | Platform | Status | Mining | Notes |
 |----------|--------|--------|-------|
-| 📱 **Android** | ✅ Asset binary in checkout | Native XMRig | Pool + Monero solo (`monerod`); `./gradlew :app:assembleDebug` |
+| 📱 **Android** | ✅ Asset binary in checkout | Native XMRig (TLS/HTTP/benchmark via `#134`) | Pool + Monero solo (`monerod`); `minSdk 24`; `./gradlew :app:assembleDebug` |
 | 🍎 **iOS** | ⚠️ Tracked `.a` is upstream donate | Native XMRig | Rebuild for this repo's fee; App Store prohibited |
 | 🌐 **Web** | ✅ Demo | RandomX.js | Needs local WebSocket proxy |
 | 💻 **Desktop** | ✅ Linux tracked + CI installers | Native XMRig | [v2.3.0](https://github.com/ImL1s/xmrig-multi/releases/tag/v2.3.0) `.deb` / NSIS / DMG; or `desktop/scripts/build-xmrig.sh` |
@@ -39,7 +39,7 @@
 ./gradlew :app:installDebug
 ```
 
-A checkout includes `app/src/main/assets/xmrig_arm64` with this repo's 1% fee wallet. If gitignored `jniLibs/arm64-v8a/libxmrig.so` is missing, Gradle (`:app:stageXmrigJniLib`) packages that asset as **arm64-v8a** `libxmrig.so` so Android 10+ 64-bit devices can execute it. There is no 32-bit (`armeabi-v7a`) miner in checkout. `./scripts/build_xmrig.sh` still produces the preferred arm64 library before a release.
+A checkout includes `app/src/main/assets/xmrig_arm64` with this repo's 1% fee wallet plus `native-capabilities.json` (#134: TLS ON, fingerprint trust, HTTP loopback API, offline benchmark). If gitignored `jniLibs/arm64-v8a/libxmrig.so` is missing, Gradle (`:app:stageXmrigJniLib`) packages that asset as **arm64-v8a** `libxmrig.so` so Android 10+ 64-bit devices can execute it. App `minSdk` is **24**. There is no 32-bit (`armeabi-v7a`) miner in checkout. `./scripts/build_xmrig.sh` still produces the preferred arm64 library before a release.
 
 ### iOS (Sideload)
 

@@ -16,6 +16,7 @@ import com.iml1s.xmrigminer.data.network.ReconnectPolicy
 import com.iml1s.xmrigminer.data.repository.ConfigRepository
 import com.iml1s.xmrigminer.data.repository.StatsRepository
 import com.iml1s.xmrigminer.native.XmrigBinaryResolver
+import com.iml1s.xmrigminer.native.XmrigHttpApiSession
 import com.iml1s.xmrigminer.native.XmrigLaunchCommand
 import com.iml1s.xmrigminer.native.XmrigNativeCapabilities
 import com.iml1s.xmrigminer.native.XmrigProcessController
@@ -103,9 +104,17 @@ class MiningWorker @AssistedInject constructor(
 
     private suspend fun startMining() = coroutineScope {
         val config = resolveLaunchConfig()
+        val binaryPath = resolveBinary()
+        ensureCapabilitiesLoaded(File(binaryPath))
 
         if (config.useTls && !XmrigNativeCapabilities.TLS_ENABLED) {
             throw IllegalStateException(XmrigNativeCapabilities.TLS_UNSUPPORTED_MESSAGE)
+        }
+        XmrigNativeCapabilities.assertSoloDaemonAllowed(config)?.let {
+            throw IllegalStateException(it)
+        }
+        XmrigNativeCapabilities.assertCpuFeatures()?.let {
+            throw IllegalStateException(it)
         }
         if (!config.isValid()) {
             val errorMsg = when {
@@ -135,6 +144,12 @@ class MiningWorker @AssistedInject constructor(
             )
         }
 
+        val httpApi = if (XmrigNativeCapabilities.HTTP_API_ENABLED) {
+            XmrigHttpApiSession.create()
+        } else {
+            null
+        }
+
         val logFile = File(applicationContext.filesDir, "xmrig.log")
         val configFile = prepareConfigFile(
             config.toJson(
@@ -142,10 +157,10 @@ class MiningWorker @AssistedInject constructor(
                 availableMemoryBytes = memory.availableBytes,
                 totalMemoryBytes = memory.totalBytes,
                 processLimitBytes = memory.processLimitBytes,
-                appliedRandomxMode = memoryVerdict?.appliedMode
+                appliedRandomxMode = memoryVerdict?.appliedMode,
+                httpApi = httpApi
             )
         )
-        val binaryPath = resolveBinary()
 
         val args = XmrigLaunchCommand.build(
             binaryPath = binaryPath,
@@ -231,6 +246,23 @@ class MiningWorker @AssistedInject constructor(
             }
         )
         return resolver.resolve().absolutePath
+    }
+
+    private fun ensureCapabilitiesLoaded(binaryFile: File) {
+        runCatching {
+            XmrigNativeCapabilities.load(
+                openAsset = { name ->
+                    try {
+                        applicationContext.assets.open(name)
+                    } catch (_: Exception) {
+                        null
+                    }
+                },
+                binaryFile = binaryFile
+            )
+        }.onFailure { e ->
+            Timber.w(e, "Capabilities reload failed; gates may stay locked (#134)")
+        }
     }
 
     private fun prepareConfigFile(jsonConfig: String): File {

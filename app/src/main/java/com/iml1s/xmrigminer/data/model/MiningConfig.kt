@@ -2,6 +2,7 @@ package com.iml1s.xmrigminer.data.model
 
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
+import com.iml1s.xmrigminer.native.XmrigHttpApiSession
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonNull
@@ -133,7 +134,9 @@ data class MiningConfig(
         availableMemoryBytes: Long? = null,
         totalMemoryBytes: Long? = null,
         processLimitBytes: Long? = null,
-        appliedRandomxMode: String? = null
+        appliedRandomxMode: String? = null,
+        httpApi: XmrigHttpApiSession? = null,
+        tlsFingerprint: String? = null
     ): String {
         val coin = getCoin()
         val solo = soloDaemon && coin == CoinType.MONERO
@@ -161,6 +164,9 @@ data class MiningConfig(
             put("pass", if (solo) "x" else workerName)
             put("keepalive", !solo)
             put("tls", if (solo) false else useTls)
+            if (!solo && useTls && !tlsFingerprint.isNullOrBlank()) {
+                put("fingerprint", tlsFingerprint)
+            }
             if (solo) {
                 put("daemon", true)
             }
@@ -189,8 +195,22 @@ data class MiningConfig(
             // autoReconnect=false must disable XMRig's own retry loop (#43)
             put("retries", if (autoReconnect) retries else 0)
             put("retry-pause", retryPause)
-            put("api", JsonNull)
-            put("http", JsonNull)
+            if (httpApi != null) {
+                putJsonObject("api") {
+                    put("id", httpApi.instanceId)
+                    put("worker-id", workerName)
+                }
+                putJsonObject("http") {
+                    put("enabled", true)
+                    put("host", httpApi.host)
+                    put("port", httpApi.port)
+                    put("access-token", httpApi.accessToken)
+                    put("restricted", !httpApi.allowWrites)
+                }
+            } else {
+                put("api", JsonNull)
+                put("http", JsonNull)
+            }
             putJsonObject("randomx") {
                 put("mode", rxMode)
                 put("1gb-pages", false)

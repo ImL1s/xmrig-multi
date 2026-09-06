@@ -554,9 +554,9 @@ private fun PoolSelectionCard(
                         Text("Use TLS/SSL")
                         Text(
                             text = if (XmrigNativeCapabilities.TLS_ENABLED) {
-                                "Encrypted connection to mining pool"
+                                XmrigNativeCapabilities.tlsTrustSummary()
                             } else {
-                                "Unavailable: packaged XMRig is built without TLS"
+                                "Unavailable: packaged XMRig TLS gate locked or binary/manifest mismatch (#134)"
                             },
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant

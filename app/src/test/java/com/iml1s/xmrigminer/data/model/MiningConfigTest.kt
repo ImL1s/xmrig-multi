@@ -1,8 +1,10 @@
 package com.iml1s.xmrigminer.data.model
 
 import com.iml1s.xmrigminer.data.repository.ConfigRepositoryDefaults
+import com.iml1s.xmrigminer.native.XmrigHttpApiSession
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.boolean
+import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.int
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
@@ -279,5 +281,73 @@ class MiningConfigTest {
         val on = config.copy(autoReconnect = true)
         val rootOn = Json.parseToJsonElement(on.toJson()).jsonObject
         assertEquals(5, rootOn["retries"]!!.jsonPrimitive.int)
+    }
+
+    @Test
+    fun `toJson emits loopback HTTP API session when provided`() {
+        val session = XmrigHttpApiSession(
+            host = "127.0.0.1",
+            port = 41234,
+            accessToken = "abc123token",
+            instanceId = "inst-1",
+            allowWrites = true
+        )
+        val config = MiningConfig(
+            poolUrl = "pool.supportxmr.com:3333",
+            walletAddress = "4AdUndXHHZ6cfufTMvppY6JwXNouMBzSkbLYfpAV5Usx3skxNgYeYTRj5UzqtReoS44qo9mtmXCqY45DJ852K5Jv2684Rge"
+        )
+        val root = Json.parseToJsonElement(config.toJson(httpApi = session)).jsonObject
+        val http = root["http"]!!.jsonObject
+        assertTrue(http["enabled"]!!.jsonPrimitive.boolean)
+        assertEquals("127.0.0.1", http["host"]!!.jsonPrimitive.content)
+        assertEquals(41234, http["port"]!!.jsonPrimitive.int)
+        assertEquals("abc123token", http["access-token"]!!.jsonPrimitive.content)
+        assertFalse(http["restricted"]!!.jsonPrimitive.boolean)
+        assertEquals("inst-1", root["api"]!!.jsonObject["id"]!!.jsonPrimitive.content)
+    }
+
+    @Test
+    fun `toJson HTTP restricted when session disallows writes`() {
+        val session = XmrigHttpApiSession(
+            port = 40001,
+            accessToken = "tok",
+            instanceId = "id",
+            allowWrites = false
+        )
+        val config = MiningConfig(
+            poolUrl = "pool.supportxmr.com:3333",
+            walletAddress = "4AdUndXHHZ6cfufTMvppY6JwXNouMBzSkbLYfpAV5Usx3skxNgYeYTRj5UzqtReoS44qo9mtmXCqY45DJ852K5Jv2684Rge"
+        )
+        val http = Json.parseToJsonElement(config.toJson(httpApi = session))
+            .jsonObject["http"]!!.jsonObject
+        assertTrue(http["restricted"]!!.jsonPrimitive.boolean)
+    }
+
+    @Test
+    fun `toJson puts TLS fingerprint on pool when useTls and fingerprint set`() {
+        val config = MiningConfig(
+            poolUrl = "pool.supportxmr.com:443",
+            walletAddress = "4AdUndXHHZ6cfufTMvppY6JwXNouMBzSkbLYfpAV5Usx3skxNgYeYTRj5UzqtReoS44qo9mtmXCqY45DJ852K5Jv2684Rge",
+            useTls = true
+        )
+        val pool = Json.parseToJsonElement(
+            config.toJson(tlsFingerprint = "DEADBEEF")
+        ).jsonObject["pools"]!!.jsonArray[0].jsonObject
+        assertTrue(pool["tls"]!!.jsonPrimitive.boolean)
+        assertEquals("DEADBEEF", pool["fingerprint"]!!.jsonPrimitive.content)
+    }
+
+    @Test
+    fun `toJson leaves api and http null without session`() {
+        val config = MiningConfig(
+            poolUrl = "pool.supportxmr.com:3333",
+            walletAddress = "4AdUndXHHZ6cfufTMvppY6JwXNouMBzSkbLYfpAV5Usx3skxNgYeYTRj5UzqtReoS44qo9mtmXCqY45DJ852K5Jv2684Rge"
+        )
+        val root = Json.parseToJsonElement(config.toJson()).jsonObject
+        assertEquals(kotlinx.serialization.json.JsonNull, root["api"])
+        assertEquals(kotlinx.serialization.json.JsonNull, root["http"])
+        assertNull(
+            root["pools"]!!.jsonArray[0].jsonObject["fingerprint"]?.jsonPrimitive?.contentOrNull
+        )
     }
 }
