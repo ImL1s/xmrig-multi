@@ -9,12 +9,14 @@ import android.os.Looper
 import android.service.dreams.DreamService
 import android.widget.FrameLayout
 import android.widget.TextView
+import androidx.core.content.ContextCompat
 import com.iml1s.xmrigminer.data.ambient.WallClockDisplay
 import com.iml1s.xmrigminer.data.ambient.WallClockTicker
 import com.iml1s.xmrigminer.data.repository.ConfigRepository
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.first
@@ -44,11 +46,7 @@ class MiningDreamService : DreamService() {
 
     private val serviceJob = SupervisorJob()
     private val serviceScope = CoroutineScope(serviceJob + Dispatchers.Main.immediate)
-
-    /** Dream-scoped: we asked controller once this dream; cleared on stop/detach. */
-    private var dreamMineRequested = false
-    private var lastRejectReason: String? = null
-    private var lastDecision: DreamMiningPolicy.Decision? = null
+    private var mineJob: Job? = null
 
     /** Test hooks — production reads DataStore + latch; these override when non-null. */
     var testOverrideOptIn: Boolean? = null
@@ -57,10 +55,10 @@ class MiningDreamService : DreamService() {
     var testOverrideUserStopped: Boolean? = null
     var testControllerStart: (suspend () -> MiningStartResult)? = null
 
-    var mineRequestCount: Int = 0
-        private set
-    var mineAcceptedCount: Int = 0
-        private set
+    private var mineSession: DreamMineSession? = null
+
+    val mineRequestCount: Int get() = mineSession?.requestCount ?: 0
+    val mineAcceptedCount: Int get() = mineSession?.acceptedCount ?: 0
 
     private val timeReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
@@ -93,51 +91,46 @@ class MiningDreamService : DreamService() {
         super.onDreamingStarted()
         phase = DreamMiningPolicy.Phase.DREAMING
         startClockTicker()
-        serviceScope.launch { applyDecisionAsync() }
+        mineJob?.cancel()
+        mineJob = serviceScope.launch { applyDecisionAsync() }
     }
 
     override fun onDreamingStopped() {
         phase = DreamMiningPolicy.Phase.STOPPED
-        // Clear dream-scoped mine flag only — do not call MiningController.stop().
-        dreamMineRequested = false
-        lastRejectReason = null
+        mineJob?.cancel()
+        mineJob = null
+        mineSession?.onDreamStopped()
         stopClockTicker()
-        lastDecision = DreamMiningPolicy.decide(
-            phase = phase,
-            userOptedInClockAndMine = false,
-            powerAllows = false,
-            runtimeEligible = false,
-            userStopped = true
-        )
         super.onDreamingStopped()
     }
 
     override fun onDetachedFromWindow() {
+        phase = DreamMiningPolicy.Phase.STOPPED
+        mineJob?.cancel()
+        mineJob = null
         stopClockTicker()
         unregisterTimeReceiver()
-        dreamMineRequested = false
+        mineSession?.onDreamStopped()
         clockView = null
         statusView = null
         serviceJob.cancel()
         super.onDetachedFromWindow()
     }
 
-    /** Sync entry used by unit tests with overrides already set. */
-    fun applyDecision(): DreamMiningPolicy.Decision {
-        val decision = DreamMiningPolicy.decide(
+    /** Decision-only for tests — does not call MiningController. */
+    fun evaluateDecisionForTest(
+        optedIn: Boolean,
+        powerAllows: Boolean,
+        runtimeEligible: Boolean,
+        userStopped: Boolean
+    ): DreamMiningPolicy.Decision {
+        return DreamMiningPolicy.decide(
             phase = phase,
-            userOptedInClockAndMine = testOverrideOptIn ?: false,
-            powerAllows = testOverridePowerAllows ?: false,
-            runtimeEligible = testOverrideRuntimeEligible ?: false,
-            userStopped = testOverrideUserStopped ?: MiningSessionLatch.isUserStopped()
+            userOptedInClockAndMine = optedIn,
+            powerAllows = powerAllows,
+            runtimeEligible = runtimeEligible,
+            userStopped = userStopped
         )
-        lastDecision = decision
-        if (DreamMineBridge.shouldRequest(decision, dreamMineRequested)) {
-            mineRequestCount++
-            dreamMineRequested = true
-            // Production path uses applyDecisionAsync; tests may inject controller.
-        }
-        return decision
     }
 
     fun forcePreviewPhaseForTest() {
@@ -148,14 +141,12 @@ class MiningDreamService : DreamService() {
         phase = DreamMiningPolicy.Phase.DREAMING
     }
 
-    fun lastDecisionForTest(): DreamMiningPolicy.Decision? = lastDecision
-
-    fun dreamMineRequestedForTest(): Boolean = dreamMineRequested
-
     private suspend fun applyDecisionAsync() {
         val snapshot = withContext(Dispatchers.IO) {
             configRepository.getConfig().first()
         }
+        if (phase != DreamMiningPolicy.Phase.DREAMING) return
+
         val userStopped = testOverrideUserStopped ?: MiningSessionLatch.isUserStopped()
         val optedIn = testOverrideOptIn ?: snapshot.dreamMayMine
         val runtimeEligible = testOverrideRuntimeEligible
@@ -171,23 +162,19 @@ class MiningDreamService : DreamService() {
             runtimeEligible = runtimeEligible,
             userStopped = userStopped
         )
-        lastDecision = decision
         statusView?.text = decision.reasons.firstOrNull().orEmpty()
-        if (!DreamMineBridge.shouldRequest(decision, dreamMineRequested)) {
-            return
-        }
-        dreamMineRequested = true
-        mineRequestCount++
+
         val starter = testControllerStart ?: { miningController.start() }
-        val result = withContext(Dispatchers.IO) { starter() }
-        val (keepRequested, outcome) = DreamMineBridge.afterControllerResult(result)
-        dreamMineRequested = keepRequested
-        lastRejectReason = outcome.rejectReason
+        val session = mineSession ?: DreamMineSession(
+            startMining = starter,
+            stillDreaming = { phase == DreamMiningPolicy.Phase.DREAMING }
+        ).also { mineSession = it }
+
+        val outcome = session.maybeRequest(decision) ?: return
         if (outcome.accepted) {
-            mineAcceptedCount++
             MiningSessionLatch.setAutomationArmed(true)
             statusView?.text = "Mining requested"
-        } else {
+        } else if (outcome.requested) {
             statusView?.text = outcome.rejectReason ?: "Mine request rejected"
             Timber.i("Dream mine rejected: %s", outcome.rejectReason)
         }
@@ -217,7 +204,12 @@ class MiningDreamService : DreamService() {
             addAction(Intent.ACTION_TIMEZONE_CHANGED)
             addAction(Intent.ACTION_TIME_TICK)
         }
-        registerReceiver(timeReceiver, filter)
+        ContextCompat.registerReceiver(
+            this,
+            timeReceiver,
+            filter,
+            ContextCompat.RECEIVER_NOT_EXPORTED
+        )
         timeReceiverRegistered = true
     }
 
