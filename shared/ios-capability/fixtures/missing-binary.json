@@ -1,0 +1,6 @@
+{
+  "channel": "sideload-miner",
+  "binaryPresent": false,
+  "selftestPassed": false,
+  "signingOk": true
+}

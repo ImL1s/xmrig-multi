@@ -1,0 +1,13 @@
+{
+  "channel": "sideload-miner",
+  "binaryPresent": true,
+  "binaryHash": "abc123",
+  "binaryVersion": "6.25.0",
+  "selftestPassed": true,
+  "signingOk": true,
+  "acceptedConfigKeys": ["randomx.mode", "randomx.jit", "cpu.priority"],
+  "jitActuallyUsed": true,
+  "backgroundMiningSupported": false,
+  "memoryBudgetBytes": 268435456,
+  "evidenceDate": "2026-09-06"
+}

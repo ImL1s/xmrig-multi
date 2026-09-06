@@ -23,6 +23,7 @@ on:
       - 'shared/thermal-policy/**'
       - 'shared/power-policy/**'
       - 'shared/diagnostics/**'
+      - 'shared/ios-capability/**'
       - 'app/src/main/assets/pools.json'
       - 'desktop/src/generated-pool-configs.json'
       - 'desktop/src/main.js'
@@ -49,6 +50,7 @@ on:
       - 'shared/thermal-policy/**'
       - 'shared/power-policy/**'
       - 'shared/diagnostics/**'
+      - 'shared/ios-capability/**'
       - 'app/src/main/assets/pools.json'
       - 'desktop/src/generated-pool-configs.json'
       - 'desktop/src/main.js'
@@ -152,6 +154,10 @@ jobs:
       - name: Diagnostics error/log/redact tests (#55)
         working-directory: .
         run: node --test shared/diagnostics/test/*.test.js
+
+      - name: iOS capability / JIT gate tests (#60)
+        working-directory: .
+        run: node --test shared/ios-capability/test/*.test.js
 
       - name: Build for Production
         run: npm run build
