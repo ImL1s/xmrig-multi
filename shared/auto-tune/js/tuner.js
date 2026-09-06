@@ -1,6 +1,7 @@
 /**
- * Auto-tune orchestrator (#34).
+ * Auto-tune orchestrator (#34/#128).
  * Independent of UI ViewModels — cancel, locks, rollback, fingerprint stale.
+ * Synthetic fakeBenchmark is never the default; callers must pass an adapter.
  */
 
 import { buildCandidates } from './candidates.js';
@@ -22,8 +23,9 @@ import { isFingerprintStale, tuneFingerprint } from './fingerprint.js';
  * @param {object} [options.baseline] current settings { threads, randomxMode }
  * @param {object} [options.powerPolicy]
  * @param {object} [options.memoryPolicy]
- * @param {(c: object, ctx: object) => Promise<object>} [options.benchmark]
+ * @param {(c: object, ctx: object) => Promise<object>} options.benchmark required live or explicit fake
  * @param {object} [options.benchmarkCtx]
+ * @param {'synthetic'|'live'} [options.benchmarkKind] default: synthetic iff benchmark===fakeBenchmark else live
  * @param {() => boolean} [options.shouldAbort] thermal/battery/memory/user
  * @param {AbortSignal} [options.signal]
  * @param {number} [options.minImprovementPct] ignore noisy tiny wins (default 3)
@@ -43,6 +45,14 @@ export async function runAutoTune(options = {}) {
     if (!options.snapshot) {
         return uncalibrated('no hardware snapshot', fp);
     }
+
+    if (typeof options.benchmark !== 'function') {
+        return uncalibrated('no benchmark adapter — refuse synthetic default', fp);
+    }
+
+    const adapterKind =
+        options.benchmarkKind ||
+        (options.benchmark === fakeBenchmark ? 'synthetic' : 'live');
 
     const { candidates, reasons } = buildCandidates({
         snapshot: options.snapshot,
@@ -65,36 +75,32 @@ export async function runAutoTune(options = {}) {
             stale: false,
             samples,
             warnings: [...warnings, 'no safe candidates'],
-            claims: claimFlags(options)
+            claims: claimFlags(options, adapterKind, samples)
         };
     }
 
-    const bench = options.benchmark || fakeBenchmark;
+    const bench = options.benchmark;
     const minImp = options.minImprovementPct ?? 3;
     let best = null;
     let bestScore = -Infinity;
 
+    const stopped = () => Boolean(options.signal?.aborted || options.shouldAbort?.());
+
     for (const candidate of candidates) {
-        if (options.signal?.aborted || options.shouldAbort?.()) {
-            return {
-                phase: options.signal?.aborted ? 'cancelled' : 'aborted',
-                ok: false,
-                accepted: false,
-                recommendation: null,
-                baseline: options.baseline || null,
-                fingerprint: fp,
-                stale: false,
-                samples,
-                warnings: [...warnings, 'tune stopped early — no orphan workers'],
-                claims: claimFlags(options),
-                rollback: options.baseline || null
-            };
+        if (stopped()) {
+            return earlyStop(options, fp, samples, warnings, adapterKind);
         }
 
         const result = await bench(candidate, {
             ...(options.benchmarkCtx || {}),
             abortSignal: options.signal
         });
+
+        // Re-check cancel after every await (#128).
+        if (stopped() || result.cancelled) {
+            return earlyStop(options, fp, samples, warnings, adapterKind, result);
+        }
+
         const score = scoreResult(goal, result, candidate, options);
         samples.push({
             candidate,
@@ -111,8 +117,9 @@ export async function runAutoTune(options = {}) {
                 notes: result.notes
             },
             score,
-            measured: result.ok,
-            estimated: !result.ok
+            measured: adapterKind === 'live' && result.ok,
+            estimated: adapterKind !== 'live' || !result.ok,
+            provenance: adapterKind
         });
 
         if (result.ok && !result.thermalThrottle && score > bestScore) {
@@ -121,23 +128,37 @@ export async function runAutoTune(options = {}) {
         }
     }
 
+    if (stopped()) {
+        return earlyStop(options, fp, samples, warnings, adapterKind);
+    }
+
     const baseline = options.baseline || null;
     let improvementPct = null;
     if (best && baseline) {
-        const baseId = `t${baseline.threads}-${baseline.randomxMode || 'light'}`;
-        const baseBench = await bench(
-            {
-                id: baseId,
-                threads: baseline.threads,
-                randomxMode: baseline.randomxMode || 'light'
-            },
-            { ...(options.benchmarkCtx || {}), abortSignal: options.signal }
-        );
-        if (baseBench.ok && baseBench.hashrate > 0) {
-            improvementPct = ((best.result.hashrate - baseBench.hashrate) / baseBench.hashrate) * 100;
+        const baseCandidate = {
+            id: `t${baseline.threads}-${baseline.randomxMode || 'light'}`,
+            threads: baseline.threads,
+            randomxMode: baseline.randomxMode || 'light'
+        };
+        const baseBench = await bench(baseCandidate, {
+            ...(options.benchmarkCtx || {}),
+            abortSignal: options.signal
+        });
+        if (stopped() || baseBench.cancelled) {
+            return earlyStop(options, fp, samples, warnings, adapterKind, baseBench);
+        }
+        if (baseBench.ok) {
+            const baseScore = scoreResult(goal, baseBench, baseCandidate, options);
+            if (Number.isFinite(baseScore) && Math.abs(baseScore) > 1e-12) {
+                improvementPct = ((best.score - baseScore) / Math.abs(baseScore)) * 100;
+            } else if (best.score > baseScore) {
+                improvementPct = 100;
+            } else {
+                improvementPct = 0;
+            }
             if (improvementPct < minImp) {
                 warnings.push(
-                    `best within noise (<${minImp}% vs baseline) — keep baseline`
+                    `best within noise (<${minImp}% vs baseline on goal score) — keep baseline`
                 );
                 return {
                     phase: 'completed',
@@ -155,7 +176,7 @@ export async function runAutoTune(options = {}) {
                     stale: false,
                     samples,
                     warnings,
-                    claims: claimFlags(options),
+                    claims: claimFlags(options, adapterKind, samples),
                     rollback: baseline
                 };
             }
@@ -173,7 +194,7 @@ export async function runAutoTune(options = {}) {
             stale: false,
             samples,
             warnings: [...warnings, 'all candidates failed — conservative suggestion only'],
-            claims: claimFlags(options),
+            claims: claimFlags(options, adapterKind, samples),
             rollback: baseline
         };
     }
@@ -199,7 +220,7 @@ export async function runAutoTune(options = {}) {
         stale: false,
         samples,
         warnings,
-        claims: claimFlags(options),
+        claims: claimFlags(options, adapterKind, samples),
         rollback: baseline
     };
 }
@@ -232,6 +253,23 @@ export function rollbackSettings(tuneResult) {
     return tuneResult?.rollback || tuneResult?.baseline || null;
 }
 
+function earlyStop(options, fp, samples, warnings, adapterKind, lastResult) {
+    const cancelled = Boolean(options.signal?.aborted || lastResult?.cancelled);
+    return {
+        phase: cancelled ? 'cancelled' : 'aborted',
+        ok: false,
+        accepted: false,
+        recommendation: null,
+        baseline: options.baseline || null,
+        fingerprint: fp,
+        stale: false,
+        samples,
+        warnings: [...warnings, 'tune stopped early — no orphan workers'],
+        claims: claimFlags(options, adapterKind, samples),
+        rollback: options.baseline || null
+    };
+}
+
 function scoreResult(goal, result, candidate, options) {
     if (!result.ok) return -Infinity;
     if (result.thermalThrottle) return -1e9;
@@ -255,15 +293,21 @@ function scoreResult(goal, result, candidate, options) {
     }
 }
 
-function claimFlags(options) {
+function claimFlags(options, adapterKind, samples = []) {
     const powerReadable = options.snapshot?.sensors?.powerReadable?.value === true;
     const noiseReadable = options.snapshot?.sensors?.noiseReadable?.value === true;
+    const live = adapterKind === 'live';
+    const anyOk = samples.some((s) => s.result?.ok);
+    const anyWatts = samples.some(
+        (s) => s.result?.watts != null && Number(s.result.watts) > 0
+    );
     return {
-        measuredHashrate: true,
-        measuredHashesPerWatt: powerReadable,
-        measuredQuiet: noiseReadable,
+        measuredHashrate: live && anyOk,
+        measuredHashesPerWatt: live && powerReadable && anyWatts,
+        measuredQuiet: live && noiseReadable,
         quietUsesLoadProxy: !noiseReadable,
-        estimatedOnly: false
+        estimatedOnly: !live,
+        adapterKind: adapterKind || 'none'
     };
 }
 
@@ -288,7 +332,8 @@ function uncalibrated(reason, fp) {
             measuredHashesPerWatt: false,
             measuredQuiet: false,
             quietUsesLoadProxy: true,
-            estimatedOnly: true
+            estimatedOnly: true,
+            adapterKind: 'none'
         },
         rollback: null
     };
