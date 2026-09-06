@@ -43,7 +43,18 @@ data class MiningConfig(
      */
     val randomxMode: String = "auto",
     /** When true, auto memory fallback must not overwrite [randomxMode]. */
-    val randomxModeLocked: Boolean = false
+    val randomxModeLocked: Boolean = false,
+    // --- Power policy (persisted; MonitorWorker must read these, not hardcoded) (#126) ---
+    /** When true, mining requires AC/USB/wireless present. */
+    val requireExternalPower: Boolean = false,
+    /** Pause when charger is removed. */
+    val pauseOnUnplug: Boolean = false,
+    /** Charge to this SOC% before mining while plugged; null disables. */
+    val chargeToPercentBeforeMine: Int? = null,
+    val minBatteryPercent: Int = 20,
+    val resumeBatteryPercent: Int = 30,
+    /** Pause when plugged but net battery flow is still discharging. */
+    val pauseOnNetDischargeWhilePlugged: Boolean = false
 ) {
     fun getCoin(): CoinType = CoinType.fromString(coinType)
 

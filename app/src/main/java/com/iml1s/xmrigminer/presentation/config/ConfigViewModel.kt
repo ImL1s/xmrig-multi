@@ -108,6 +108,27 @@ class ConfigViewModel @Inject constructor(
             is ConfigUiEvent.TlsToggled -> handleTlsToggled(event.enabled)
             is ConfigUiEvent.CustomPoolUrlChanged -> handleCustomPoolUrlChanged(event.url)
             is ConfigUiEvent.SoloDaemonToggled -> handleSoloDaemonToggled(event.enabled)
+            is ConfigUiEvent.RequireExternalPowerToggled -> {
+                val state = _uiState.value as? ConfigUiState.Success ?: return
+                updateConfig(currentConfig.copy(requireExternalPower = event.enabled), state)
+            }
+            is ConfigUiEvent.PauseOnUnplugToggled -> {
+                val state = _uiState.value as? ConfigUiState.Success ?: return
+                updateConfig(currentConfig.copy(pauseOnUnplug = event.enabled), state)
+            }
+            is ConfigUiEvent.ChargeBeforeMineToggled -> {
+                val state = _uiState.value as? ConfigUiState.Success ?: return
+                val target = if (event.enabled) {
+                    currentConfig.chargeToPercentBeforeMine ?: 50
+                } else {
+                    null
+                }
+                updateConfig(currentConfig.copy(chargeToPercentBeforeMine = target), state)
+            }
+            is ConfigUiEvent.PauseOnNetDischargeToggled -> {
+                val state = _uiState.value as? ConfigUiState.Success ?: return
+                updateConfig(currentConfig.copy(pauseOnNetDischargeWhilePlugged = event.enabled), state)
+            }
             is ConfigUiEvent.ProbeDaemon -> handleProbeDaemon()
             is ConfigUiEvent.SaveConfig -> handleSaveConfig()
             is ConfigUiEvent.RequestResetToDefaults -> handleRequestReset()

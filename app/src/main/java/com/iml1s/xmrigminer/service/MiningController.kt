@@ -1,5 +1,9 @@
 package com.iml1s.xmrigminer.service
 
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
+import android.os.BatteryManager
 import androidx.work.Constraints
 import androidx.work.Data
 import androidx.work.ExistingWorkPolicy
@@ -16,6 +20,7 @@ import com.iml1s.xmrigminer.data.repository.StatsRepository
 import com.iml1s.xmrigminer.native.XmrigNativeCapabilities
 import com.iml1s.xmrigminer.native.XmrigProcessController
 import com.iml1s.xmrigminer.wear.WearStatsSyncer
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
@@ -23,6 +28,9 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import timber.log.Timber
+import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicLong
+import java.util.concurrent.atomic.AtomicReference
 import javax.inject.Inject
 import javax.inject.Provider
 import javax.inject.Singleton
@@ -34,11 +42,20 @@ sealed interface MiningStartResult {
 
 @Singleton
 class MiningController @Inject constructor(
+    @ApplicationContext private val appContext: Context,
     private val workManager: WorkManager,
     private val configRepository: ConfigRepository,
     private val statsRepository: StatsRepository,
     private val wearStatsSyncer: Provider<WearStatsSyncer>
 ) {
+    private val sessionGeneration = AtomicLong(0L)
+    private val runtimeThreadOverride = AtomicReference<Int?>(null)
+    private val lastAppliedThreads = AtomicInteger(0)
+
+    fun currentSessionGeneration(): Long = sessionGeneration.get()
+
+    fun lastAppliedThreads(): Int = lastAppliedThreads.get()
+
     fun isRunning(): Flow<Boolean> {
         return workManager.getWorkInfosForUniqueWorkFlow(MiningWorker.WORK_NAME)
             .map { infos -> infos.any { it.state == WorkInfo.State.RUNNING } }
@@ -48,16 +65,19 @@ class MiningController @Inject constructor(
      * Explicit Start. Validates first; only then arms session and replaces engine.
      * Invalid config does **not** clear a prior UserStopped latch (#124).
      */
-    suspend fun start(): MiningStartResult {
+    suspend fun start(powerObservation: PowerPolicy.Observation? = null): MiningStartResult {
         var config = configRepository.getConfig().first()
         validateStartConfig(config)?.let { return it }
+
+        // Pre-start power gate — waiting must not allocate RandomX (#126).
+        val obs = powerObservation ?: readPowerObservation()
+        evaluatePowerGate(config, obs)?.let { return it }
 
         if (config.soloDaemon) {
             val parsed = DaemonEndpointParser.parse(config.poolUrl, allowHttps = false)
             if (!parsed.ok || parsed.endpoint == null) {
                 return MiningStartResult.InvalidConfig(parsed.message)
             }
-            // Normalize to engine URL (no userinfo / scheme) before launch (#44).
             config = config.copy(poolUrl = parsed.endpoint.engineUrl)
             val probe = DaemonRpcProbe.probe(config.poolUrl)
             if (!probe.readyToMine) {
@@ -76,17 +96,232 @@ class MiningController @Inject constructor(
             )
         }
 
-        // Validated — now clear Stop latch and replace engine without re-latching UserStopped.
         wearStatsSyncer.get().clearUserStopLatchOnExplicitPhoneStart()
         if (!MiningSessionSequencer.onValidatedStartReady()) {
             return MiningStartResult.InvalidConfig("Session arm failed — Stop still latched")
         }
 
-        stopEngine(resetStats = false)
+        runtimeThreadOverride.set(null)
+        workManager.cancelUniqueWork(PolicyResumeWorker.WORK_NAME)
+        return enqueueMining(config, resetStats = false, cancelPolicyResume = false)
+    }
+
+    /**
+     * Soft-throttle path (#125): request temporary thread override without claiming applied.
+     * Returns requested threads when enqueue succeeds (PENDING); caller must verify via
+     * [verifyRuntimeThreadOverride] before advertising APPLIED.
+     */
+    suspend fun requestRuntimeThreadOverride(threads: Int, reason: String): Int? =
+        withContext(Dispatchers.IO) {
+            if (MiningSessionLatch.isUserStopped()) {
+                Timber.w("Skip thread override — UserStopped")
+                return@withContext null
+            }
+            if (threads <= 0) return@withContext null
+            if (sessionGeneration.get() == 0L) return@withContext null
+            val base = configRepository.getConfig().first()
+            val overridden = base.copy(threads = threads, threadsAuto = false)
+            runtimeThreadOverride.set(threads)
+            if (!relaunchMiningWorkerOnly(overridden)) {
+                runtimeThreadOverride.set(null)
+                return@withContext null
+            }
+            Timber.i("Runtime thread override enqueued threads=%d (%s) — pending verify", threads, reason)
+            threads
+        }
+
+    /**
+     * True when MiningWorker is RUNNING/ENQUEUED after a pending override/clear request.
+     * Clear path: [runtimeThreadOverride] is null and [expectedThreads] equals permanent DataStore
+     * threads (so restore verify does not stick forever). Does not prove OS-level CPU load.
+     */
+    suspend fun verifyRuntimeThreadOverride(expectedThreads: Int): Boolean = withContext(Dispatchers.IO) {
+        val permanent = configRepository.getConfig().first().threads
+        if (!matchesThreadOverrideReadback(runtimeThreadOverride.get(), expectedThreads, permanent)) {
+            return@withContext false
+        }
+        val infos = workManager.getWorkInfosForUniqueWork(MiningWorker.WORK_NAME).get()
+        val active = infos.any {
+            it.state == WorkInfo.State.RUNNING || it.state == WorkInfo.State.ENQUEUED
+        }
+        if (active) {
+            lastAppliedThreads.set(expectedThreads)
+        }
+        active
+    }
+
+    suspend fun requestClearRuntimeThreadOverride(reason: String): Int? = withContext(Dispatchers.IO) {
+        val base = configRepository.getConfig().first()
+        val previousOverride = runtimeThreadOverride.get()
+        // Null override = use permanent DataStore profile; verify accepts null + permanent match.
+        runtimeThreadOverride.set(null)
+        if (!relaunchMiningWorkerOnly(base)) {
+            runtimeThreadOverride.set(previousOverride)
+            return@withContext null
+        }
+        Timber.i("Permanent threads restore enqueued threads=%d (%s) — pending verify", base.threads, reason)
+        base.threads
+    }
+
+    companion object {
+        /**
+         * Soft throttle: override must equal expected.
+         * Thermal resume clear: override is null and expected equals permanent DataStore threads.
+         */
+        internal fun matchesThreadOverrideReadback(
+            runtimeOverride: Int?,
+            expectedThreads: Int,
+            permanentThreads: Int
+        ): Boolean = when {
+            runtimeOverride == expectedThreads -> true
+            runtimeOverride == null && expectedThreads == permanentThreads -> true
+            else -> false
+        }
+    }
+
+    /**
+     * Policy automation resume (#126): enqueue mining without cancelling [PolicyResumeWorker]
+     * and without Wear "explicit Start" side effects.
+     */
+    suspend fun resumeAfterPolicy(powerObservation: PowerPolicy.Observation? = null): MiningStartResult {
+        if (MiningSessionLatch.isUserStopped()) {
+            return MiningStartResult.InvalidConfig("Stop latched — resume cancelled")
+        }
+        var config = configRepository.getConfig().first()
+        validateStartConfig(config)?.let { return it }
+        val obs = powerObservation ?: readPowerObservation()
+        evaluatePowerGate(config, obs)?.let { return it }
+
+        if (config.soloDaemon) {
+            val parsed = DaemonEndpointParser.parse(config.poolUrl, allowHttps = false)
+            if (!parsed.ok || parsed.endpoint == null) {
+                return MiningStartResult.InvalidConfig(parsed.message)
+            }
+            config = config.copy(poolUrl = parsed.endpoint.engineUrl)
+        }
+
+        // Re-arm session for policy resume without treating as brand-new user Start.
+        if (!MiningSessionSequencer.onValidatedStartReady()) {
+            return MiningStartResult.InvalidConfig("Session arm failed — Stop still latched")
+        }
+        runtimeThreadOverride.set(null)
+        return enqueueMining(config, resetStats = false, cancelPolicyResume = false)
+    }
+
+    /** @deprecated Use [requestRuntimeThreadOverride] + [verifyRuntimeThreadOverride]. */
+    suspend fun applyRuntimeThreadOverride(threads: Int, reason: String): Int? =
+        requestRuntimeThreadOverride(threads, reason)
+
+    suspend fun clearRuntimeThreadOverride(reason: String): Int? =
+        requestClearRuntimeThreadOverride(reason)
+
+    /** Replace MiningWorker only — keep MonitorWorker alive for continuous policy (#125). */
+    private suspend fun relaunchMiningWorkerOnly(config: MiningConfig): Boolean {
+        return try {
+            workManager.cancelUniqueWork(MiningWorker.WORK_NAME)
+            val killed = XmrigProcessController.killLeftoverMiners()
+            if (killed > 0) {
+                Timber.i("Killed %d leftover XMRig process(es) for throttle relaunch", killed)
+            }
+            val soloDaemon = config.soloDaemon
+            val networkType = if (soloDaemon) NetworkType.NOT_REQUIRED else NetworkType.CONNECTED
+            val constraints = Constraints.Builder()
+                .setRequiredNetworkType(networkType)
+                .build()
+            val launchSnapshot = Data.Builder()
+                .putBoolean(MonitorWorker.KEY_SOLO_DAEMON, soloDaemon)
+                .putString(MiningWorker.KEY_CONFIG_SNAPSHOT, Json.encodeToString(MiningConfig.serializer(), config))
+                .putLong(MonitorWorker.KEY_SESSION_GENERATION, sessionGeneration.get())
+                .build()
+            val miningRequest = OneTimeWorkRequestBuilder<MiningWorker>()
+                .setConstraints(constraints)
+                .setInputData(launchSnapshot)
+                .addTag("mining")
+                .build()
+            workManager.enqueueUniqueWork(
+                MiningWorker.WORK_NAME,
+                ExistingWorkPolicy.REPLACE,
+                miningRequest
+            )
+            true
+        } catch (e: Exception) {
+            Timber.e(e, "Failed to relaunch mining worker for throttle")
+            false
+        }
+    }
+
+    /**
+     * Explicit user Stop — latches UserStopped and cancels engine (#124).
+     */
+    suspend fun stop(resetStats: Boolean = true) = withContext(Dispatchers.IO) {
+        MiningSessionSequencer.onUserStop()
+        runtimeThreadOverride.set(null)
+        workManager.cancelUniqueWork(PolicyResumeWorker.WORK_NAME)
+        cancelEngine(resetStats)
+        Timber.i("Mining and monitoring cancelled (user stop)")
+    }
+
+    /**
+     * Thermal / power / budget pause — cancels engine without UserStopped (#124 / #126).
+     * Schedules [PolicyResumeWorker] so pause is recoverable.
+     */
+    suspend fun pauseForPolicy(
+        resetStats: Boolean = false,
+        untilMs: Long = 0L,
+        reason: String = "policy"
+    ) = withContext(Dispatchers.IO) {
+        MiningSessionSequencer.onPolicyPause(untilMs)
+        cancelEngine(resetStats)
+        schedulePolicyResume(reason)
+        Timber.i("Mining paused for policy (untilMs=%s reason=%s)", untilMs, reason)
+    }
+
+    fun powerDefaultsFrom(config: MiningConfig): PowerPolicy.Defaults {
+        return PowerPolicy.Defaults(
+            requireExternalPower = config.requireExternalPower,
+            pauseOnUnplug = config.pauseOnUnplug,
+            chargeToPercentBeforeMine = config.chargeToPercentBeforeMine,
+            minBatteryPercent = config.minBatteryPercent,
+            resumeBatteryPercent = config.resumeBatteryPercent,
+            pauseOnNetDischargeWhilePlugged = config.pauseOnNetDischargeWhilePlugged
+        )
+    }
+
+    fun evaluatePowerGate(
+        config: MiningConfig,
+        observation: PowerPolicy.Observation,
+        nowMs: Long = System.currentTimeMillis()
+    ): MiningStartResult.InvalidConfig? {
+        val verdict = PowerPolicy.evaluate(
+            observation = observation,
+            intent = PowerPolicy.armSession(PowerPolicy.Intent(), automationArmed = true),
+            config = powerDefaultsFrom(config),
+            nowMs = nowMs
+        )
+        return when (verdict.kind) {
+            PowerPolicy.Kind.ALLOWED -> null
+            else -> MiningStartResult.InvalidConfig(
+                verdict.reasons.firstOrNull() ?: "Power policy blocked start"
+            )
+        }
+    }
+
+    private suspend fun enqueueMining(
+        config: MiningConfig,
+        resetStats: Boolean,
+        bumpGeneration: Boolean = true,
+        cancelPolicyResume: Boolean = true
+    ): MiningStartResult {
+        stopEngine(resetStats)
+        if (cancelPolicyResume) {
+            workManager.cancelUniqueWork(PolicyResumeWorker.WORK_NAME)
+        }
+        if (bumpGeneration) {
+            sessionGeneration.incrementAndGet()
+        }
 
         val soloDaemon = config.soloDaemon
         val networkType = if (soloDaemon) {
-            // LAN monerod may have no validated Internet capability (#15).
             NetworkType.NOT_REQUIRED
         } else {
             NetworkType.CONNECTED
@@ -98,6 +333,7 @@ class MiningController @Inject constructor(
         val launchSnapshot = Data.Builder()
             .putBoolean(MonitorWorker.KEY_SOLO_DAEMON, soloDaemon)
             .putString(MiningWorker.KEY_CONFIG_SNAPSHOT, Json.encodeToString(MiningConfig.serializer(), config))
+            .putLong(MonitorWorker.KEY_SESSION_GENERATION, sessionGeneration.get())
             .build()
 
         val miningRequest = OneTimeWorkRequestBuilder<MiningWorker>()
@@ -122,32 +358,27 @@ class MiningController @Inject constructor(
             ExistingWorkPolicy.REPLACE,
             monitorRequest
         )
-        Timber.i("Mining and monitoring work enqueued (soloDaemon=%s)", soloDaemon)
+        lastAppliedThreads.set(if (config.threadsAuto) 0 else config.threads)
+        Timber.i("Mining and monitoring work enqueued (soloDaemon=%s threads=%s)", soloDaemon, config.threads)
         return MiningStartResult.Started
     }
 
-    /**
-     * Explicit user Stop — latches UserStopped and cancels engine (#124).
-     */
-    suspend fun stop(resetStats: Boolean = true) = withContext(Dispatchers.IO) {
-        MiningSessionSequencer.onUserStop()
-        cancelEngine(resetStats)
-        Timber.i("Mining and monitoring cancelled (user stop)")
+    private fun schedulePolicyResume(reason: String) {
+        val data = Data.Builder()
+            .putString(PolicyResumeWorker.KEY_REASON, reason)
+            .putLong(PolicyResumeWorker.KEY_STOP_REVISION, MiningSessionLatch.userStopRevision.toLong())
+            .build()
+        val req = OneTimeWorkRequestBuilder<PolicyResumeWorker>()
+            .setInputData(data)
+            .addTag("policy_resume")
+            .build()
+        workManager.enqueueUniqueWork(
+            PolicyResumeWorker.WORK_NAME,
+            ExistingWorkPolicy.REPLACE,
+            req
+        )
     }
 
-    /**
-     * Thermal / power / budget pause — cancels engine without UserStopped (#124 / #126).
-     */
-    suspend fun pauseForPolicy(resetStats: Boolean = false, untilMs: Long = 0L) =
-        withContext(Dispatchers.IO) {
-            MiningSessionSequencer.onPolicyPause(untilMs)
-            cancelEngine(resetStats)
-            Timber.i("Mining paused for policy (untilMs=%s)", untilMs)
-        }
-
-    /**
-     * Replace-session cleanup used by Start — no UserStopped side effect (#124).
-     */
     private suspend fun stopEngine(resetStats: Boolean) = withContext(Dispatchers.IO) {
         MiningSessionSequencer.onEngineReplaceCleanup()
         cancelEngine(resetStats)
@@ -156,9 +387,6 @@ class MiningController @Inject constructor(
     private suspend fun cancelEngine(resetStats: Boolean) {
         workManager.cancelUniqueWork(MiningWorker.WORK_NAME)
         workManager.cancelUniqueWork(MonitorWorker.WORK_NAME)
-        // WorkManager can mark the unique work CANCELLED (UI shows stopped) before the
-        // CoroutineWorker finally block runs; XMRig may ignore soft destroy. Sweep same-UID
-        // miner children so Stop always ends mining on device.
         val killed = XmrigProcessController.killLeftoverMiners()
         if (killed > 0) {
             Timber.i("Killed %d leftover XMRig process(es)", killed)
@@ -194,5 +422,49 @@ class MiningController @Inject constructor(
             return MiningStartResult.InvalidConfig(message)
         }
         return null
+    }
+
+    private fun readPowerObservation(): PowerPolicy.Observation {
+        val intent = appContext.registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
+            ?: return PowerPolicy.Observation(
+                quality = PowerPolicy.Quality.FAILED,
+                note = "Battery intent unavailable",
+                timestampMs = System.currentTimeMillis()
+            )
+        val status = when (intent.getIntExtra(BatteryManager.EXTRA_STATUS, -1)) {
+            BatteryManager.BATTERY_STATUS_CHARGING -> PowerPolicy.ChargingStatus.CHARGING
+            BatteryManager.BATTERY_STATUS_FULL -> PowerPolicy.ChargingStatus.FULL
+            BatteryManager.BATTERY_STATUS_NOT_CHARGING -> PowerPolicy.ChargingStatus.NOT_CHARGING
+            BatteryManager.BATTERY_STATUS_DISCHARGING -> PowerPolicy.ChargingStatus.DISCHARGING
+            else -> PowerPolicy.ChargingStatus.UNKNOWN
+        }
+        val pluggedFlag = intent.getIntExtra(BatteryManager.EXTRA_PLUGGED, 0)
+        val source = when (pluggedFlag) {
+            BatteryManager.BATTERY_PLUGGED_AC -> PowerPolicy.PowerSource.AC
+            BatteryManager.BATTERY_PLUGGED_USB -> PowerPolicy.PowerSource.USB
+            BatteryManager.BATTERY_PLUGGED_WIRELESS -> PowerPolicy.PowerSource.WIRELESS
+            0 -> null
+            else -> PowerPolicy.PowerSource.UNKNOWN
+        }
+        val level = intent.getIntExtra(BatteryManager.EXTRA_LEVEL, -1)
+        val scale = intent.getIntExtra(BatteryManager.EXTRA_SCALE, 100).coerceAtLeast(1)
+        val soc = if (level >= 0) ((level * 100f) / scale).toInt().coerceIn(0, 100) else null
+        val batteryManager = appContext.getSystemService(Context.BATTERY_SERVICE) as? BatteryManager
+        val currentUa = batteryManager?.getIntProperty(BatteryManager.BATTERY_PROPERTY_CURRENT_NOW)
+        val flowMa = when {
+            currentUa == null || currentUa == Int.MIN_VALUE -> null
+            else -> currentUa / 1000
+        }
+        return PowerPolicy.Observation(
+            platformHasBattery = true,
+            batteryApiAvailable = true,
+            externalPowerPresent = pluggedFlag != 0,
+            powerSource = source,
+            chargingStatus = status,
+            socPercent = soc,
+            netBatteryFlowMa = flowMa,
+            quality = PowerPolicy.Quality.OK,
+            timestampMs = System.currentTimeMillis()
+        )
     }
 }
