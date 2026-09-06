@@ -16,6 +16,7 @@ on:
       - 'shared/session-runtime/**'
       - 'shared/daemon-endpoint/**'
       - 'shared/fee-manifest/**'
+      - 'shared/pool-recommend/**'
       - 'app/src/main/assets/pools.json'
       - 'desktop/src/generated-pool-configs.json'
       - 'desktop/src/main.js'
@@ -35,6 +36,7 @@ on:
       - 'shared/session-runtime/**'
       - 'shared/daemon-endpoint/**'
       - 'shared/fee-manifest/**'
+      - 'shared/pool-recommend/**'
       - 'app/src/main/assets/pools.json'
       - 'desktop/src/generated-pool-configs.json'
       - 'desktop/src/main.js'
@@ -110,6 +112,10 @@ jobs:
       - name: Session runtime ownership / nonce tests (#49)
         working-directory: .
         run: node --test shared/session-runtime/test/*.test.js
+
+      - name: Pool recommend / share-wait tests (#42)
+        working-directory: .
+        run: node --test shared/pool-recommend/test/*.test.js
 
       - name: Build for Production
         run: npm run build
