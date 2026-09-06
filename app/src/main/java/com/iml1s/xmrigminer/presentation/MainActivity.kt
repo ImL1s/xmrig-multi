@@ -102,8 +102,7 @@ class MainActivity : ComponentActivity() {
             )
             .setNegativeButton(android.R.string.cancel, null)
             .setPositiveButton(android.R.string.ok) { _, _ ->
-                // User confirmation is the authorization boundary for exported intents.
-                MiningSessionLatch.setAutomationArmed(true)
+                // User confirmation authorizes this Start; automation arms only on success.
                 runAuthorizedStart()
             }
             .show()

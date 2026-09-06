@@ -36,7 +36,7 @@ class MiningQuickWidgetProvider : AppWidgetProvider() {
                 R.id.widget_status,
                 when {
                     snap.userStopLatched -> "Stopped"
-                    snap.pauseUntilMs != null -> "Paused"
+                    snap.policyPaused || snap.pauseUntilMs != null -> "Paused"
                     snap.mining -> "Mining"
                     snap.automationArmed -> "Ready"
                     else -> "Automation off"

@@ -59,6 +59,7 @@ object QuickCommandHandler {
             profileId = profileId,
             userStopLatched = snap.userStopLatched,
             pauseUntilMs = snap.policyPauseUntilMs,
+            policyPaused = snap.policyPaused,
             updatedAtMs = System.currentTimeMillis()
         )
     }
@@ -203,5 +204,6 @@ data class QuickSnapshot(
     val profileId: String?,
     val userStopLatched: Boolean,
     val pauseUntilMs: Long?,
+    val policyPaused: Boolean = false,
     val updatedAtMs: Long
 )

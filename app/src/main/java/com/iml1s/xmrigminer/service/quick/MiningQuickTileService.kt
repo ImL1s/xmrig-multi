@@ -55,7 +55,7 @@ class MiningQuickTileService : TileService() {
         val tile = qsTile ?: return
         val mining = isMiningActive()
         val stopped = MiningSessionLatch.isUserStopped()
-        val paused = QuickCommandHandler.pauseUntilMs > System.currentTimeMillis()
+        val paused = MiningSessionLatch.isPolicyPaused()
         tile.label = when {
             stopped -> "XMRig Stopped"
             paused -> "XMRig Paused"

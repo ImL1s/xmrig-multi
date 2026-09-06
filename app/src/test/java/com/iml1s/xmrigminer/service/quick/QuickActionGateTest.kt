@@ -2,6 +2,7 @@ package com.iml1s.xmrigminer.service.quick
 
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 
@@ -81,7 +82,7 @@ class QuickActionGateTest {
     }
 
     @Test
-    fun `token with automation off is blocked`() {
+    fun `token with automation off is blocked without consuming`() {
         val token = QuickStartAuthorization.issue(nowMs = 1L, ttlMs = 60_000L)
         val d = QuickActionGate.decideStart(
             action = "start",
@@ -91,5 +92,7 @@ class QuickActionGateTest {
             nowMs = 5L
         )
         assertEquals(QuickActionGate.StartDisposition.BLOCKED_AUTOMATION_OFF, d)
+        // Token still valid for a later retry once automation is enabled.
+        assertTrue(QuickStartAuthorization.peekValid(token, nowMs = 6L))
     }
 }

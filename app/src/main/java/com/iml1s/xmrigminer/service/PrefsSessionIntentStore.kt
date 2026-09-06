@@ -23,11 +23,12 @@ class PrefsSessionIntentStore(
     }
 
     override fun save(intent: PersistedSessionIntent) {
+        // commit(): UserStopped must survive immediate process kill (#124).
         prefs.edit()
             .putInt(KEY_USER_STOP, intent.userStopRevision)
             .putInt(KEY_ARMED, intent.sessionArmedRevision)
             .putBoolean(KEY_AUTOMATION, intent.automationArmed)
-            .apply()
+            .commit()
     }
 
     companion object {

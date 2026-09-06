@@ -26,13 +26,18 @@ object QuickActionGate {
         nowMs: Long = System.currentTimeMillis(),
         consumeToken: (String?, Long) -> Boolean = { token, t ->
             QuickStartAuthorization.consume(token, nowMs = t)
+        },
+        peekToken: (String?, Long) -> Boolean = { token, t ->
+            QuickStartAuthorization.peekValid(token, nowMs = t)
         }
     ): StartDisposition {
         if (action != "start") return StartDisposition.IGNORE
         if (userStopped) return StartDisposition.BLOCKED_USER_STOP
-        val authorized = consumeToken(authToken, nowMs)
-        if (!authorized) return StartDisposition.REQUIRE_USER_CONFIRM
+        val hasToken = peekToken(authToken, nowMs)
+        if (!hasToken) return StartDisposition.REQUIRE_USER_CONFIRM
         if (!automationArmed) return StartDisposition.BLOCKED_AUTOMATION_OFF
+        // Consume only when we will actually auto-start.
+        if (!consumeToken(authToken, nowMs)) return StartDisposition.REQUIRE_USER_CONFIRM
         return StartDisposition.AUTHORIZED_AUTO_START
     }
 }
