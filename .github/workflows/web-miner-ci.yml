@@ -5,79 +5,20 @@ on:
     branches: [ main, feature/web-miner ]
     paths:
       - 'web/**'
-      - 'shared/mining-profile/**'
-      - 'shared/pool-registry/**'
-      - 'shared/session-state/**'
-      - 'shared/hardware-capability/**'
-      - 'shared/randomx-memory/**'
-      - 'shared/auto-tune/**'
-      - 'shared/reconnect/**'
-      - 'shared/wallet-address/**'
-      - 'shared/session-runtime/**'
-      - 'shared/daemon-endpoint/**'
-      - 'shared/fee-manifest/**'
-      - 'shared/pool-recommend/**'
-      - 'shared/p2pool-connect/**'
-      - 'shared/desktop-optimize/**'
-      - 'shared/cpu-topology/**'
-      - 'shared/thermal-policy/**'
-      - 'shared/power-policy/**'
-      - 'shared/diagnostics/**'
-      - 'shared/ios-capability/**'
-      - 'shared/release-capability/**'
-      - 'shared/gpu-capability/**'
-      - 'shared/energy-ledger/**'
-      - 'shared/electricity-tariff/**'
-      - 'shared/ambient-clock/**'
-      - 'shared/economy-snapshot/**'
-      - 'shared/automation-policy/**'
-      - 'shared/desktop-idle-policy/**'
-      - 'shared/ios-glance/**'
-      - 'shared/quick-controls/**'
-      - 'shared/lan-dashboard/**'
-      - 'shared/metering-adapters/**'
+      - 'shared/**'
+      - 'desktop/**'
       - 'app/src/main/assets/pools.json'
-      - 'desktop/src/generated-pool-configs.json'
-      - 'desktop/src/main.js'
       - '.github/workflows/web-miner-ci.yml'
+      - '.github/workflows/quality-gate.yml'
   pull_request:
     branches: [ main ]
     paths:
       - 'web/**'
-      - 'shared/mining-profile/**'
-      - 'shared/pool-registry/**'
-      - 'shared/session-state/**'
-      - 'shared/hardware-capability/**'
-      - 'shared/randomx-memory/**'
-      - 'shared/auto-tune/**'
-      - 'shared/reconnect/**'
-      - 'shared/wallet-address/**'
-      - 'shared/session-runtime/**'
-      - 'shared/daemon-endpoint/**'
-      - 'shared/fee-manifest/**'
-      - 'shared/pool-recommend/**'
-      - 'shared/p2pool-connect/**'
-      - 'shared/desktop-optimize/**'
-      - 'shared/energy-ledger/**'
-      - 'shared/ambient-clock/**'
-      - 'shared/economy-snapshot/**'
-      - 'shared/automation-policy/**'
-      - 'shared/desktop-idle-policy/**'
-      - 'shared/ios-glance/**'
-      - 'shared/quick-controls/**'
-      - 'shared/lan-dashboard/**'
-      - 'shared/metering-adapters/**'
-      - 'shared/cpu-topology/**'
-      - 'shared/thermal-policy/**'
-      - 'shared/power-policy/**'
-      - 'shared/diagnostics/**'
-      - 'shared/ios-capability/**'
-      - 'shared/release-capability/**'
-      - 'shared/gpu-capability/**'
-      - 'shared/electricity-tariff/**'
+      - 'shared/**'
+      - 'desktop/**'
       - 'app/src/main/assets/pools.json'
-      - 'desktop/src/generated-pool-configs.json'
-      - 'desktop/src/main.js'
+      - '.github/workflows/web-miner-ci.yml'
+      - '.github/workflows/quality-gate.yml'
 
 jobs:
   lint-and-build:
@@ -255,8 +196,20 @@ jobs:
         working-directory: .
         run: node --test shared/metering-adapters/test/*.test.js
 
+      - name: Glance presentation / Live Activity freshness (#132)
+        working-directory: .
+        run: node --test shared/glance-presentation/test/*.test.js
+
+      - name: Desktop launch-config consumer (#131)
+        working-directory: desktop
+        run: node --test test/*.test.js
+
       - name: Build for Production
         run: npm run build
+
+      - name: Static web dist smoke (L1 only — not UI/native proof)
+        working-directory: .
+        run: node --test shared/artifact-smoke/test/*.test.js
 
       - name: Upload Build Artifacts
         uses: actions/upload-artifact@v4
