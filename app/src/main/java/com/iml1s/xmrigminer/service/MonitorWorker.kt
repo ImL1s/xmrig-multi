@@ -33,7 +33,8 @@ class MonitorWorker @AssistedInject constructor(
     @Assisted params: WorkerParameters,
     private val statsRepository: StatsRepository,
     private val miningController: MiningController,
-    private val networkMonitor: NetworkMonitor
+    private val networkMonitor: NetworkMonitor,
+    private val energySessionMeter: EnergySessionMeter
 ) : CoroutineWorker(context, params) {
 
     companion object {
@@ -291,6 +292,30 @@ class MonitorWorker @AssistedInject constructor(
                 Timber.w("Power policy unavailable: %s", powerVerdict.reasons)
             }
             PowerPolicy.Kind.ALLOWED -> Unit
+        }
+
+        // Energy budget meter + actuation (#130) — session owner pause, not UserStopped.
+        val energyConfig = launchConfig
+        if (energyConfig != null) {
+            val tick = energySessionMeter.tick(energyConfig, nowMs = now)
+            tick.summary?.let { summary ->
+                statsRepository.updateEnergyCost(
+                    kwhToday = summary.kwh,
+                    fiatToday = summary.fiat,
+                    currency = summary.currency,
+                    quality = summary.quality,
+                    sourceLabel = summary.sourceLabel
+                )
+            }
+            val verdict = tick.budgetVerdict
+                ?: energySessionMeter.evaluateBudget(energyConfig, sessionElapsedMs = null, nowMs = now)
+            if (verdict.kind != AutomationPolicy.Kind.ALLOWED) {
+                val outcome = EnergyBudgetActuator.apply(verdict) { /* pause below (suspend) */ }
+                if (outcome.pauseInvoked || outcome.paused) {
+                    pauseMining(outcome.reason ?: "Energy budget", code = "energy_budget")
+                }
+                return
+            }
         }
 
         // Launch-time solo snapshot (#15 / Codex P2): do not re-read DataStore mid-run.

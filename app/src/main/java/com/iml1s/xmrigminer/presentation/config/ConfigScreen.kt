@@ -210,6 +210,18 @@ private fun ConfigContent(
             onDreamMayMine = { onEvent(ConfigUiEvent.DreamMayMineToggled(it)) }
         )
 
+        EnergyBudgetCard(
+            manualWatts = state.config.manualWatts,
+            ratePerKwh = state.config.electricityRatePerKwh,
+            currency = state.config.electricityCurrency,
+            dailySpendCap = state.config.dailySpendCapFiat,
+            dailyKwhCap = state.config.dailyKwhCap,
+            onManualWatts = { onEvent(ConfigUiEvent.ManualWattsChanged(it)) },
+            onRate = { onEvent(ConfigUiEvent.ElectricityRateChanged(it)) },
+            onDailySpendCap = { onEvent(ConfigUiEvent.DailySpendCapChanged(it)) },
+            onDailyKwhCap = { onEvent(ConfigUiEvent.DailyKwhCapChanged(it)) }
+        )
+
         // Save Button
         Button(
             onClick = { onEvent(ConfigUiEvent.SaveConfig) },
@@ -841,5 +853,64 @@ private fun PowerToggleRow(label: String, checked: Boolean, onCheckedChange: (Bo
     ) {
         Text(text = label, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
         Switch(checked = checked, onCheckedChange = onCheckedChange)
+    }
+}
+
+@Composable
+private fun EnergyBudgetCard(
+    manualWatts: Double?,
+    ratePerKwh: Double?,
+    currency: String,
+    dailySpendCap: Double?,
+    dailyKwhCap: Double?,
+    onManualWatts: (String) -> Unit,
+    onRate: (String) -> Unit,
+    onDailySpendCap: (String) -> Unit,
+    onDailyKwhCap: (String) -> Unit
+) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Text(
+                text = "Energy / budget",
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.primary
+            )
+            Text(
+                text = "Manual watts + fixed rate feed the ledger. Budget pause stops mining via the session owner (#130). Empty = unknown (not free).",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            OutlinedTextField(
+                value = manualWatts?.toString().orEmpty(),
+                onValueChange = onManualWatts,
+                label = { Text("Manual watts") },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true
+            )
+            OutlinedTextField(
+                value = ratePerKwh?.toString().orEmpty(),
+                onValueChange = onRate,
+                label = { Text("Rate per kWh ($currency)") },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true
+            )
+            OutlinedTextField(
+                value = dailySpendCap?.toString().orEmpty(),
+                onValueChange = onDailySpendCap,
+                label = { Text("Daily spend cap ($currency)") },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true
+            )
+            OutlinedTextField(
+                value = dailyKwhCap?.toString().orEmpty(),
+                onValueChange = onDailyKwhCap,
+                label = { Text("Daily kWh cap") },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true
+            )
+        }
     }
 }

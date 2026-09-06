@@ -56,6 +56,24 @@ class StatsRepository @Inject constructor() {
         _stats.update { it.copy(isCharging = isCharging) }
     }
 
+    fun updateEnergyCost(
+        kwhToday: Double?,
+        fiatToday: Double?,
+        currency: String,
+        quality: String,
+        sourceLabel: String
+    ) {
+        _stats.update {
+            it.copy(
+                energyKwhToday = kwhToday,
+                energyFiatToday = fiatToday,
+                energyCurrency = currency,
+                energyQuality = quality,
+                energySourceLabel = sourceLabel
+            )
+        }
+    }
+
     fun updateDifficulty(difficulty: Long) {
         _stats.update { it.copy(difficulty = difficulty) }
     }

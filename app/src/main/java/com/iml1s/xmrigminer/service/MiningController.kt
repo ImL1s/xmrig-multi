@@ -48,7 +48,8 @@ class MiningController @Inject constructor(
     private val workManager: WorkManager,
     private val configRepository: ConfigRepository,
     private val statsRepository: StatsRepository,
-    private val wearStatsSyncer: Provider<WearStatsSyncer>
+    private val wearStatsSyncer: Provider<WearStatsSyncer>,
+    private val energySessionMeter: EnergySessionMeter
 ) {
     private val sessionGeneration = AtomicLong(0L)
     private val runtimeThreadOverride = AtomicReference<Int?>(null)
@@ -78,6 +79,9 @@ class MiningController @Inject constructor(
 
         // Pre-start memory gate — hard limit / OOM retry must not allocate (#129).
         evaluateMemoryGate(config)?.let { return it }
+
+        // Pre-start energy budget — spent/unknown ledger must pause before allocate (#130).
+        evaluateEnergyBudgetGate(config)?.let { return it }
 
         if (config.soloDaemon) {
             val parsed = DaemonEndpointParser.parse(config.poolUrl, allowHttps = false)
@@ -198,6 +202,7 @@ class MiningController @Inject constructor(
         val obs = powerObservation ?: readPowerObservation()
         evaluatePowerGate(config, obs)?.let { return it }
         evaluateMemoryGate(config)?.let { return it }
+        evaluateEnergyBudgetGate(config)?.let { return it }
 
         if (config.soloDaemon) {
             val parsed = DaemonEndpointParser.parse(config.poolUrl, allowHttps = false)
@@ -337,6 +342,29 @@ class MiningController @Inject constructor(
         )
     }
 
+    /**
+     * Energy budget gate before enqueue (#130). Cap hit / unknown ledger → no start.
+     */
+    fun evaluateEnergyBudgetGate(
+        config: MiningConfig,
+        nowMs: Long = System.currentTimeMillis()
+    ): MiningStartResult.InvalidConfig? {
+        if (config.dailySpendCapFiat == null &&
+            config.dailyKwhCap == null &&
+            config.monthlySpendCapFiat == null
+        ) {
+            return null
+        }
+        energySessionMeter.applyConfig(config)
+        val verdict = energySessionMeter.evaluateBudget(
+            config = config,
+            sessionElapsedMs = null,
+            nowMs = nowMs
+        )
+        val block = EnergyBudgetActuator.startBlockReason(verdict) ?: return null
+        return MiningStartResult.InvalidConfig(block)
+    }
+
     fun readMemoryObservation(): MemoryLaunchGate.Observation {
         return try {
             val am = appContext.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
@@ -366,6 +394,9 @@ class MiningController @Inject constructor(
         if (bumpGeneration) {
             sessionGeneration.incrementAndGet()
         }
+
+        energySessionMeter.applyConfig(config)
+        energySessionMeter.onSessionStart("session-${sessionGeneration.get()}")
 
         val soloDaemon = config.soloDaemon
         val networkType = if (soloDaemon) {
@@ -432,6 +463,10 @@ class MiningController @Inject constructor(
     }
 
     private suspend fun cancelEngine(resetStats: Boolean) {
+        val config = runCatching { configRepository.getConfig().first() }.getOrNull()
+        if (config != null) {
+            runCatching { energySessionMeter.onSessionStop(config) }
+        }
         workManager.cancelUniqueWork(MiningWorker.WORK_NAME)
         workManager.cancelUniqueWork(MonitorWorker.WORK_NAME)
         val killed = XmrigProcessController.killLeftoverMiners()
