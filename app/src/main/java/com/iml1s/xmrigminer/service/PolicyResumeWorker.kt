@@ -68,9 +68,9 @@ class PolicyResumeWorker @AssistedInject constructor(
                 MiningSessionLatch.isAutomationArmed() &&
                 !MiningSessionLatch.isUserStopped()
             ) {
-                MiningSessionLatch.clearPolicyPauseIfCurrent()
-                when (val start = miningController.start(powerObservation = obs)) {
+                when (val start = miningController.resumeAfterPolicy(powerObservation = obs)) {
                     is MiningStartResult.Started -> {
+                        MiningSessionLatch.clearPolicyPauseIfCurrent()
                         Timber.i("PolicyResumeWorker restarted mining after %s (tick=%d)", reason, tick)
                         return Result.success()
                     }
