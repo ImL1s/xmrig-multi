@@ -201,10 +201,12 @@ private fun ConfigContent(
             pauseOnUnplug = state.config.pauseOnUnplug,
             chargeBeforeMine = state.config.chargeToPercentBeforeMine != null,
             pauseOnNetDischarge = state.config.pauseOnNetDischargeWhilePlugged,
+            dreamMayMine = state.config.dreamMayMine,
             onRequireExternalPower = { onEvent(ConfigUiEvent.RequireExternalPowerToggled(it)) },
             onPauseOnUnplug = { onEvent(ConfigUiEvent.PauseOnUnplugToggled(it)) },
             onChargeBeforeMine = { onEvent(ConfigUiEvent.ChargeBeforeMineToggled(it)) },
-            onPauseOnNetDischarge = { onEvent(ConfigUiEvent.PauseOnNetDischargeToggled(it)) }
+            onPauseOnNetDischarge = { onEvent(ConfigUiEvent.PauseOnNetDischargeToggled(it)) },
+            onDreamMayMine = { onEvent(ConfigUiEvent.DreamMayMineToggled(it)) }
         )
 
         // Save Button
@@ -789,10 +791,12 @@ private fun PowerPolicyCard(
     pauseOnUnplug: Boolean,
     chargeBeforeMine: Boolean,
     pauseOnNetDischarge: Boolean,
+    dreamMayMine: Boolean,
     onRequireExternalPower: (Boolean) -> Unit,
     onPauseOnUnplug: (Boolean) -> Unit,
     onChargeBeforeMine: (Boolean) -> Unit,
-    onPauseOnNetDischarge: (Boolean) -> Unit
+    onPauseOnNetDischarge: (Boolean) -> Unit,
+    onDreamMayMine: (Boolean) -> Unit
 ) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(
@@ -813,6 +817,11 @@ private fun PowerPolicyCard(
             PowerToggleRow("Pause when unplugged", pauseOnUnplug, onPauseOnUnplug)
             PowerToggleRow("Charge to 50% before mining", chargeBeforeMine, onChargeBeforeMine)
             PowerToggleRow("Pause on weak charger (net discharge)", pauseOnNetDischarge, onPauseOnNetDischarge)
+            PowerToggleRow(
+                "Screensaver may request mining",
+                dreamMayMine,
+                onDreamMayMine
+            )
         }
     }
 }

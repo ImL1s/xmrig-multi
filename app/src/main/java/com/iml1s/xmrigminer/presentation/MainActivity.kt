@@ -9,11 +9,19 @@ import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.core.view.WindowCompat
 import androidx.lifecycle.lifecycleScope
+import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
 import com.iml1s.xmrigminer.presentation.navigation.AppNavigation
+import com.iml1s.xmrigminer.presentation.navigation.Screen
 import com.iml1s.xmrigminer.presentation.theme.XMRigMinerTheme
 import com.iml1s.xmrigminer.service.MiningController
 import com.iml1s.xmrigminer.service.MiningSessionLatch
@@ -21,12 +29,17 @@ import com.iml1s.xmrigminer.service.MiningStartResult
 import com.iml1s.xmrigminer.service.quick.QuickActionGate
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
+import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicReference
 import javax.inject.Inject
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
 
     @Inject lateinit var miningController: MiningController
+
+    private val navControllerRef = AtomicReference<NavHostController?>(null)
+    private val pendingAmbientNavigation = AtomicBoolean(false)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -40,6 +53,20 @@ class MainActivity : ComponentActivity() {
                     color = MaterialTheme.colorScheme.background
                 ) {
                     val navController = rememberNavController()
+                    var navReady by remember { mutableStateOf(false) }
+                    DisposableEffect(navController) {
+                        navControllerRef.set(navController)
+                        navReady = true
+                        onDispose {
+                            navControllerRef.compareAndSet(navController, null)
+                            navReady = false
+                        }
+                    }
+                    LaunchedEffect(navReady) {
+                        if (navReady) {
+                            flushPendingAmbientNavigation(navController)
+                        }
+                    }
                     AppNavigation(navController = navController)
                 }
             }
@@ -59,6 +86,7 @@ class MainActivity : ComponentActivity() {
      * - Bare `quick_action=start` from an exported launcher (other apps) never auto-starts;
      *   user must confirm in a dialog.
      * - Intent extras are consumed immediately so rotation / onCreate cannot replay.
+     * - `clock` navigates to Ambient (#127) — never Toast-only.
      */
     private fun handleQuickAction(intent: Intent?) {
         if (intent == null) return
@@ -87,8 +115,25 @@ class MainActivity : ComponentActivity() {
                     QuickActionGate.StartDisposition.IGNORE -> Unit
                 }
             }
-            "clock" -> {
-                Toast.makeText(this, "Opened XMRig Multi", Toast.LENGTH_SHORT).show()
+            "clock" -> navigateToAmbient()
+        }
+    }
+
+    private fun navigateToAmbient() {
+        val nav = navControllerRef.get()
+        if (nav != null) {
+            nav.navigate(Screen.Ambient.route) {
+                launchSingleTop = true
+            }
+        } else {
+            pendingAmbientNavigation.set(true)
+        }
+    }
+
+    private fun flushPendingAmbientNavigation(nav: NavHostController) {
+        if (pendingAmbientNavigation.compareAndSet(true, false)) {
+            nav.navigate(Screen.Ambient.route) {
+                launchSingleTop = true
             }
         }
     }

@@ -54,7 +54,12 @@ data class MiningConfig(
     val minBatteryPercent: Int = 20,
     val resumeBatteryPercent: Int = 30,
     /** Pause when plugged but net battery flow is still discharging. */
-    val pauseOnNetDischargeWhilePlugged: Boolean = false
+    val pauseOnNetDischargeWhilePlugged: Boolean = false,
+    /**
+     * When true, [com.iml1s.xmrigminer.service.MiningDreamService] may request the shared
+     * MiningController while dreaming. Clock-only screensaver when false (#127).
+     */
+    val dreamMayMine: Boolean = false
 ) {
     fun getCoin(): CoinType = CoinType.fromString(coinType)
 

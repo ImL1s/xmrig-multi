@@ -424,7 +424,8 @@ class MiningController @Inject constructor(
         return null
     }
 
-    private fun readPowerObservation(): PowerPolicy.Observation {
+    /** Battery / plug snapshot for Start and Dream pre-checks (#126/#127). */
+    fun readPowerObservation(): PowerPolicy.Observation {
         val intent = appContext.registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
             ?: return PowerPolicy.Observation(
                 quality = PowerPolicy.Quality.FAILED,

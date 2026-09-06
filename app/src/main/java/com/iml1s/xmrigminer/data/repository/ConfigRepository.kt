@@ -48,6 +48,7 @@ class ConfigRepository @Inject constructor(
         val MIN_BATTERY_PERCENT = intPreferencesKey("min_battery_percent")
         val RESUME_BATTERY_PERCENT = intPreferencesKey("resume_battery_percent")
         val PAUSE_ON_NET_DISCHARGE = booleanPreferencesKey("pause_on_net_discharge")
+        val DREAM_MAY_MINE = booleanPreferencesKey("dream_may_mine")
     }
 
     fun getConfig(): Flow<MiningConfig> = context.dataStore.data.map { prefs ->
@@ -77,7 +78,8 @@ class ConfigRepository @Inject constructor(
             },
             minBatteryPercent = prefs[Keys.MIN_BATTERY_PERCENT] ?: 20,
             resumeBatteryPercent = prefs[Keys.RESUME_BATTERY_PERCENT] ?: 30,
-            pauseOnNetDischargeWhilePlugged = prefs[Keys.PAUSE_ON_NET_DISCHARGE] ?: false
+            pauseOnNetDischargeWhilePlugged = prefs[Keys.PAUSE_ON_NET_DISCHARGE] ?: false,
+            dreamMayMine = prefs[Keys.DREAM_MAY_MINE] ?: false
         )
     }
 
@@ -104,6 +106,7 @@ class ConfigRepository @Inject constructor(
             prefs[Keys.MIN_BATTERY_PERCENT] = config.minBatteryPercent
             prefs[Keys.RESUME_BATTERY_PERCENT] = config.resumeBatteryPercent
             prefs[Keys.PAUSE_ON_NET_DISCHARGE] = config.pauseOnNetDischargeWhilePlugged
+            prefs[Keys.DREAM_MAY_MINE] = config.dreamMayMine
         }
     }
 
