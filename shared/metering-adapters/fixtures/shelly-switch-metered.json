@@ -1,0 +1,9 @@
+{
+  "id": "shelly-switch-metered",
+  "apower": 123.4,
+  "aenergy": {
+    "total": 12.5,
+    "by_minute": [100, 120, 110]
+  },
+  "output": true
+}

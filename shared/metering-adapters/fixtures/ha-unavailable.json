@@ -1,0 +1,8 @@
+{
+  "entity_id": "sensor.desk_energy",
+  "state": "unavailable",
+  "attributes": {
+    "unit_of_measurement": "kWh",
+    "device_class": "energy"
+  }
+}

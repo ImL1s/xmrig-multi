@@ -35,6 +35,7 @@ on:
       - 'shared/ios-glance/**'
       - 'shared/quick-controls/**'
       - 'shared/lan-dashboard/**'
+      - 'shared/metering-adapters/**'
       - 'app/src/main/assets/pools.json'
       - 'desktop/src/generated-pool-configs.json'
       - 'desktop/src/main.js'
@@ -65,6 +66,7 @@ on:
       - 'shared/ios-glance/**'
       - 'shared/quick-controls/**'
       - 'shared/lan-dashboard/**'
+      - 'shared/metering-adapters/**'
       - 'shared/cpu-topology/**'
       - 'shared/thermal-policy/**'
       - 'shared/power-policy/**'
@@ -248,6 +250,10 @@ jobs:
       - name: LAN dashboard pairing / aggregate (#80)
         working-directory: .
         run: node --test shared/lan-dashboard/test/*.test.js
+
+      - name: Metering adapters Shelly / HA (#81)
+        working-directory: .
+        run: node --test shared/metering-adapters/test/*.test.js
 
       - name: Build for Production
         run: npm run build
