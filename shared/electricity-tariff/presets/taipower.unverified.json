@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "note": "Taipower residential presets — verification:unverified until official table hash + field audit (#71). Do not treat rates as official bills.",
+  "presets": [
+    {
+      "id": "taipower-residential-progressive-unverified",
+      "kind": "progressive",
+      "label": "台電住宅累進（未驗證占位）",
+      "currency": "TWD",
+      "verification": "unverified",
+      "effectiveFrom": null,
+      "sourceUrl": "https://www.taipower.com.tw/2289/2290/46940/46945/normalPost",
+      "tiers": null,
+      "rateUnknown": true,
+      "reason": "Official PDF rates not imported; use manual fixed/progressive until verified"
+    }
+  ]
+}
