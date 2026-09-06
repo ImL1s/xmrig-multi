@@ -122,17 +122,24 @@ class MiningController @Inject constructor(
             val base = configRepository.getConfig().first()
             val overridden = base.copy(threads = threads, threadsAuto = false)
             runtimeThreadOverride.set(threads)
-            if (!relaunchMiningWorkerOnly(overridden)) return@withContext null
+            if (!relaunchMiningWorkerOnly(overridden)) {
+                runtimeThreadOverride.set(null)
+                return@withContext null
+            }
             Timber.i("Runtime thread override enqueued threads=%d (%s) — pending verify", threads, reason)
             threads
         }
 
     /**
-     * True when MiningWorker is RUNNING/ENQUEUED after a pending override request.
-     * Does not prove OS-level CPU load; it is the strongest WorkManager-level readback we have.
+     * True when MiningWorker is RUNNING/ENQUEUED after a pending override/clear request.
+     * Clear path: [runtimeThreadOverride] is null and [expectedThreads] equals permanent DataStore
+     * threads (so restore verify does not stick forever). Does not prove OS-level CPU load.
      */
     suspend fun verifyRuntimeThreadOverride(expectedThreads: Int): Boolean = withContext(Dispatchers.IO) {
-        if (runtimeThreadOverride.get() != expectedThreads) return@withContext false
+        val permanent = configRepository.getConfig().first().threads
+        if (!matchesThreadOverrideReadback(runtimeThreadOverride.get(), expectedThreads, permanent)) {
+            return@withContext false
+        }
         val infos = workManager.getWorkInfosForUniqueWork(MiningWorker.WORK_NAME).get()
         val active = infos.any {
             it.state == WorkInfo.State.RUNNING || it.state == WorkInfo.State.ENQUEUED
@@ -144,11 +151,32 @@ class MiningController @Inject constructor(
     }
 
     suspend fun requestClearRuntimeThreadOverride(reason: String): Int? = withContext(Dispatchers.IO) {
-        runtimeThreadOverride.set(null)
         val base = configRepository.getConfig().first()
-        if (!relaunchMiningWorkerOnly(base)) return@withContext null
+        val previousOverride = runtimeThreadOverride.get()
+        // Null override = use permanent DataStore profile; verify accepts null + permanent match.
+        runtimeThreadOverride.set(null)
+        if (!relaunchMiningWorkerOnly(base)) {
+            runtimeThreadOverride.set(previousOverride)
+            return@withContext null
+        }
         Timber.i("Permanent threads restore enqueued threads=%d (%s) — pending verify", base.threads, reason)
         base.threads
+    }
+
+    companion object {
+        /**
+         * Soft throttle: override must equal expected.
+         * Thermal resume clear: override is null and expected equals permanent DataStore threads.
+         */
+        internal fun matchesThreadOverrideReadback(
+            runtimeOverride: Int?,
+            expectedThreads: Int,
+            permanentThreads: Int
+        ): Boolean = when {
+            runtimeOverride == expectedThreads -> true
+            runtimeOverride == null && expectedThreads == permanentThreads -> true
+            else -> false
+        }
     }
 
     /**
