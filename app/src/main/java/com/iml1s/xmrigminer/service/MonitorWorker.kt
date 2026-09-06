@@ -320,10 +320,11 @@ class MonitorWorker @AssistedInject constructor(
 
     private suspend fun pauseMining(reason: String, code: String? = null) {
         Timber.w("Pausing mining: $reason (code=%s)", code)
-        // Notify before stop(): canceling this MonitorWorker can resume with
-        // CancellationException and skip any code after miningController.stop().
+        // Notify before pauseForPolicy(): canceling this MonitorWorker can resume with
+        // CancellationException and skip any code after miningController.pauseForPolicy().
         com.iml1s.xmrigminer.util.NotificationHelper.showWarning(context, reason)
-        miningController.stop(resetStats = false)
+        // Policy pause must not latch UserStopped (#124 / #126).
+        miningController.pauseForPolicy(resetStats = false)
     }
 
     /**

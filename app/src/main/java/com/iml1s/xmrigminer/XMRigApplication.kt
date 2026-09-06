@@ -6,7 +6,9 @@ import android.app.NotificationManager
 import android.os.Build
 import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
+import com.iml1s.xmrigminer.service.MiningSessionLatch
 import com.iml1s.xmrigminer.service.MiningWorker
+import com.iml1s.xmrigminer.service.PrefsSessionIntentStore
 import com.iml1s.xmrigminer.wear.WearStatsSyncer
 import dagger.hilt.android.HiltAndroidApp
 import timber.log.Timber
@@ -34,6 +36,9 @@ class XMRigApplication : Application(), Configuration.Provider {
                     .invoke(null)
             }
         }
+
+        // Restore UserStopped / automation across process death (#123/#124).
+        MiningSessionLatch.attach(PrefsSessionIntentStore(this))
 
         createNotificationChannel()
         wearStatsSyncer.start()

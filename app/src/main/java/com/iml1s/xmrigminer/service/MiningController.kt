@@ -44,35 +44,13 @@ class MiningController @Inject constructor(
             .map { infos -> infos.any { it.state == WorkInfo.State.RUNNING } }
     }
 
+    /**
+     * Explicit Start. Validates first; only then arms session and replaces engine.
+     * Invalid config does **not** clear a prior UserStopped latch (#124).
+     */
     suspend fun start(): MiningStartResult {
-        // Explicit in-app / authorized Start clears Stop latch (#79/#62).
-        wearStatsSyncer.get().clearUserStopLatchOnExplicitPhoneStart()
-        MiningSessionLatch.armSession()
         var config = configRepository.getConfig().first()
-        if (config.useTls && !XmrigNativeCapabilities.TLS_ENABLED) {
-            return MiningStartResult.InvalidConfig(XmrigNativeCapabilities.TLS_UNSUPPORTED_MESSAGE)
-        }
-        XmrigNativeCapabilities.assertStartAllowed(config.getCoin())?.let {
-            return MiningStartResult.InvalidConfig(it)
-        }
-        XmrigNativeCapabilities.assertMoneroOceanPayout(
-            config.poolUrl,
-            config.getCoin(),
-            config.walletAddress
-        )?.let {
-            return MiningStartResult.InvalidConfig(it)
-        }
-        if (!config.isValid() || config.walletAddress.isBlank()) {
-            val message = when {
-                config.walletAddress.isBlank() -> "配置無效：錢包地址未設置"
-                config.poolUrl.isBlank() ->
-                    if (config.soloDaemon) "配置無效：節點 RPC 地址未設置" else "配置無效：礦池地址未設置"
-                config.soloDaemon && config.getCoin() != CoinType.MONERO ->
-                    "Solo 僅支援 Monero"
-                else -> "配置無效，請檢查設置"
-            }
-            return MiningStartResult.InvalidConfig(message)
-        }
+        validateStartConfig(config)?.let { return it }
 
         if (config.soloDaemon) {
             val parsed = DaemonEndpointParser.parse(config.poolUrl, allowHttps = false)
@@ -98,7 +76,13 @@ class MiningController @Inject constructor(
             )
         }
 
-        stop(resetStats = false)
+        // Validated — now clear Stop latch and replace engine without re-latching UserStopped.
+        wearStatsSyncer.get().clearUserStopLatchOnExplicitPhoneStart()
+        if (!MiningSessionSequencer.onValidatedStartReady()) {
+            return MiningStartResult.InvalidConfig("Session arm failed — Stop still latched")
+        }
+
+        stopEngine(resetStats = false)
 
         val soloDaemon = config.soloDaemon
         val networkType = if (soloDaemon) {
@@ -142,8 +126,34 @@ class MiningController @Inject constructor(
         return MiningStartResult.Started
     }
 
+    /**
+     * Explicit user Stop — latches UserStopped and cancels engine (#124).
+     */
     suspend fun stop(resetStats: Boolean = true) = withContext(Dispatchers.IO) {
-        MiningSessionLatch.latchUserStop()
+        MiningSessionSequencer.onUserStop()
+        cancelEngine(resetStats)
+        Timber.i("Mining and monitoring cancelled (user stop)")
+    }
+
+    /**
+     * Thermal / power / budget pause — cancels engine without UserStopped (#124 / #126).
+     */
+    suspend fun pauseForPolicy(resetStats: Boolean = false, untilMs: Long = 0L) =
+        withContext(Dispatchers.IO) {
+            MiningSessionSequencer.onPolicyPause(untilMs)
+            cancelEngine(resetStats)
+            Timber.i("Mining paused for policy (untilMs=%s)", untilMs)
+        }
+
+    /**
+     * Replace-session cleanup used by Start — no UserStopped side effect (#124).
+     */
+    private suspend fun stopEngine(resetStats: Boolean) = withContext(Dispatchers.IO) {
+        MiningSessionSequencer.onEngineReplaceCleanup()
+        cancelEngine(resetStats)
+    }
+
+    private suspend fun cancelEngine(resetStats: Boolean) {
         workManager.cancelUniqueWork(MiningWorker.WORK_NAME)
         workManager.cancelUniqueWork(MonitorWorker.WORK_NAME)
         // WorkManager can mark the unique work CANCELLED (UI shows stopped) before the
@@ -156,6 +166,33 @@ class MiningController @Inject constructor(
         if (resetStats) {
             statsRepository.reset()
         }
-        Timber.i("Mining and monitoring cancelled")
+    }
+
+    private fun validateStartConfig(config: MiningConfig): MiningStartResult.InvalidConfig? {
+        if (config.useTls && !XmrigNativeCapabilities.TLS_ENABLED) {
+            return MiningStartResult.InvalidConfig(XmrigNativeCapabilities.TLS_UNSUPPORTED_MESSAGE)
+        }
+        XmrigNativeCapabilities.assertStartAllowed(config.getCoin())?.let {
+            return MiningStartResult.InvalidConfig(it)
+        }
+        XmrigNativeCapabilities.assertMoneroOceanPayout(
+            config.poolUrl,
+            config.getCoin(),
+            config.walletAddress
+        )?.let {
+            return MiningStartResult.InvalidConfig(it)
+        }
+        if (!config.isValid() || config.walletAddress.isBlank()) {
+            val message = when {
+                config.walletAddress.isBlank() -> "配置無效：錢包地址未設置"
+                config.poolUrl.isBlank() ->
+                    if (config.soloDaemon) "配置無效：節點 RPC 地址未設置" else "配置無效：礦池地址未設置"
+                config.soloDaemon && config.getCoin() != CoinType.MONERO ->
+                    "Solo 僅支援 Monero"
+                else -> "配置無效，請檢查設置"
+            }
+            return MiningStartResult.InvalidConfig(message)
+        }
+        return null
     }
 }

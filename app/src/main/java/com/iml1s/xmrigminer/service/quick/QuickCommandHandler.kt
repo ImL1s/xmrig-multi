@@ -13,8 +13,10 @@ import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 
 /**
- * Single command dispatcher for Tile / Widget / notification (#79).
+ * Single command dispatcher for Tile / Widget / notification (#79 / #123 / #124).
  * Does not init RandomX here — stop via WorkManager cancel + process sweep.
+ * Automation defaults off (persisted on [MiningSessionLatch]); start opens the app with a
+ * one-shot auth token — never trusts caller-supplied authorized extras alone.
  */
 object QuickCommandHandler {
     private const val TTL_MS = 60_000L
@@ -22,20 +24,18 @@ object QuickCommandHandler {
         java.util.Collections.newSetFromMap(ConcurrentHashMap())
 
     @Volatile
-    var pauseUntilMs: Long = 0L
-        private set
-
-    @Volatile
-    var stopRevisionAtPause: Int = 0
-        private set
-
-    @Volatile
-    var automationArmed: Boolean = true
-        private set
-
-    @Volatile
     var lastAck: QuickAck = QuickAck("completed", "idle", false)
         private set
+
+    /** Delegates to session owner so Tile/Widget share one snapshot (#124). */
+    val pauseUntilMs: Long
+        get() = MiningSessionLatch.policyPauseUntilMs()
+
+    val stopRevisionAtPause: Int
+        get() = MiningSessionLatch.stopRevisionAtPause
+
+    val automationArmed: Boolean
+        get() = MiningSessionLatch.isAutomationArmed()
 
     fun isMiningActive(context: Context): Boolean {
         return try {
@@ -51,13 +51,15 @@ object QuickCommandHandler {
     }
 
     fun snapshot(context: Context, profileId: String?, waitingReason: String?): QuickSnapshot {
+        val snap = MiningSessionLatch.snapshot()
         return QuickSnapshot(
             mining = isMiningActive(context),
-            automationArmed = automationArmed,
+            automationArmed = snap.automationArmed,
             waitingReason = waitingReason,
             profileId = profileId,
-            userStopLatched = MiningSessionLatch.isUserStopped(),
-            pauseUntilMs = pauseUntilMs.takeIf { it > System.currentTimeMillis() },
+            userStopLatched = snap.userStopLatched,
+            pauseUntilMs = snap.policyPauseUntilMs,
+            policyPaused = snap.policyPaused,
             updatedAtMs = System.currentTimeMillis()
         )
     }
@@ -109,39 +111,42 @@ object QuickCommandHandler {
         when (cmd.type) {
             "stop_mining" -> {
                 MiningSessionLatch.latchUserStop()
-                pauseUntilMs = 0L
                 stopMiningProcesses(context)
                 lastAck = QuickAck("accepted", "Stop latched and mining cancelled", true)
             }
             "disable_automation" -> {
-                automationArmed = false
+                MiningSessionLatch.setAutomationArmed(false)
                 lastAck = QuickAck("accepted", "Automation disabled (mining stop separate)", true)
             }
+            "enable_automation" -> {
+                MiningSessionLatch.setAutomationArmed(true)
+                lastAck = QuickAck("accepted", "Automation enabled", true)
+            }
             "pause_for" -> {
-                stopRevisionAtPause = MiningSessionLatch.userStopRevision
-                pauseUntilMs = now + (cmd.pauseForMs ?: 0L)
+                val until = now + (cmd.pauseForMs ?: 0L)
+                MiningSessionLatch.latchPolicyPause(until)
                 stopMiningProcesses(context)
-                lastAck = QuickAck("accepted", "Paused until $pauseUntilMs", true)
+                lastAck = QuickAck("accepted", "Paused until $until", true)
             }
             "start_profile" -> {
                 if (MiningSessionLatch.isUserStopped()) {
                     lastAck = QuickAck("rejected", "Stop latched — Start ignored", false)
                     return lastAck
                 }
-                if (!automationArmed) {
+                if (!MiningSessionLatch.isAutomationArmed()) {
                     lastAck = QuickAck("rejected", "Automation disabled — enable in app", false)
                     return lastAck
                 }
-                if (pauseUntilMs > now) {
+                if (MiningSessionLatch.isPolicyPaused(now)) {
                     lastAck = QuickAck("rejected", "Still in pause window", false)
                     return lastAck
                 }
-                MiningSessionLatch.armSession()
-                openApp(context, "start")
+                // Do NOT arm here — MiningController.start arms only after validation (#124).
+                openAppAuthorizedStart(context, profileId)
                 lastAck = QuickAck("queued", "Open app to complete authorized start", true)
             }
             "open_clock" -> {
-                openApp(context, "clock")
+                openApp(context, "clock", authToken = null)
                 lastAck = QuickAck("accepted", "Opening app", true)
             }
             else -> lastAck = QuickAck("rejected", "Unknown", false)
@@ -156,9 +161,9 @@ object QuickCommandHandler {
         powerBlocked: Boolean = false
     ): QuickAck {
         return QuickCommandProtocol.mayResumeAfterPause(
-            stopRevisionAtPause = stopRevisionAtPause,
+            stopRevisionAtPause = MiningSessionLatch.stopRevisionAtPause,
             currentStopRevision = MiningSessionLatch.userStopRevision,
-            resumeAtMs = pauseUntilMs,
+            resumeAtMs = MiningSessionLatch.policyPauseUntilMs(),
             nowMs = nowMs,
             userStopLatched = MiningSessionLatch.isUserStopped(),
             osStartAllowed = osStartAllowed,
@@ -175,10 +180,18 @@ object QuickCommandHandler {
         XmrigProcessController.killLeftoverMiners()
     }
 
-    private fun openApp(context: Context, action: String) {
+    private fun openAppAuthorizedStart(context: Context, profileId: String?) {
+        val token = QuickStartAuthorization.issue(profileId = profileId)
+        openApp(context, "start", authToken = token)
+    }
+
+    private fun openApp(context: Context, action: String, authToken: String?) {
         val intent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
-            putExtra("quick_action", action)
+            putExtra(MainActivity.EXTRA_QUICK_ACTION, action)
+            if (authToken != null) {
+                putExtra(MainActivity.EXTRA_QUICK_AUTH_TOKEN, authToken)
+            }
         }
         context.startActivity(intent)
     }
@@ -191,5 +204,6 @@ data class QuickSnapshot(
     val profileId: String?,
     val userStopLatched: Boolean,
     val pauseUntilMs: Long?,
+    val policyPaused: Boolean = false,
     val updatedAtMs: Long
 )

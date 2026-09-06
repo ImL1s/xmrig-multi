@@ -91,4 +91,9 @@ class QuickCommandProtocolTest {
         )
         assertEquals("rejected", ack.ack)
     }
+
+    @Test
+    fun enableAutomationIsWhitelisted() {
+        assertTrue(QuickCommandProtocol.OPS.contains("enable_automation"))
+    }
 }

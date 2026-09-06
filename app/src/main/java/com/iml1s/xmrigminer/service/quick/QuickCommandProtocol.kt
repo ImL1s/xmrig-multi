@@ -27,6 +27,7 @@ object QuickCommandProtocol {
         "stop_mining",
         "pause_for",
         "disable_automation",
+        "enable_automation",
         "open_clock"
     )
 

@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.iml1s.xmrigminer.data.repository.StatsRepository
 import com.iml1s.xmrigminer.service.MiningController
+import com.iml1s.xmrigminer.service.MiningSessionLatch
 import com.iml1s.xmrigminer.service.MiningStartResult
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.channels.Channel
@@ -70,6 +71,8 @@ class MiningViewModel @Inject constructor(
                         _effects.send(MiningEffect.NavigateToConfig(result.message))
                     }
                     MiningStartResult.Started -> {
+                        // Explicit in-app Start enables automation for Tile/Widget (#123).
+                        MiningSessionLatch.setAutomationArmed(true)
                         _effects.send(MiningEffect.ShowToast("挖礦已啟動"))
                     }
                 }
