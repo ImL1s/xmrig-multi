@@ -18,6 +18,7 @@ on:
       - 'shared/fee-manifest/**'
       - 'shared/pool-recommend/**'
       - 'shared/p2pool-connect/**'
+      - 'shared/desktop-optimize/**'
       - 'app/src/main/assets/pools.json'
       - 'desktop/src/generated-pool-configs.json'
       - 'desktop/src/main.js'
@@ -39,6 +40,7 @@ on:
       - 'shared/fee-manifest/**'
       - 'shared/pool-recommend/**'
       - 'shared/p2pool-connect/**'
+      - 'shared/desktop-optimize/**'
       - 'app/src/main/assets/pools.json'
       - 'desktop/src/generated-pool-configs.json'
       - 'desktop/src/main.js'
@@ -122,6 +124,10 @@ jobs:
       - name: P2Pool connect-existing tests (#45)
         working-directory: .
         run: node --test shared/p2pool-connect/test/*.test.js
+
+      - name: Desktop optimize matrix tests (#37)
+        working-directory: .
+        run: node --test shared/desktop-optimize/test/*.test.js
 
       - name: Build for Production
         run: npm run build
