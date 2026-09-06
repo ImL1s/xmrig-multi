@@ -64,6 +64,20 @@
             </intent-filter>
         </service>
 
+        <!-- Charging screensaver (#76); protected by BIND_DREAM_SERVICE -->
+        <service
+            android:name=".service.MiningDreamService"
+            android:exported="true"
+            android:permission="android.permission.BIND_DREAM_SERVICE">
+            <intent-filter>
+                <action android:name="android.service.dreams.DreamService" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+            <meta-data
+                android:name="android.service.dream"
+                android:resource="@xml/mining_dream" />
+        </service>
+
     </application>
 
 </manifest>
