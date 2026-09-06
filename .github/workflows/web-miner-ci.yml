@@ -22,6 +22,7 @@ on:
       - 'shared/cpu-topology/**'
       - 'shared/thermal-policy/**'
       - 'shared/power-policy/**'
+      - 'shared/diagnostics/**'
       - 'app/src/main/assets/pools.json'
       - 'desktop/src/generated-pool-configs.json'
       - 'desktop/src/main.js'
@@ -47,6 +48,7 @@ on:
       - 'shared/cpu-topology/**'
       - 'shared/thermal-policy/**'
       - 'shared/power-policy/**'
+      - 'shared/diagnostics/**'
       - 'app/src/main/assets/pools.json'
       - 'desktop/src/generated-pool-configs.json'
       - 'desktop/src/main.js'
@@ -146,6 +148,10 @@ jobs:
       - name: Power / convenience policy tests (#39)
         working-directory: .
         run: node --test shared/power-policy/test/*.test.js
+
+      - name: Diagnostics error/log/redact tests (#55)
+        working-directory: .
+        run: node --test shared/diagnostics/test/*.test.js
 
       - name: Build for Production
         run: npm run build
