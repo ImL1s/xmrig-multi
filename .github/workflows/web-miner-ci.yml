@@ -30,6 +30,7 @@ on:
       - 'shared/electricity-tariff/**'
       - 'shared/ambient-clock/**'
       - 'shared/economy-snapshot/**'
+      - 'shared/automation-policy/**'
       - 'app/src/main/assets/pools.json'
       - 'desktop/src/generated-pool-configs.json'
       - 'desktop/src/main.js'
@@ -55,6 +56,7 @@ on:
       - 'shared/energy-ledger/**'
       - 'shared/ambient-clock/**'
       - 'shared/economy-snapshot/**'
+      - 'shared/automation-policy/**'
       - 'shared/cpu-topology/**'
       - 'shared/thermal-policy/**'
       - 'shared/power-policy/**'
@@ -218,6 +220,10 @@ jobs:
       - name: Economy snapshot / accrual (#72)
         working-directory: .
         run: node --test shared/economy-snapshot/test/*.test.js
+
+      - name: Automation policy / budget gates (#73)
+        working-directory: .
+        run: node --test shared/automation-policy/test/*.test.js
 
       - name: Build for Production
         run: npm run build
