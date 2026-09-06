@@ -7,6 +7,8 @@ Cross-platform evidence store. Start with offline, reproducible gates from P0.
 | Slice | Command | Covers |
 |-------|---------|--------|
 | Web compact-target / share gate | `cd web && npm test` | #25 regressions, properties, #26/#29 gates, mock Stratum accept/reject |
+| MiningProfile contract | `node --test shared/mining-profile/test/*.test.js` | #30 schema/migrate/compile golden fixtures |
+| Android profile mapper | `./gradlew testDebugUnitTest --tests "*MiningProfileMapper*"` | #30 MiningConfig ↔ MiningProfile field mapping |
 | Android native capabilities | `./gradlew testDebugUnitTest --tests "*XmrigNativeCapabilities*"` | TLS + coin start gates |
 
 ## Evidence rules

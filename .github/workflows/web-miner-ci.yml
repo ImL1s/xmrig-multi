@@ -5,11 +5,13 @@ on:
     branches: [ main, feature/web-miner ]
     paths:
       - 'web/**'
+      - 'shared/mining-profile/**'
       - '.github/workflows/web-miner-ci.yml'
   pull_request:
     branches: [ main ]
     paths:
       - 'web/**'
+      - 'shared/mining-profile/**'
 
 jobs:
   lint-and-build:
@@ -38,6 +40,10 @@ jobs:
 
       - name: Run unit / harness tests (#25/#64)
         run: npm test
+
+      - name: MiningProfile contract tests (#30)
+        working-directory: .
+        run: node --test shared/mining-profile/test/*.test.js
 
       - name: Build for Production
         run: npm run build

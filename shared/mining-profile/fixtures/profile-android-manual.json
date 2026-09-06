@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "id": "android-default",
+  "name": "Android Default",
+  "engine": "xmrig",
+  "coin": "monero",
+  "payoutAsset": "XMR",
+  "endpoint": {
+    "type": "stratum",
+    "url": "pool.supportxmr.com:3333",
+    "tls": false,
+    "poolId": "supportxmr"
+  },
+  "account": {
+    "user": "44AFFq5kSiGBoZ4NMDwYtN18obc8AemS33DBLWs3H7otXft3XjrpDtQGv7SqSsaBYBb98uNbr2VBBEt7f2wfn3RVGQBEP3A",
+    "pass": "android",
+    "rigId": null
+  },
+  "cpu": {
+    "mode": "manual",
+    "threads": 4,
+    "maxThreadsHintPercent": null,
+    "affinity": null
+  },
+  "randomx": { "mode": "auto" },
+  "network": {
+    "autoReconnect": true,
+    "retries": 5,
+    "retryPauseSec": 5
+  },
+  "power": {},
+  "thermal": {},
+  "locks": { "fields": ["cpu.mode", "cpu.threads"] },
+  "donateLevel": 1
+}
