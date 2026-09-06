@@ -54,9 +54,9 @@
       <div class="control-group">
         <label for="coin-select">選擇幣種</label>
         <select id="coin-select">
-          <option value="monero">⛏️ Monero (XMR) - RandomX</option>
-          <option value="wownero">🎉 Wownero (WOW) - RandomWOW</option>
-          <option value="dero">🔷 DERO - AstroBWT/v3</option>
+          <option value="monero">Monero (XMR) - RandomX（可啟動）</option>
+          <option value="wownero">Wownero (WOW) - 不可用（#26/#28）</option>
+          <option value="dero">DERO - 不可用（#27）</option>
         </select>
       </div>
 
@@ -77,15 +77,20 @@
               <option value="hashvault" data-coin="monero">🔒 HashVault</option>
               <option value="2miners" data-coin="monero">⛏️ 2Miners</option>
             </optgroup>
-            <!-- Wownero pools -->
-            <optgroup label="Wownero (WOW)" id="wow-pools">
-              <option value="herominers-wow" data-coin="wownero">🦸 HeroMiners WOW</option>
-              <option value="moneroocean-wow" data-coin="wownero">🌊 MoneroOcean WOW</option>
+            <!-- Wownero: presets retained for viewing only until #28 signer/daemon path exists -->
+            <optgroup label="Wownero (WOW) — 尚未驗證" id="wow-pools">
+              <option value="herominers-wow" data-coin="wownero" data-capability="unavailable" disabled>
+                HeroMiners WOW（不可用 #28）
+              </option>
             </optgroup>
-            <!-- DERO nodes -->
-            <optgroup label="DERO" id="dero-pools">
-              <option value="dero-official" data-coin="dero">🔷 DERO Official Node</option>
-              <option value="dero-community" data-coin="dero">🌐 DERO Community Node</option>
+            <!-- DERO: no verified adapter on Web (#27) -->
+            <optgroup label="DERO — 尚未驗證" id="dero-pools">
+              <option value="dero-official" data-coin="dero" data-capability="unavailable" disabled>
+                DERO Official Node（不可用 #27）
+              </option>
+              <option value="dero-community" data-coin="dero" data-capability="unavailable" disabled>
+                DERO Community Node（不可用 #27）
+              </option>
             </optgroup>
             <option value="custom">🔧 自訂代理...</option>
           </select>

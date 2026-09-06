@@ -182,11 +182,9 @@ extension PoolConfig {
     static let hashVault = PoolConfig(url: "pool.hashvault.pro:3333", tls: false, coin: .monero)
     static let twoMiners = PoolConfig(url: "xmr.2miners.com:2222", tls: false, coin: .monero)
 
-    // Wownero (WOW) pools
+    // Wownero / DERO presets: kept only as unavailable markers until adapters exist (#27/#28).
+    // MoneroOcean WOW removed — pool pays XMR, not WOW (#29).
     static let heroMinersWOW = PoolConfig(url: "wownero.herominers.com:1111", tls: false, coin: .wownero)
-    static let moneroOceanWOW = PoolConfig(url: "gulf.moneroocean.stream:10001", tls: false, coin: .wownero)
-
-    // DERO pools/nodes
     static let deroOfficial = PoolConfig(url: "minernode1.dero.io:10100", tls: false, coin: .dero)
     static let deroCommunity = PoolConfig(url: "dero-node.mysrv.cloud:10100", tls: false, coin: .dero)
 
@@ -196,19 +194,19 @@ extension PoolConfig {
         case .monero:
             return [
                 ("SupportXMR", supportXMR),
-                ("MoneroOcean", moneroOcean),
+                ("MoneroOcean (XMR payout)", moneroOcean),
                 ("HashVault", hashVault),
                 ("2Miners", twoMiners)
             ]
         case .wownero:
+            // Listed for migration visibility; start is gated in XMRigWrapper (#28).
             return [
-                ("HeroMiners WOW", heroMinersWOW),
-                ("MoneroOcean WOW", moneroOceanWOW)
+                ("HeroMiners WOW (unavailable #28)", heroMinersWOW)
             ]
         case .dero:
             return [
-                ("DERO Official", deroOfficial),
-                ("DERO Community", deroCommunity)
+                ("DERO Official (unavailable #27)", deroOfficial),
+                ("DERO Community (unavailable #27)", deroCommunity)
             ]
         }
     }

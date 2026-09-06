@@ -36,6 +36,9 @@ jobs:
       - name: Run ESLint (if configured)
         run: npm run lint --if-present
 
+      - name: Run unit / harness tests (#25/#64)
+        run: npm test
+
       - name: Build for Production
         run: npm run build
 

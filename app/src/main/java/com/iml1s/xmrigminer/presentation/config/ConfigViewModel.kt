@@ -79,12 +79,12 @@ class ConfigViewModel @Inject constructor(
     private fun handleCoinTypeChanged(coinType: CoinType) {
         val state = _uiState.value as? ConfigUiState.Success ?: return
         val filteredPools = availablePools.filter { it.getCoinType() == coinType }
-        val defaultPool = filteredPools.firstOrNull()
+        val defaultPool = filteredPools.firstOrNull { it.isStartAllowed() } ?: filteredPools.firstOrNull()
         val enablingSolo = currentConfig.soloDaemon && coinType == CoinType.MONERO
         val defaultPoolUrl = when {
             enablingSolo -> currentConfig.poolUrl.ifBlank { MiningConfig.DEFAULT_SOLO_DAEMON_URL }
-            else -> defaultPool?.getUrl(currentConfig.useTls)
-                ?: MiningConfig.getDefaultPoolUrl(coinType)
+            else -> defaultPool?.takeIf { it.isStartAllowed() }?.getUrl(currentConfig.useTls)
+                ?: if (coinType == CoinType.MONERO) MiningConfig.getDefaultPoolUrl(coinType) else ""
         }
 
         val newConfig = currentConfig.copy(
@@ -98,19 +98,32 @@ class ConfigViewModel @Inject constructor(
         updateConfig(newConfig, state.copy(
             selectedCoinType = coinType,
             filteredPools = filteredPools,
-            selectedPool = if (enablingSolo) null else defaultPool,
+            selectedPool = if (enablingSolo) null else defaultPool?.takeIf { it.isStartAllowed() },
             validationError = null
         ))
+        XmrigNativeCapabilities.assertStartAllowed(coinType)?.let { reason ->
+            viewModelScope.launch {
+                _uiEffect.send(ConfigUiEffect.ShowError(reason))
+            }
+        }
     }
 
     private fun handlePoolSelected(pool: Pool) {
         val state = _uiState.value as? ConfigUiState.Success ?: return
+        if (!pool.isStartAllowed()) {
+            viewModelScope.launch {
+                _uiEffect.send(
+                    ConfigUiEffect.ShowError(pool.description.ifBlank { "Pool unavailable" })
+                )
+            }
+            return
+        }
         val newConfig = currentConfig.copy(
             poolUrl = pool.getUrl(currentConfig.useTls),
             coinType = pool.coin,
             soloDaemon = false
         )
-        updateConfig(newConfig, state.copy(selectedPool = pool))
+        updateConfig(newConfig, state.copy(selectedPool = pool, validationError = null))
     }
 
     private fun handleWalletAddressChanged(address: String) {
