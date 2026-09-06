@@ -4,6 +4,7 @@
 
 /**
  * Attribute samples to a shared meter without double-counting.
+ * Prefer non-null readings when the first sample is empty; never sum.
  * @param {object[]} samples
  */
 export function attributeSharedMeters(samples = []) {
@@ -28,7 +29,11 @@ export function attributeSharedMeters(samples = []) {
       const row = byMeter.get(s.meterId);
       row.shared = true;
       if (s.deviceId && !row.deviceIds.includes(s.deviceId)) row.deviceIds.push(s.deviceId);
-      // Keep single power reading — do not sum shared outlet twice
+      // Keep a single reading — fill nulls from later samples; never sum
+      if (row.powerW == null && s.powerW != null) row.powerW = s.powerW;
+      if (row.energyWhTotal == null && s.energyWhTotal != null) {
+        row.energyWhTotal = s.energyWhTotal;
+      }
     }
   }
 

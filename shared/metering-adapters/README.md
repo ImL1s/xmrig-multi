@@ -6,9 +6,9 @@ without hardware.
 
 | Path | Role |
 |------|------|
-| `js/units.js` | W / Wh / mWh normalize; unknown/unavailable |
+| `js/units.js` | Case-sensitive W / Wh / mWh / kWh / MWh (never fold mWh↔MWh) |
 | `js/shelly.js` | Gen2 Switch/PM1 sample parse (apower, aenergy) |
-| `js/homeAssistant.js` | Entity state parse; bearer token capability warning |
+| `js/homeAssistant.js` | Entity state parse; TLS/auth presentation helpers (fetch sets flags) |
 | `js/policy.js` | Read-only enforcement; shared meter attribution |
 | `fixtures/` | Official-shaped samples |
 | `test/` | Contract tests |

@@ -19,9 +19,12 @@ import {
 const dir = dirname(fileURLToPath(import.meta.url));
 const fix = (name) => JSON.parse(readFileSync(join(dir, '..', 'fixtures', name), 'utf8'));
 
-test('units: W / Wh / mWh / unknown', () => {
+test('units: W / Wh / mWh / MWh / kWh / ambiguous', () => {
   assert.equal(normalizePowerOrEnergy(10, 'W').watts, 10);
   assert.equal(normalizePowerOrEnergy(1000, 'mWh').wattHours, 1);
+  assert.equal(normalizePowerOrEnergy(1, 'MWh').wattHours, 1_000_000);
+  assert.equal(normalizePowerOrEnergy(2, 'kWh').wattHours, 2000);
+  assert.equal(normalizePowerOrEnergy(1, 'mwh').ok, false);
   assert.equal(normalizePowerOrEnergy('unavailable', 'W').ok, false);
 });
 
@@ -51,13 +54,35 @@ test('HA entity unavailable and TLS/auth errors surface', () => {
   assert.equal(presentHaTransportError({ status: 401 }).code, 'auth');
 });
 
-test('shared meter counted once; no invented splits', () => {
+test('HA device_class vs unit conflict and bad timestamp', () => {
+  const conflict = parseHaEntity({
+    entity_id: 'sensor.bad',
+    state: '2',
+    last_updated: 'not-a-date',
+    attributes: { unit_of_measurement: 'kWh', device_class: 'power' }
+  });
+  assert.equal(conflict.ok, false);
+  assert.equal(conflict.quality, 'conflict');
+
+  const energy = parseHaEntity({
+    entity_id: 'sensor.energy',
+    state: '1',
+    last_updated: 'not-a-date',
+    attributes: { unit_of_measurement: 'MWh', device_class: 'energy' }
+  });
+  assert.equal(energy.ok, true);
+  assert.equal(energy.energyWhTotal, 1_000_000);
+  assert.equal(energy.powerW, null);
+  assert.ok(Number.isFinite(energy.sampledAtMs));
+});
+
+test('shared meter counted once; fill null; no invented splits', () => {
   const { meters } = attributeSharedMeters([
-    { meterId: 'm1', deviceId: 'a', powerW: 100 },
-    { meterId: 'm1', deviceId: 'b', powerW: 100 }
+    { meterId: 'm1', deviceId: 'a', powerW: null },
+    { meterId: 'm1', deviceId: 'b', powerW: 200 }
   ]);
   assert.equal(meters.length, 1);
-  assert.equal(meters[0].powerW, 100);
+  assert.equal(meters[0].powerW, 200);
   assert.equal(meters[0].perDevicePowerW, null);
   assert.equal(meters[0].shared, true);
 });

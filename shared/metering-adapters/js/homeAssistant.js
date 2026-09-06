@@ -36,18 +36,37 @@ export function parseHaEntity(entity = {}, meta = {}) {
     };
   }
 
-  const isPower = deviceClass === 'power' || normalized.kind === 'power_w';
-  const isEnergy = deviceClass === 'energy' || normalized.kind === 'energy_wh';
+  // Unit is source of truth; device_class must not contradict it.
+  if (deviceClass === 'power' && normalized.kind !== 'power_w') {
+    return {
+      ok: false,
+      adapter: 'home_assistant',
+      reason: `device_class power conflicts with unit ${unit}`,
+      quality: 'conflict'
+    };
+  }
+  if (deviceClass === 'energy' && normalized.kind !== 'energy_wh') {
+    return {
+      ok: false,
+      adapter: 'home_assistant',
+      reason: `device_class energy conflicts with unit ${unit}`,
+      quality: 'conflict'
+    };
+  }
+
+  let sampledAtMs = meta.sampledAtMs ?? Date.now();
+  if (entity.last_updated) {
+    const parsed = Date.parse(entity.last_updated);
+    if (Number.isFinite(parsed)) sampledAtMs = parsed;
+  }
 
   return {
     ok: true,
     adapter: 'home_assistant',
     entityId: entity.entity_id || null,
-    sampledAtMs: entity.last_updated
-      ? Date.parse(entity.last_updated)
-      : meta.sampledAtMs ?? Date.now(),
-    powerW: isPower ? normalized.watts : null,
-    energyWhTotal: isEnergy ? normalized.wattHours : null,
+    sampledAtMs,
+    powerW: normalized.kind === 'power_w' ? normalized.watts : null,
+    energyWhTotal: normalized.kind === 'energy_wh' ? normalized.wattHours : null,
     quality: 'entity',
     // Bearer token may exceed read — disclose always
     tokenCapabilityWarning:
@@ -57,6 +76,7 @@ export function parseHaEntity(entity = {}, meta = {}) {
 
 /**
  * TLS / auth failure presentation — never silent.
+ * Callers must set tlsError / status from the fetch layer; this does not perform TLS.
  */
 export function presentHaTransportError(err = {}) {
   if (err.tlsError) {

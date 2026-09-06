@@ -1,10 +1,11 @@
 /**
  * Energy unit helpers (#81).
+ * Case-sensitive for mWh vs MWh (toLowerCase would collide).
  */
 
 /**
  * @param {unknown} value
- * @param {'W'|'Wh'|'mWh'|'kWh'|string} unit
+ * @param {string} unit
  */
 export function normalizePowerOrEnergy(value, unit) {
   if (value === null || value === undefined || value === 'unavailable' || value === 'unknown') {
@@ -14,21 +15,49 @@ export function normalizePowerOrEnergy(value, unit) {
   if (!Number.isFinite(n)) {
     return { ok: false, kind: 'unknown', reason: 'non-numeric' };
   }
-  const u = String(unit || '').toLowerCase();
-  if (u === 'w' || u === 'watt' || u === 'watts') {
+
+  // Exact tokens first — never fold case (mWh ≠ MWh).
+  const raw = String(unit || '').trim();
+  if (raw === 'W' || raw === 'watt' || raw === 'watts') {
     return { ok: true, kind: 'power_w', watts: n };
   }
-  if (u === 'kw') {
+  if (raw === 'kW') {
     return { ok: true, kind: 'power_w', watts: n * 1000 };
   }
-  if (u === 'wh') {
+  if (raw === 'Wh') {
     return { ok: true, kind: 'energy_wh', wattHours: n };
   }
-  if (u === 'mwh') {
+  if (raw === 'mWh') {
     return { ok: true, kind: 'energy_wh', wattHours: n / 1000 };
   }
-  if (u === 'kwh') {
+  if (raw === 'kWh') {
     return { ok: true, kind: 'energy_wh', wattHours: n * 1000 };
   }
+  if (raw === 'MWh') {
+    return { ok: true, kind: 'energy_wh', wattHours: n * 1_000_000 };
+  }
+
+  // HA sometimes emits lowercase; allow unambiguous lowercase only (not "mwh").
+  const lower = raw.toLowerCase();
+  if (lower === 'w') {
+    return { ok: true, kind: 'power_w', watts: n };
+  }
+  if (lower === 'kw') {
+    return { ok: true, kind: 'power_w', watts: n * 1000 };
+  }
+  if (lower === 'wh') {
+    return { ok: true, kind: 'energy_wh', wattHours: n };
+  }
+  if (lower === 'kwh') {
+    return { ok: true, kind: 'energy_wh', wattHours: n * 1000 };
+  }
+  if (lower === 'mwh') {
+    return {
+      ok: false,
+      kind: 'ambiguous_unit',
+      reason: 'Ambiguous unit "mwh" — use mWh (milliwatt-hours) or MWh (megawatt-hours)'
+    };
+  }
+
   return { ok: false, kind: 'unsupported_unit', reason: `unit ${unit}` };
 }
