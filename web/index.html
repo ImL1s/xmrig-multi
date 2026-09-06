@@ -1,161 +1,282 @@
 <!DOCTYPE html>
-<html lang="zh-TW">
+<html lang="zh-Hant-TW">
 
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>XMRig Multi Web - 網頁版加密貨幣礦工</title>
-  <meta name="description" content="Browser-based cryptocurrency miner supporting Monero, Wownero, and DERO">
+  <title>XMRig Multi Web — 瀏覽器 RandomX 礦機主控台</title>
+  <meta name="description" content="XMRig Multi 的網頁版主控台：以 randomx.js 在瀏覽器挖 Monero，並如實顯示引擎能力與量測品質。">
+  <meta name="color-scheme" content="dark light">
   <link rel="stylesheet" href="/css/style.css">
 </head>
 
 <body>
-  <div class="container">
-    <!-- Header -->
-    <header class="header">
-      <div class="logo">
-        <span class="logo-icon">⛏️</span>
-        <h1>XMRig Multi Web</h1>
-      </div>
-      <div class="badge" id="algo-badge">RandomX</div>
+  <a class="skip-link" href="#console">跳至挖礦狀態</a>
+
+  <!-- Icon sprite. SVG rather than emoji so glyph coverage and colour are ours to control. -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+    <symbol id="i-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+      stroke-linecap="round" stroke-linejoin="round">
+      <path d="M20 6 9 17l-5-5" />
+    </symbol>
+    <symbol id="i-blocked" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+      stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="9" />
+      <path d="M5.6 5.6l12.8 12.8" />
+    </symbol>
+    <symbol id="i-alert" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+      stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 3 2.5 20h19L12 3z" />
+      <path d="M12 9v5" />
+      <path d="M12 17.5v.5" />
+    </symbol>
+    <symbol id="i-play" viewBox="0 0 24 24" fill="currentColor">
+      <path d="M8 5.5v13l11-6.5z" />
+    </symbol>
+    <symbol id="i-stop" viewBox="0 0 24 24" fill="currentColor">
+      <rect x="7" y="7" width="10" height="10" rx="1" />
+    </symbol>
+  </svg>
+
+  <div class="shell">
+    <header class="masthead">
+      <h1 class="wordmark">
+        <span class="mark">XMRig</span>
+        <span>Multi</span>
+        <span class="qualifier">Web Console</span>
+      </h1>
+      <p class="engine-badge">
+        <span class="visually-hidden">執行引擎</span>
+        <span id="algo-badge">RandomX</span>
+      </p>
     </header>
 
-    <!-- Status Card -->
-    <div class="card status-card">
-      <div class="status-indicator" id="statusIndicator">
-        <span class="status-dot"></span>
-        <span class="status-text" id="statusText">已停止</span>
-      </div>
-      <div class="hashrate-display">
-        <span class="hashrate-value" id="hashrateValue">0.00</span>
-        <span class="hashrate-unit">H/s</span>
-      </div>
-      <div class="stats-row">
-        <div class="stat">
-          <span class="stat-label">已接受</span>
-          <span class="stat-value" id="acceptedShares">0</span>
+    <main>
+      <!-- ---------------------------------------------------------------- -->
+      <!-- Status: what the miner is doing right now                        -->
+      <!-- ---------------------------------------------------------------- -->
+      <section class="panel" id="console" aria-labelledby="console-heading" tabindex="-1">
+        <h2 class="panel__label" id="console-heading">挖礦狀態</h2>
+
+        <div class="state-line">
+          <!-- Only the run state is a live region; the readouts below change every second and
+               would otherwise flood a screen reader. -->
+          <p class="state-chip" id="state-chip" data-state="idle" role="status">
+            <span class="state-chip__dot" aria-hidden="true"></span>
+            <span id="state-text">已停止</span>
+          </p>
+          <p class="readout-caption" id="state-detail">尚未啟動</p>
         </div>
-        <div class="stat">
-          <span class="stat-label">已拒絕</span>
-          <span class="stat-value" id="rejectedShares">0</span>
+
+        <p class="readout" id="hero-hashrate" data-has-value="false">–.–– H/s</p>
+        <p class="readout-caption">
+          <span id="hero-window">目前算力</span>
+          <span class="quality-tag" id="hero-quality" data-quality="unavailable">尚未啟動</span>
+        </p>
+
+        <hr class="hairline">
+
+        <dl class="ledger">
+          <div>
+            <dt>已接受</dt>
+            <dd id="ledger-accepted" data-has-value="false">–</dd>
+          </div>
+          <div>
+            <dt>已拒絕</dt>
+            <dd id="ledger-rejected" data-has-value="false">–</dd>
+          </div>
+          <div>
+            <dt>成功率</dt>
+            <dd id="ledger-success" data-has-value="false">–</dd>
+          </div>
+          <div>
+            <dt>已計算雜湊</dt>
+            <dd id="ledger-hashes" data-has-value="false">–</dd>
+          </div>
+          <div>
+            <dt>運行時間</dt>
+            <dd id="ledger-uptime" data-has-value="false">–</dd>
+          </div>
+        </dl>
+
+        <div class="activity">
+          <p class="activity__label">
+            <span>工作執行緒活動</span>
+            <span id="activity-note">閒置</span>
+          </p>
+          <div class="activity__track" id="activity-track" data-active="false" role="img"
+            aria-label="工作執行緒活動指示。瀏覽器無法提供可信的 CPU 使用率，此區塊僅表示執行緒是否在運轉。"></div>
         </div>
-        <div class="stat">
-          <span class="stat-label">運行時間</span>
-          <span class="stat-value" id="uptime">00:00:00</span>
+      </section>
+
+      <!-- ---------------------------------------------------------------- -->
+      <!-- Setup: three steps from "what can this machine do" to "start"    -->
+      <!-- ---------------------------------------------------------------- -->
+      <section class="panel" aria-labelledby="setup-heading">
+        <h2 class="panel__label" id="setup-heading">設定</h2>
+
+        <ol class="steps">
+          <!-- Step 1 ---------------------------------------------------- -->
+          <li class="step" data-complete="true">
+            <h3 class="step__title">這個瀏覽器能挖什麼</h3>
+            <p class="step__hint">
+              下列狀態由打包的引擎能力決定，不是偏好設定。標示為不可用的幣種無法啟動。
+            </p>
+            <div class="step__body">
+              <ul class="capability-list" id="capability-list"></ul>
+            </div>
+          </li>
+
+          <!-- Step 2 ---------------------------------------------------- -->
+          <li class="step" data-complete="false" id="step-payout">
+            <h3 class="step__title">收款位置</h3>
+            <p class="step__hint">收益會付到這個地址。請確認地址屬於你自己的錢包。</p>
+            <div class="step__body">
+              <div class="field">
+                <label for="coin-select">幣種</label>
+                <select id="coin-select">
+                  <option value="monero">Monero (XMR) — RandomX（可啟動）</option>
+                  <option value="wownero">Wownero (WOW) — 不可用（#26/#28）</option>
+                  <option value="dero">DERO — 不可用（#27）</option>
+                </select>
+              </div>
+
+              <div class="field">
+                <label for="wallet-address" id="wallet-label">Monero 錢包地址</label>
+                <input type="text" id="wallet-address" placeholder="4…" spellcheck="false"
+                  autocomplete="off" autocapitalize="off" aria-describedby="wallet-hint wallet-error">
+                <p class="field__hint" id="wallet-hint">Monero 地址以 4 或 8 開頭</p>
+                <p class="field-error" id="wallet-error" role="alert" data-visible="false">
+                  <svg aria-hidden="true" focusable="false">
+                    <use href="#i-alert" />
+                  </svg>
+                  <span></span>
+                </p>
+              </div>
+
+              <div class="field">
+                <label for="pool-select">礦池</label>
+                <select id="pool-select">
+                  <optgroup label="Monero (XMR)" id="xmr-pools">
+                    <option value="moneroocean" data-coin="monero">MoneroOcean（推薦）</option>
+                    <option value="supportxmr" data-coin="monero">SupportXMR</option>
+                    <option value="hashvault" data-coin="monero">HashVault</option>
+                    <option value="2miners" data-coin="monero">2Miners</option>
+                  </optgroup>
+                  <!-- Wownero: presets retained for viewing only until #28 signer/daemon path exists -->
+                  <optgroup label="Wownero (WOW) — 尚未驗證" id="wow-pools">
+                    <option value="herominers-wow" data-coin="wownero" data-capability="unavailable" disabled>
+                      HeroMiners WOW（不可用 #28）
+                    </option>
+                  </optgroup>
+                  <!-- DERO: no verified adapter on Web (#27) -->
+                  <optgroup label="DERO — 尚未驗證" id="dero-pools">
+                    <option value="dero-official" data-coin="dero" data-capability="unavailable" disabled>
+                      DERO Official Node（不可用 #27）
+                    </option>
+                    <option value="dero-community" data-coin="dero" data-capability="unavailable" disabled>
+                      DERO Community Node（不可用 #27）
+                    </option>
+                  </optgroup>
+                  <option value="custom">自訂 WebSocket 代理…</option>
+                </select>
+                <p class="field__hint" id="pool-hint">
+                  預設礦池需要本機 WebSocket-to-Stratum 代理（<code>web/proxy</code>）在 ws://localhost:3333 執行。
+                </p>
+              </div>
+
+              <div class="field" id="custom-proxy-group" hidden>
+                <label for="custom-proxy-url">WebSocket 代理 URL</label>
+                <input type="text" id="custom-proxy-url" placeholder="wss://proxy.example.com"
+                  spellcheck="false" autocomplete="off" aria-describedby="proxy-hint proxy-error">
+                <p class="field__hint" id="proxy-hint">須支援 Stratum-over-WebSocket；公開部署請使用 wss://。</p>
+                <p class="field-error" id="proxy-error" role="alert" data-visible="false">
+                  <svg aria-hidden="true" focusable="false">
+                    <use href="#i-alert" />
+                  </svg>
+                  <span></span>
+                </p>
+              </div>
+            </div>
+          </li>
+
+          <!-- Step 3 ---------------------------------------------------- -->
+          <li class="step" data-complete="true">
+            <h3 class="step__title">負載</h3>
+            <p class="step__hint">
+              預設為邏輯核心的一半，讓瀏覽器其他分頁仍可使用。可隨時調整後重新啟動。
+            </p>
+            <div class="step__body two-up">
+              <div class="field">
+                <label for="threads">工作執行緒</label>
+                <select id="threads">
+                  <option value="1">1</option>
+                </select>
+                <p class="field__hint" id="threads-hint">此為要求值；瀏覽器可能因記憶體不足而配置較少。</p>
+              </div>
+              <div class="field">
+                <label for="worker-name">礦工名稱（選填）</label>
+                <input type="text" id="worker-name" placeholder="web-worker" spellcheck="false"
+                  autocomplete="off">
+                <p class="field__hint">用來在礦池後台區分不同裝置。</p>
+              </div>
+            </div>
+          </li>
+        </ol>
+
+        <hr class="hairline">
+
+        <!-- Pre-flight summary: exactly what pressing start will do. -->
+        <div class="summary" aria-labelledby="summary-heading">
+          <h3 class="panel__label" id="summary-heading" style="margin-bottom:var(--sp-3)">啟動摘要</h3>
+          <dl>
+            <dt>引擎</dt>
+            <dd id="summary-engine">randomx.js (WASM)</dd>
+            <dt>演算法</dt>
+            <dd id="summary-algo">RandomX (rx/0)</dd>
+            <dt>連線</dt>
+            <dd id="summary-endpoint" data-unknown="true">–</dd>
+            <dt>收款地址</dt>
+            <dd id="summary-wallet" data-unknown="true">尚未填寫</dd>
+            <dt>執行緒</dt>
+            <dd id="summary-threads">–</dd>
+            <dt>費用</dt>
+            <dd id="summary-fees">開發費 1%（代理端套用）＋礦池費（依礦池公告，本頁未查核）</dd>
+          </dl>
         </div>
-      </div>
-    </div>
 
-    <!-- Configuration Card -->
-    <div class="card config-card">
-      <h2>⚙️ 設定</h2>
-
-      <!-- Coin Selection (新增) -->
-      <div class="control-group">
-        <label for="coin-select">選擇幣種</label>
-        <select id="coin-select">
-          <option value="monero">Monero (XMR) - RandomX（可啟動）</option>
-          <option value="wownero">Wownero (WOW) - 不可用（#26/#28）</option>
-          <option value="dero">DERO - 不可用（#27）</option>
-        </select>
-      </div>
-
-      <div class="control-group">
-        <label for="wallet-address" id="wallet-label">Monero 錢包地址</label>
-        <input type="text" id="wallet-address" placeholder="4..." spellcheck="false">
-        <small class="hint" id="wallet-hint">Monero 地址以 4 或 8 開頭</small>
-      </div>
-
-      <div class="control-row">
-        <div class="control-group">
-          <label for="pool-select">礦池選擇</label>
-          <select id="pool-select">
-            <!-- Monero pools -->
-            <optgroup label="Monero (XMR)" id="xmr-pools">
-              <option value="moneroocean" data-coin="monero">🌊 MoneroOcean (推薦)</option>
-              <option value="supportxmr" data-coin="monero">💪 SupportXMR</option>
-              <option value="hashvault" data-coin="monero">🔒 HashVault</option>
-              <option value="2miners" data-coin="monero">⛏️ 2Miners</option>
-            </optgroup>
-            <!-- Wownero: presets retained for viewing only until #28 signer/daemon path exists -->
-            <optgroup label="Wownero (WOW) — 尚未驗證" id="wow-pools">
-              <option value="herominers-wow" data-coin="wownero" data-capability="unavailable" disabled>
-                HeroMiners WOW（不可用 #28）
-              </option>
-            </optgroup>
-            <!-- DERO: no verified adapter on Web (#27) -->
-            <optgroup label="DERO — 尚未驗證" id="dero-pools">
-              <option value="dero-official" data-coin="dero" data-capability="unavailable" disabled>
-                DERO Official Node（不可用 #27）
-              </option>
-              <option value="dero-community" data-coin="dero" data-capability="unavailable" disabled>
-                DERO Community Node（不可用 #27）
-              </option>
-            </optgroup>
-            <option value="custom">🔧 自訂代理...</option>
-          </select>
+        <div class="actions">
+          <button id="start-btn" class="btn btn-primary" type="button">
+            <svg aria-hidden="true" focusable="false">
+              <use href="#i-play" />
+            </svg>
+            開始挖礦
+          </button>
+          <button id="stop-btn" class="btn btn-secondary" type="button" disabled>
+            <svg aria-hidden="true" focusable="false">
+              <use href="#i-stop" />
+            </svg>
+            停止
+          </button>
         </div>
-        <div class="control-group">
-          <label for="threads">執行緒數</label>
-          <select id="threads">
-            <option value="1">1 Thread</option>
-          </select>
-        </div>
-      </div>
+        <p class="action-note" id="start-note"></p>
+      </section>
 
-      <div class="control-group custom-proxy-group" id="custom-proxy-group" style="display: none;">
-        <label for="custom-proxy-url">WebSocket 代理 URL</label>
-        <input type="text" id="custom-proxy-url" placeholder="ws://localhost:3333 或 wss://...">
-        <small class="hint">自訂代理需支援 Stratum-over-WebSocket 協議</small>
-      </div>
+      <!-- ---------------------------------------------------------------- -->
+      <section class="panel" aria-labelledby="log-heading">
+        <h2 class="panel__label" id="log-heading">系統日誌</h2>
+        <div class="log" id="console-output" role="log" aria-labelledby="log-heading" tabindex="0"></div>
+      </section>
+    </main>
 
-      <div class="control-group">
-        <label for="worker-name">礦工名稱 (可選)</label>
-        <input type="text" id="worker-name" placeholder="web-worker">
-      </div>
-
-      <div class="actions">
-        <button id="start-btn" class="btn btn-primary">開始挖礦</button>
-        <button id="stop-btn" class="btn btn-secondary" disabled>停止</button>
-      </div>
-    </div>
-
-    <div class="stats-panel">
-      <div class="stat-card">
-        <div class="stat-label">當前算力</div>
-        <div class="stat-value"><span id="hashrate">0.0</span> H/s</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-label">已計算 Hashes</div>
-        <div class="stat-value" id="hashes">0</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-label">Shares (接受/拒絕)</div>
-        <div class="stat-value" id="shares">0 / 0</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-label">運行時間</div>
-        <div class="stat-value" id="uptime">00:00:00</div>
-      </div>
-    </div>
-
-    <div class="cpu-meter">
-      <div class="cpu-progress" id="cpu-usage" style="width: 0%"></div>
-    </div>
-
-    <div class="console">
-      <div class="console-header">系統日誌</div>
-      <div id="console-output" class="console-content"></div>
-    </div>
-
-    <!-- Footer -->
-    <footer class="footer">
+    <footer class="colophon">
       <p>
-        基於 <a href="https://github.com/l1mey112/randomx.js" target="_blank">randomx.js</a> |
-        <a href="https://github.com/ImL1s/xmrig-multi" target="_blank">GitHub</a>
+        雜湊由 <a href="https://github.com/l1mey112/randomx.js" target="_blank" rel="noopener">randomx.js</a>
+        計算 · 原始碼在
+        <a href="https://github.com/ImL1s/xmrig-multi" target="_blank" rel="noopener">GitHub</a>
       </p>
-      <p class="disclaimer">
-        ⚠️ 免責聲明：挖礦會增加 CPU 負載，請自行評估風險
+      <p>
+        挖礦會長時間佔用 CPU 並增加耗電與發熱。瀏覽器無法提供可信的功耗或 CPU 量測，本頁不預估收益。
       </p>
     </footer>
   </div>
