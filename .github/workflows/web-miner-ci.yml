@@ -14,11 +14,8 @@ on:
       - 'shared/reconnect/**'
       - 'shared/wallet-address/**'
       - 'shared/daemon-endpoint/**'
-<<<<<<< Updated upstream
       - 'shared/fee-manifest/**'
-=======
       - 'shared/pool-recommend/**'
->>>>>>> Stashed changes
       - 'app/src/main/assets/pools.json'
       - 'desktop/src/generated-pool-configs.json'
       - 'desktop/src/main.js'
@@ -36,11 +33,8 @@ on:
       - 'shared/reconnect/**'
       - 'shared/wallet-address/**'
       - 'shared/daemon-endpoint/**'
-<<<<<<< Updated upstream
       - 'shared/fee-manifest/**'
-=======
       - 'shared/pool-recommend/**'
->>>>>>> Stashed changes
       - 'app/src/main/assets/pools.json'
       - 'desktop/src/generated-pool-configs.json'
       - 'desktop/src/main.js'
@@ -109,15 +103,13 @@ jobs:
         working-directory: .
         run: node --test shared/daemon-endpoint/test/*.test.js
 
-<<<<<<< Updated upstream
       - name: Fee transparency manifest tests (#63)
         working-directory: .
         run: node --test shared/fee-manifest/test/*.test.js
-=======
+
       - name: Pool recommend / share-wait tests (#42)
         working-directory: .
         run: node --test shared/pool-recommend/test/*.test.js
->>>>>>> Stashed changes
 
       - name: Build for Production
         run: npm run build
