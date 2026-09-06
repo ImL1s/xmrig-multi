@@ -129,6 +129,10 @@ class ConfigViewModel @Inject constructor(
                 val state = _uiState.value as? ConfigUiState.Success ?: return
                 updateConfig(currentConfig.copy(pauseOnNetDischargeWhilePlugged = event.enabled), state)
             }
+            is ConfigUiEvent.DreamMayMineToggled -> {
+                val state = _uiState.value as? ConfigUiState.Success ?: return
+                updateConfig(currentConfig.copy(dreamMayMine = event.enabled), state)
+            }
             is ConfigUiEvent.ProbeDaemon -> handleProbeDaemon()
             is ConfigUiEvent.SaveConfig -> handleSaveConfig()
             is ConfigUiEvent.RequestResetToDefaults -> handleRequestReset()

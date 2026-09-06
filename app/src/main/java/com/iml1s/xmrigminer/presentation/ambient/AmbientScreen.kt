@@ -26,20 +26,22 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.iml1s.xmrigminer.data.ambient.AmbientClockPolicy
 import com.iml1s.xmrigminer.data.ambient.AmbientMode
+import com.iml1s.xmrigminer.data.ambient.WallClockDisplay
 import com.iml1s.xmrigminer.presentation.theme.KilnDarkGround
 import com.iml1s.xmrigminer.presentation.theme.KilnDarkInk
 import com.iml1s.xmrigminer.presentation.theme.KilnDarkInkDim
 import kotlinx.coroutines.delay
-import java.util.Calendar
 
 /**
- * Full-screen ambient clock (#74). Pure clock does not start mining.
+ * Full-screen ambient clock (#74/#127). Pure clock does not start mining.
+ * Shares [WallClockDisplay] with MiningDreamService.
  */
 @Composable
 fun AmbientScreen(
     onNavigateBack: () -> Unit,
     mode: AmbientMode = AmbientMode.CLOCK_ONLY,
-    statusLine: String? = null
+    statusLine: String? = null,
+    wallClock: WallClockDisplay = remember { WallClockDisplay() }
 ) {
     val resolution = remember(mode) { AmbientClockPolicy.resolve(mode) }
     val sideEffects = remember(resolution) { AmbientClockPolicy.sideEffects(resolution) }
@@ -63,16 +65,11 @@ fun AmbientScreen(
         }
     }
 
-    LaunchedEffect(Unit) {
+    LaunchedEffect(wallClock) {
         while (true) {
-            val cal = Calendar.getInstance()
-            val minuteOfDay = cal.get(Calendar.HOUR_OF_DAY) * 60 + cal.get(Calendar.MINUTE)
-            dim = AmbientClockPolicy.nightDimFactor(minuteOfDay)
-            clockText = AmbientClockPolicy.formatWallClock(
-                hours = cal.get(Calendar.HOUR_OF_DAY),
-                minutes = cal.get(Calendar.MINUTE),
-                showSeconds = false
-            )
+            val snap = wallClock.snapshot(showSeconds = false)
+            dim = AmbientClockPolicy.nightDimFactor(snap.minuteOfDay)
+            clockText = snap.text
             val window = (context as? ComponentActivity)?.window
             window?.let { w ->
                 w.attributes = w.attributes?.apply {
@@ -84,8 +81,7 @@ fun AmbientScreen(
                     }
                 }
             }
-            val delayMs = AmbientClockPolicy.nextTickMs(System.currentTimeMillis(), showSeconds = false)
-            delay(delayMs.coerceAtLeast(250L))
+            delay(snap.nextDelayMs.coerceAtLeast(250L))
         }
     }
 

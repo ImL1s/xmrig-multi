@@ -45,6 +45,7 @@ sealed interface ConfigUiEvent {
     data class PauseOnUnplugToggled(val enabled: Boolean) : ConfigUiEvent
     data class ChargeBeforeMineToggled(val enabled: Boolean) : ConfigUiEvent
     data class PauseOnNetDischargeToggled(val enabled: Boolean) : ConfigUiEvent
+    data class DreamMayMineToggled(val enabled: Boolean) : ConfigUiEvent
     /** Manual / save-time monerod RPC readiness check (#44). */
     data object ProbeDaemon : ConfigUiEvent
     data object SaveConfig : ConfigUiEvent
