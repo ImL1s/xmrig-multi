@@ -40,6 +40,7 @@ struct AppState {
 
 #[tauri::command]
 fn start_mining(
+    app: tauri::AppHandle,
     state: State<'_, AppState>,
     config: miner::MiningConfig,
 ) -> Result<String, String> {
@@ -50,18 +51,20 @@ fn start_mining(
         }
         prefs.session_authorized = true;
         prefs.tray_tooltip = "XMRig Multi — Mining".into();
+        update_tray_tooltip(&app, &prefs.tray_tooltip);
     }
     let mut miner = state.miner.lock().map_err(|e| e.to_string())?;
     miner.start(config)
 }
 
 #[tauri::command]
-fn stop_mining(state: State<'_, AppState>) -> Result<String, String> {
+fn stop_mining(app: tauri::AppHandle, state: State<'_, AppState>) -> Result<String, String> {
     {
         let mut prefs = state.prefs.lock().map_err(|e| e.to_string())?;
         prefs.user_stopped = true;
         prefs.session_authorized = false;
         prefs.tray_tooltip = "XMRig Multi — Stopped".into();
+        update_tray_tooltip(&app, &prefs.tray_tooltip);
     }
     let mut miner = state.miner.lock().map_err(|e| e.to_string())?;
     miner.stop()
@@ -238,7 +241,7 @@ fn apply_close_decision(
 
     match decision.action.as_str() {
         "quit-and-stop" => {
-            force_stop_miner(&state);
+            force_stop_miner(Some(&app), &state);
             app.exit(0);
             Ok(ApplyCloseResult {
                 action: decision.action,
@@ -305,6 +308,7 @@ fn default_idle_ms() -> u64 {
 
 #[tauri::command]
 fn evaluate_desktop_idle(
+    app: tauri::AppHandle,
     state: State<'_, AppState>,
     req: IdleEvalDto,
 ) -> Result<idle_policy::IdleVerdict, String> {
@@ -331,6 +335,7 @@ fn evaluate_desktop_idle(
     );
     if let Ok(mut prefs) = state.prefs.lock() {
         prefs.tray_tooltip = format!("XMRig Multi — {}", verdict.tray_status);
+        update_tray_tooltip(&app, &prefs.tray_tooltip);
     }
     Ok(verdict)
 }
@@ -374,10 +379,19 @@ fn default_normal() -> String {
     "normal".into()
 }
 
-fn force_stop_miner(state: &AppState) {
+fn update_tray_tooltip(app: &tauri::AppHandle, text: &str) {
+    if let Some(tray) = app.tray_by_id("main") {
+        let _ = tray.set_tooltip(Some(text));
+    }
+}
+
+fn force_stop_miner(app: Option<&tauri::AppHandle>, state: &AppState) {
     if let Ok(mut prefs) = state.prefs.lock() {
         prefs.session_authorized = false;
         prefs.tray_tooltip = "XMRig Multi — Stopped".into();
+        if let Some(app) = app {
+            update_tray_tooltip(app, &prefs.tray_tooltip);
+        }
     }
     if let Ok(mut miner) = state.miner.lock() {
         let _ = miner.stop();
@@ -400,7 +414,7 @@ fn main() {
             let quit_i = MenuItem::with_id(app, "quit", "Quit and stop", true, None::<&str>)?;
             let menu = Menu::with_items(app, &[&show_i, &pause_i, &sep, &quit_i])?;
 
-            let mut tray_builder = TrayIconBuilder::new()
+            let mut tray_builder = TrayIconBuilder::with_id("main")
                 .menu(&menu)
                 .tooltip("XMRig Multi — Stopped")
                 .on_menu_event(|app, event| match event.id.as_ref() {
@@ -412,14 +426,14 @@ fn main() {
                     }
                     "pause_stop" => {
                         let state = app.state::<AppState>();
-                        force_stop_miner(&state);
+                        force_stop_miner(Some(app), &state);
                         if let Ok(mut prefs) = state.prefs.lock() {
                             prefs.user_stopped = true;
                         };
                     }
                     "quit" => {
                         let state = app.state::<AppState>();
-                        force_stop_miner(&state);
+                        force_stop_miner(Some(app), &state);
                         app.exit(0);
                     }
                     _ => {}
@@ -470,7 +484,7 @@ fn main() {
                     return;
                 }
                 // quit-and-stop (or unauthorized tray → quit)
-                force_stop_miner(&state);
+                force_stop_miner(Some(&app), &state);
                 app.exit(0);
             }
         })
@@ -499,7 +513,7 @@ fn main() {
         .run(|app_handle, event| {
             if let RunEvent::Exit = event {
                 let state = app_handle.state::<AppState>();
-                force_stop_miner(&state);
+                force_stop_miner(Some(app_handle), &state);
             }
         });
 }

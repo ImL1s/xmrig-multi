@@ -151,7 +151,7 @@ async function refreshIdleStatus() {
             req: {
                 userStopped: false,
                 miningArmed: isMining,
-                onBattery: c.pauseOnBattery ? false : null,
+                onBattery: null, // do not fabricate AC; unknown until probed
                 // App-layer idle timestamps are not probed yet — never assume idle.
                 idleMs: null,
                 idleReliable: false,
@@ -182,6 +182,17 @@ async function loadIdleCapability() {
         if (elements.idleCapabilityHint && poa) {
             elements.idleCapabilityHint.textContent =
                 `${poa.label}: ${poa.state} — ${(poa.reasons || []).join(' ')}`;
+        }
+        if (poa?.state !== 'available') {
+            if (elements.pauseWhenActive) {
+                elements.pauseWhenActive.checked = false;
+                elements.pauseWhenActive.disabled = true;
+            }
+            const hint = document.getElementById('pause-when-active-hint');
+            if (hint) {
+                hint.textContent =
+                    'Native pause-on-active unsupported on this OS — control disabled; idle is never assumed.';
+            }
         }
         const plan = await invoke('plan_idle_engine_flags', {
             prefs: collectConveniencePrefsForEngine()
@@ -229,6 +240,10 @@ function applyConvenienceToUi(c) {
         elements.resumeLastSession.checked = Boolean(c.resumeLastSessionOnLaunch);
     }
     if (elements.keepAwakeConsent) elements.keepAwakeConsent.checked = Boolean(c.keepAwakeConsent);
+    // Keep Rust SessionPrefs in sync with restored UI (avoid close split-brain).
+    invoke('set_close_preference', {
+        req: { preference: c.closePreference || 'ask' }
+    }).catch(() => {});
 }
 
 async function loadSystemInfo() {
@@ -703,8 +718,12 @@ async function startMining() {
     enginePauseOnActiveArmed = false;
     if (convenience.pauseWhenActive) {
         if (nativePoa) {
-            pause_on_active_seconds = convenience.pauseOnActiveSeconds;
+            // Idle minutes is the user-facing threshold; maps to engine seconds.
+            pause_on_active_seconds = Math.max(1, convenience.idleMineAfterMinutes) * 60;
             enginePauseOnActiveArmed = true;
+            if (elements.pauseOnActiveSeconds) {
+                elements.pauseOnActiveSeconds.value = String(pause_on_active_seconds);
+            }
         } else {
             log(
                 'pause-on-active unsupported here — app will not assume idle; use manual Stop/Start',

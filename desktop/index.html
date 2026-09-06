@@ -144,6 +144,7 @@
                     <div class="form-group">
                         <label for="idle-mine-minutes">Mine only after idle (minutes)</label>
                         <input type="number" id="idle-mine-minutes" min="1" max="240" value="5">
+                        <p class="hint">On Windows/macOS this maps to XMRig pause-on-active seconds (minutes×60) when pause-when-active is on. Linux has no native idle mine timer yet.</p>
                     </div>
                     <div class="form-group">
                         <label for="pause-on-active-seconds">Engine pause-on-active (seconds, 0=true)</label>
@@ -159,8 +160,9 @@
                     <div class="form-group span-all">
                         <label>
                             <input type="checkbox" id="pause-when-active" checked>
-                            Pause or wait while the user is active (app-layer idle)
+                            Pause while the user is active (uses XMRig pause-on-active where supported)
                         </label>
+                        <p class="hint" id="pause-when-active-hint">Unsupported OSes keep mining only under manual Start/Stop — idle is never assumed.</p>
                     </div>
                     <div class="form-group">
                         <label for="close-preference">Close window</label>

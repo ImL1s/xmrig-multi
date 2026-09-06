@@ -385,15 +385,15 @@ pub fn evaluate_idle(os: &str, input: &IdleEvalInput) -> IdleVerdict {
         let native_active = matrix.pause_on_active.state == "available"
             && input.engine_pause_on_active_armed;
         if native_active {
-            // Single coordinator: engine owns active↔idle; app does not second-guess.
+            // Single coordinator: engine owns active↔idle; do not bill until engine reports work.
             return IdleVerdict {
-                kind: "Mining".into(),
+                kind: "Waiting".into(),
                 reasons: vec![
                     "Active detection delegated to XMRig pause-on-active (single coordinator)"
                         .into(),
                 ],
-                tray_status: "Mining".into(),
-                bill_energy: true,
+                tray_status: "Waiting".into(),
+                bill_energy: false,
             };
         }
 

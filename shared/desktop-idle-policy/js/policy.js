@@ -134,7 +134,7 @@ export function evaluateDesktopIdle(input = {}) {
         return verdict(
           'Waiting',
           [
-            'Idle timestamp unreliable — relying on native pause-on-active; manual pause available'
+            'Active detection delegated to XMRig pause-on-active (single coordinator)'
           ],
           intent,
           { tray: 'Waiting', billEnergy: false, delegateToEngine: true }
