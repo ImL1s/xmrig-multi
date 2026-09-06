@@ -20,6 +20,8 @@ on:
       - 'shared/p2pool-connect/**'
       - 'shared/desktop-optimize/**'
       - 'shared/cpu-topology/**'
+      - 'shared/thermal-policy/**'
+      - 'shared/power-policy/**'
       - 'app/src/main/assets/pools.json'
       - 'desktop/src/generated-pool-configs.json'
       - 'desktop/src/main.js'
@@ -43,6 +45,8 @@ on:
       - 'shared/p2pool-connect/**'
       - 'shared/desktop-optimize/**'
       - 'shared/cpu-topology/**'
+      - 'shared/thermal-policy/**'
+      - 'shared/power-policy/**'
       - 'app/src/main/assets/pools.json'
       - 'desktop/src/generated-pool-configs.json'
       - 'desktop/src/main.js'
@@ -134,6 +138,14 @@ jobs:
       - name: CPU topology / affinity tests (#36)
         working-directory: .
         run: node --test shared/cpu-topology/test/*.test.js
+
+      - name: Thermal policy tests (#38)
+        working-directory: .
+        run: node --test shared/thermal-policy/test/*.test.js
+
+      - name: Power / convenience policy tests (#39)
+        working-directory: .
+        run: node --test shared/power-policy/test/*.test.js
 
       - name: Build for Production
         run: npm run build
