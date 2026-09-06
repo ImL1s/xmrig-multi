@@ -139,7 +139,7 @@ data class MiningConfig(
 
     fun isValid(): Boolean {
         val threadsOk = if (threadsAuto) true else threads > 0
-        return walletAddress.isNotBlank() &&
+        return isValidWalletAddress(walletAddress, getCoin()) &&
                poolUrl.isNotBlank() &&
                threadsOk &&
                maxCpuUsage in 10..100 &&
@@ -173,12 +173,13 @@ data class MiningConfig(
         }
 
         fun isValidWalletAddress(address: String, coinType: CoinType): Boolean {
-            if (address.isBlank()) return false
-            return when (coinType) {
-                CoinType.MONERO -> (address.startsWith("4") || address.startsWith("8")) && address.length in 95..106
-                CoinType.WOWNERO -> address.startsWith("Wo") && address.length in 95..106
-                CoinType.DERO -> address.startsWith("dero") && address.length >= 60
+            val coin = when (coinType) {
+                CoinType.MONERO -> "monero"
+                CoinType.WOWNERO -> "wownero"
+                CoinType.DERO -> "dero"
             }
+            return com.iml1s.xmrigminer.data.wallet.WalletAddressValidator
+                .validate(address, coin).ok
         }
     }
 }

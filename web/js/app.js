@@ -19,6 +19,7 @@ import {
     loadWebSettingsFromStorage,
     saveWebSettingsToStorage
 } from './web-settings.js';
+import { parseAddressInput, validateWalletAddress } from '../../shared/wallet-address/js/validate.js';
 import {
     HASHRATE_PLACEHOLDER,
     PLACEHOLDER,
@@ -93,9 +94,9 @@ class App {
                 algorithm: 'RandomX',
                 algorithmId: 'rx/0',
                 walletLabel: 'Monero 錢包地址',
-                walletHint: 'Monero 地址以 4 或 8 開頭',
-                walletPlaceholder: '4…',
-                validateAddress: (addr) => (addr.startsWith('4') || addr.startsWith('8')) && addr.length >= 95
+                walletHint: 'Monero 主網地址（標準/子地址/整合）會做 Keccak checksum 驗證 (#53)',
+                walletPlaceholder: '4… 或 8…',
+                validateAddress: (addr) => validateWalletAddress(addr, 'monero').ok
             },
             wownero: {
                 name: 'Wownero',
@@ -105,7 +106,7 @@ class App {
                 walletLabel: 'Wownero 錢包地址',
                 walletHint: 'Web 後端尚未支援 RandomWOW／簽署流程 (#26/#28)',
                 walletPlaceholder: 'Wo…',
-                validateAddress: (addr) => addr.startsWith('Wo') && addr.length >= 95
+                validateAddress: (addr) => validateWalletAddress(addr, 'wownero').ok
             },
             dero: {
                 name: 'DERO',
@@ -115,7 +116,7 @@ class App {
                 walletLabel: 'DERO 錢包地址',
                 walletHint: 'Web 後端尚未支援 DERO daemon 協定 (#27)',
                 walletPlaceholder: 'dero…',
-                validateAddress: (addr) => addr.startsWith('dero') && addr.length >= 60
+                validateAddress: (addr) => validateWalletAddress(addr, 'dero').ok
             }
         };
 
@@ -510,7 +511,19 @@ class App {
         const poolSelection = this.dom.poolSelect.value;
         const coinSelection = this.dom.coinSelect.value;
         const isCustomProxy = poolSelection === 'custom';
-        const walletAddress = this.dom.walletAddress.value.trim();
+        const pasted = parseAddressInput(this.dom.walletAddress.value);
+        if (!pasted.ok) {
+            this.showFieldError(
+                this.dom.walletError,
+                this.dom.walletAddress,
+                pasted.warnings[0] || '無效的地址貼上內容'
+            );
+            return;
+        }
+        if (pasted.address && pasted.address !== this.dom.walletAddress.value.trim()) {
+            this.dom.walletAddress.value = pasted.address;
+        }
+        const walletAddress = pasted.address || this.dom.walletAddress.value.trim();
         const coinConfig = this.coinConfigs[coinSelection];
 
         const gate = assertWebCoinStartAllowed(coinSelection);
@@ -525,11 +538,12 @@ class App {
             return;
         }
 
-        if (coinConfig && !coinConfig.validateAddress(walletAddress)) {
+        const walletCheck = validateWalletAddress(walletAddress, coinSelection === 'xmr' ? 'monero' : coinSelection);
+        if (!walletCheck.ok) {
             this.showFieldError(
                 this.dom.walletError,
                 this.dom.walletAddress,
-                `這不是有效的 ${coinConfig.name} 地址。${coinConfig.walletHint}`
+                walletCheck.message || `這不是有效的 ${coinConfig?.name || ''} 地址。${coinConfig?.walletHint || ''}`
             );
             return;
         }

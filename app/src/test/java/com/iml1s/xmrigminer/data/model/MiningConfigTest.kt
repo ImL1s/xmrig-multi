@@ -16,7 +16,7 @@ class MiningConfigTest {
     fun `isValid returns true for valid config`() {
         val config = MiningConfig(
             poolUrl = "pool.supportxmr.com:3333",
-            walletAddress = "85E5c5FcCYJ3UPmebJ1cLENY5siXFTakjT...",
+            walletAddress = "4AdUndXHHZ6cfufTMvppY6JwXNouMBzSkbLYfpAV5Usx3skxNgYeYTRj5UzqtReoS44qo9mtmXCqY45DJ852K5Jv2684Rge",
             workerName = "android",
             threads = 4,
             maxCpuUsage = 75
@@ -39,7 +39,7 @@ class MiningConfigTest {
     fun `isValid returns false when pool is empty`() {
         val config = MiningConfig(
             poolUrl = "",
-            walletAddress = "valid_wallet",
+            walletAddress = "4AdUndXHHZ6cfufTMvppY6JwXNouMBzSkbLYfpAV5Usx3skxNgYeYTRj5UzqtReoS44qo9mtmXCqY45DJ852K5Jv2684Rge",
             threads = 4,
             maxCpuUsage = 75
         )
@@ -50,7 +50,7 @@ class MiningConfigTest {
     fun `isValid returns false when threads is zero or negative`() {
         val config = MiningConfig(
             poolUrl = "pool.supportxmr.com:3333",
-            walletAddress = "valid_wallet",
+            walletAddress = "4AdUndXHHZ6cfufTMvppY6JwXNouMBzSkbLYfpAV5Usx3skxNgYeYTRj5UzqtReoS44qo9mtmXCqY45DJ852K5Jv2684Rge",
             threads = 0,
             maxCpuUsage = 75
         )
@@ -61,13 +61,13 @@ class MiningConfigTest {
     fun `isValid returns false when maxCpuUsage is out of range`() {
         val configLow = MiningConfig(
             poolUrl = "pool.supportxmr.com:3333",
-            walletAddress = "valid_wallet",
+            walletAddress = "4AdUndXHHZ6cfufTMvppY6JwXNouMBzSkbLYfpAV5Usx3skxNgYeYTRj5UzqtReoS44qo9mtmXCqY45DJ852K5Jv2684Rge",
             threads = 4,
             maxCpuUsage = 5
         )
         val configHigh = MiningConfig(
             poolUrl = "pool.supportxmr.com:3333",
-            walletAddress = "valid_wallet",
+            walletAddress = "4AdUndXHHZ6cfufTMvppY6JwXNouMBzSkbLYfpAV5Usx3skxNgYeYTRj5UzqtReoS44qo9mtmXCqY45DJ852K5Jv2684Rge",
             threads = 4,
             maxCpuUsage = 150
         )
@@ -79,7 +79,7 @@ class MiningConfigTest {
     fun `toJson contains pool url`() {
         val config = MiningConfig(
             poolUrl = "gulf.moneroocean.stream:10128",
-            walletAddress = "test_wallet",
+            walletAddress = "4AdUndXHHZ6cfufTMvppY6JwXNouMBzSkbLYfpAV5Usx3skxNgYeYTRj5UzqtReoS44qo9mtmXCqY45DJ852K5Jv2684Rge",
             threads = 4
         )
         val json = config.toJson()
@@ -90,11 +90,11 @@ class MiningConfigTest {
     fun `toJson contains wallet address`() {
         val config = MiningConfig(
             poolUrl = "pool.supportxmr.com:3333",
-            walletAddress = "my_wallet_address",
+            walletAddress = "4AdUndXHHZ6cfufTMvppY6JwXNouMBzSkbLYfpAV5Usx3skxNgYeYTRj5UzqtReoS44qo9mtmXCqY45DJ852K5Jv2684Rge",
             threads = 4
         )
         val json = config.toJson()
-        assertTrue(json.contains("my_wallet_address"))
+        assertTrue(json.contains("4AdUndXHHZ6cfufTMvppY6JwXNouMBzSkbLYfpAV5Usx3skxNgYeYTRj5UzqtReoS44qo9mtmXCqY45DJ852K5Jv2684Rge"))
     }
 
     @Test
@@ -118,7 +118,7 @@ class MiningConfigTest {
     fun `auto mode omits max-threads-hint conflict when manual`() {
         val manual = MiningConfig(
             poolUrl = "pool.supportxmr.com:3333",
-            walletAddress = "wallet",
+            walletAddress = "4AdUndXHHZ6cfufTMvppY6JwXNouMBzSkbLYfpAV5Usx3skxNgYeYTRj5UzqtReoS44qo9mtmXCqY45DJ852K5Jv2684Rge",
             threads = 4,
             threadsAuto = false,
             maxCpuUsage = 75
@@ -131,7 +131,7 @@ class MiningConfigTest {
     fun `auto mode writes max-threads-hint and stays valid with any threads field`() {
         val auto = MiningConfig(
             poolUrl = "pool.supportxmr.com:3333",
-            walletAddress = "wallet",
+            walletAddress = "4AdUndXHHZ6cfufTMvppY6JwXNouMBzSkbLYfpAV5Usx3skxNgYeYTRj5UzqtReoS44qo9mtmXCqY45DJ852K5Jv2684Rge",
             threads = 0,
             threadsAuto = true,
             maxCpuUsage = 50
@@ -152,20 +152,20 @@ class MiningConfigTest {
     fun `toJson uses configured donate level and log file`() {
         val config = MiningConfig(
             poolUrl = "pool.supportxmr.com:3333",
-            walletAddress = "my_wallet_address",
+            walletAddress = "4AdUndXHHZ6cfufTMvppY6JwXNouMBzSkbLYfpAV5Usx3skxNgYeYTRj5UzqtReoS44qo9mtmXCqY45DJ852K5Jv2684Rge",
             donateLevel = 1
         )
         val json = config.toJson("/data/xmrig.log")
         assertTrue(json.contains("\"donate-level\": 1"))
         assertTrue(json.contains("/data/xmrig.log"))
-        assertTrue(json.contains("my_wallet_address"))
+        assertTrue(json.contains("4AdUndXHHZ6cfufTMvppY6JwXNouMBzSkbLYfpAV5Usx3skxNgYeYTRj5UzqtReoS44qo9mtmXCqY45DJ852K5Jv2684Rge"))
     }
 
     @Test
     fun `toJson escapes quotes in worker name`() {
         val config = MiningConfig(
             poolUrl = "pool.supportxmr.com:3333",
-            walletAddress = "wallet",
+            walletAddress = "4AdUndXHHZ6cfufTMvppY6JwXNouMBzSkbLYfpAV5Usx3skxNgYeYTRj5UzqtReoS44qo9mtmXCqY45DJ852K5Jv2684Rge",
             workerName = "my\"rig",
             threads = 4
         )
@@ -184,7 +184,7 @@ class MiningConfigTest {
     fun `fresh-install MoneroOcean port is written without TLS`() {
         val config = MiningConfig(
             poolUrl = ConfigRepositoryDefaults.POOL_URL,
-            walletAddress = "wallet",
+            walletAddress = "4AdUndXHHZ6cfufTMvppY6JwXNouMBzSkbLYfpAV5Usx3skxNgYeYTRj5UzqtReoS44qo9mtmXCqY45DJ852K5Jv2684Rge",
             useTls = ConfigRepositoryDefaults.USE_TLS
         )
         val pool = Json.parseToJsonElement(config.toJson())
@@ -199,7 +199,7 @@ class MiningConfigTest {
     fun `solo daemon JSON uses daemon true keepalive false and monero coin`() {
         val config = MiningConfig(
             poolUrl = "192.168.1.10:18081",
-            walletAddress = "solo_wallet",
+            walletAddress = "4AdUndXHHZ6cfufTMvppY6JwXNouMBzSkbLYfpAV5Usx3skxNgYeYTRj5UzqtReoS44qo9mtmXCqY45DJ852K5Jv2684Rge",
             workerName = "android",
             soloDaemon = true,
             useTls = true, // must be forced off in JSON
@@ -208,7 +208,10 @@ class MiningConfigTest {
         val pool = Json.parseToJsonElement(config.toJson())
             .jsonObject["pools"]!!.jsonArray[0].jsonObject
         assertEquals("192.168.1.10:18081", pool["url"]!!.jsonPrimitive.content)
-        assertEquals("solo_wallet", pool["user"]!!.jsonPrimitive.content)
+        assertEquals(
+            "4AdUndXHHZ6cfufTMvppY6JwXNouMBzSkbLYfpAV5Usx3skxNgYeYTRj5UzqtReoS44qo9mtmXCqY45DJ852K5Jv2684Rge",
+            pool["user"]!!.jsonPrimitive.content
+        )
         assertEquals("x", pool["pass"]!!.jsonPrimitive.content)
         assertEquals("monero", pool["coin"]!!.jsonPrimitive.content)
         assertTrue(pool["daemon"]!!.jsonPrimitive.boolean)
@@ -220,7 +223,7 @@ class MiningConfigTest {
     fun `soloDaemon invalid when coin is not Monero`() {
         val config = MiningConfig(
             poolUrl = MiningConfig.DEFAULT_SOLO_DAEMON_URL,
-            walletAddress = "wallet",
+            walletAddress = "4AdUndXHHZ6cfufTMvppY6JwXNouMBzSkbLYfpAV5Usx3skxNgYeYTRj5UzqtReoS44qo9mtmXCqY45DJ852K5Jv2684Rge",
             soloDaemon = true,
             coinType = "WOWNERO"
         )
@@ -231,7 +234,7 @@ class MiningConfigTest {
     fun `pool mode JSON does not include daemon field`() {
         val config = MiningConfig(
             poolUrl = "pool.supportxmr.com:3333",
-            walletAddress = "wallet",
+            walletAddress = "4AdUndXHHZ6cfufTMvppY6JwXNouMBzSkbLYfpAV5Usx3skxNgYeYTRj5UzqtReoS44qo9mtmXCqY45DJ852K5Jv2684Rge",
             soloDaemon = false
         )
         val pool = Json.parseToJsonElement(config.toJson())
@@ -244,7 +247,7 @@ class MiningConfigTest {
     fun `toJson writes resolved randomx mode from memory budget`() {
         val lowRam = MiningConfig(
             poolUrl = "pool.supportxmr.com:3333",
-            walletAddress = "wallet",
+            walletAddress = "4AdUndXHHZ6cfufTMvppY6JwXNouMBzSkbLYfpAV5Usx3skxNgYeYTRj5UzqtReoS44qo9mtmXCqY45DJ852K5Jv2684Rge",
             randomxMode = "auto",
             threads = 2
         )
@@ -255,7 +258,7 @@ class MiningConfigTest {
 
         val light = MiningConfig(
             poolUrl = "pool.supportxmr.com:3333",
-            walletAddress = "wallet",
+            walletAddress = "4AdUndXHHZ6cfufTMvppY6JwXNouMBzSkbLYfpAV5Usx3skxNgYeYTRj5UzqtReoS44qo9mtmXCqY45DJ852K5Jv2684Rge",
             randomxMode = "light"
         )
         val rx2 = Json.parseToJsonElement(light.toJson()).jsonObject["randomx"]!!.jsonObject
