@@ -13,6 +13,7 @@ on:
       - 'shared/auto-tune/**'
       - 'shared/reconnect/**'
       - 'shared/wallet-address/**'
+      - 'shared/session-runtime/**'
       - 'shared/daemon-endpoint/**'
       - 'shared/fee-manifest/**'
       - 'shared/pool-recommend/**'
@@ -32,6 +33,7 @@ on:
       - 'shared/auto-tune/**'
       - 'shared/reconnect/**'
       - 'shared/wallet-address/**'
+      - 'shared/session-runtime/**'
       - 'shared/daemon-endpoint/**'
       - 'shared/fee-manifest/**'
       - 'shared/pool-recommend/**'
@@ -106,6 +108,10 @@ jobs:
       - name: Fee transparency manifest tests (#63)
         working-directory: .
         run: node --test shared/fee-manifest/test/*.test.js
+
+      - name: Session runtime ownership / nonce tests (#49)
+        working-directory: .
+        run: node --test shared/session-runtime/test/*.test.js
 
       - name: Pool recommend / share-wait tests (#42)
         working-directory: .

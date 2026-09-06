@@ -1,6 +1,7 @@
 /**
  * XMRig Multi Web - Mining Worker
  * Performs real RandomX hashing in a background thread.
+ * Job generation isolates duplicate job/resume loops (#49).
  */
 
 import { randomx_create_vm } from './lib/randomx.js';
@@ -9,6 +10,8 @@ import { checkDifficulty, decodeCompactTarget } from './share-target.js';
 let randomxNode = null;
 let currentJob = null;
 let isMining = false;
+/** Bumped on every job / stop so prior runBatch loops exit (#49). */
+let jobGeneration = 0;
 
 self.onmessage = async (e) => {
     const { type, data } = e.data;
@@ -25,13 +28,16 @@ self.onmessage = async (e) => {
             break;
 
         case 'job':
+            jobGeneration += 1;
             currentJob = data;
             isMining = true;
-            startMining();
+            startMining(jobGeneration);
             break;
 
         case 'stop':
+            jobGeneration += 1;
             isMining = false;
+            currentJob = null;
             break;
 
         case 'pause':
@@ -39,16 +45,19 @@ self.onmessage = async (e) => {
             break;
 
         case 'resume':
+            if (!currentJob) break;
+            // Resume same job_id keeps generation; still start one loop tied to current gen.
             isMining = true;
-            startMining();
+            startMining(jobGeneration);
             break;
     }
 };
 
-function startMining() {
+function startMining(generation) {
     if (!randomxNode || !currentJob || !isMining) return;
 
     const { blob, target, job_id } = currentJob;
+    const ownedGen = generation;
 
     try {
         const targetCheck = decodeCompactTarget(target);
@@ -63,16 +72,18 @@ function startMining() {
 
         const blobBuffer = hexToUint8Array(blob);
 
-        let nonce = Math.floor(Math.random() * 0xFFFFFFFF);
+        // Full 32-bit unsigned space with correct wrap (#49).
+        let nonce = Math.floor(Math.random() * 0x100000000) >>> 0;
         let hashesDone = 0;
         const batchSize = 1;
 
         const runBatch = () => {
-            if (!isMining || currentJob.job_id !== job_id) return;
+            if (!isMining || jobGeneration !== ownedGen) return;
+            if (!currentJob || currentJob.job_id !== job_id) return;
 
             try {
                 for (let i = 0; i < batchSize; i++) {
-                    const currentNonce = (nonce + i) % 0xFFFFFFFF;
+                    const currentNonce = (nonce + i) >>> 0;
                     const workBlob = new Uint8Array(blobBuffer);
                     const view = new DataView(workBlob.buffer);
                     view.setUint32(39, currentNonce, true);
@@ -89,7 +100,7 @@ function startMining() {
                         });
                     }
                 }
-                nonce += batchSize;
+                nonce = (nonce + batchSize) >>> 0;
 
                 if (hashesDone >= 5) {
                     self.postMessage({ type: 'hashrate', count: hashesDone });
@@ -121,8 +132,5 @@ function uint8ArrayToHex(arr) {
 }
 
 function uint32ToHex(n) {
-    const b = new Uint8Array(4);
-    const v = new DataView(b.buffer);
-    v.setUint32(0, n, true);
-    return uint8ArrayToHex(b);
+    return (n >>> 0).toString(16).padStart(8, '0');
 }
