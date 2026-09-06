@@ -103,22 +103,28 @@ function finiteOrNull(v) {
 }
 
 /**
- * Shared-wallet pool balance: count once across device IDs.
- * @param {{walletId:string, balance:number}[]} balances
+ * Shared-wallet pool balance: count each (wallet, pool) once across devices.
+ * Same wallet on different pools still sums; same pool balance is not duplicated.
+ * @param {{walletId:string, balance:number, poolId?:string}[]} balances
  */
 export function dedupeWalletBalances(balances = []) {
-  const byWallet = new Map();
+  const byKey = new Map();
   for (const b of balances) {
     if (!b || !b.walletId) continue;
     const bal = finiteOrNull(b.balance);
     if (bal == null) continue;
-    // Same wallet → keep max observed (not sum)
-    const prev = byWallet.get(b.walletId);
-    byWallet.set(b.walletId, prev == null ? bal : Math.max(prev, bal));
+    const key = `${b.walletId}::${b.poolId || 'default'}`;
+    const prev = byKey.get(key);
+    byKey.set(key, prev == null ? bal : Math.max(prev, bal));
   }
   let total = 0;
-  for (const v of byWallet.values()) total += v;
-  return { byWallet: Object.fromEntries(byWallet), total, wallets: byWallet.size };
+  const byWallet = Object.create(null);
+  for (const [key, v] of byKey.entries()) {
+    total += v;
+    const walletId = key.split('::')[0];
+    byWallet[walletId] = (byWallet[walletId] || 0) + v;
+  }
+  return { byWallet, total, wallets: Object.keys(byWallet).length, entries: byKey.size };
 }
 
 /**

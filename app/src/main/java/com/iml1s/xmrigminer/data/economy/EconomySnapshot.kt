@@ -96,14 +96,19 @@ object EconomySnapshotBuilder {
         )
     }
 
-    fun dedupeWalletBalances(balances: List<Pair<String, Double>>): Pair<Double, Int> {
-        val byWallet = linkedMapOf<String, Double>()
-        for ((wallet, bal) in balances) {
+    fun dedupeWalletPoolBalances(balances: List<Triple<String, String, Double>>): Pair<Double, Int> {
+        val byKey = linkedMapOf<String, Double>()
+        for ((wallet, pool, bal) in balances) {
             val v = finiteOrNull(bal) ?: continue
-            byWallet[wallet] = maxOf(byWallet[wallet] ?: v, v)
+            val key = "$wallet::${pool.ifBlank { "default" }}"
+            byKey[key] = maxOf(byKey[key] ?: v, v)
         }
-        return byWallet.values.sum() to byWallet.size
+        return byKey.values.sum() to byKey.keys.map { it.substringBefore("::") }.toSet().size
     }
+
+    /** Convenience: poolId defaults to "default". */
+    fun dedupeWalletBalances(balances: List<Pair<String, Double>>): Pair<Double, Int> =
+        dedupeWalletPoolBalances(balances.map { Triple(it.first, "default", it.second) })
 
     fun csvSafe(value: String?): String {
         if (value == null) return ""

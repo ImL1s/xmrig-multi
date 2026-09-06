@@ -69,12 +69,20 @@ test('pool fee already deducted is not subtracted again', () => {
 
 test('shared wallet balances are not summed twice', () => {
   const d = dedupeWalletBalances([
-    { walletId: 'w1', balance: 5 },
-    { walletId: 'w1', balance: 5 },
-    { walletId: 'w2', balance: 3 }
+    { walletId: 'w1', poolId: 'p1', balance: 5 },
+    { walletId: 'w1', poolId: 'p1', balance: 5 },
+    { walletId: 'w2', poolId: 'p1', balance: 3 }
   ]);
   assert.equal(d.total, 8);
   assert.equal(d.wallets, 2);
+});
+
+test('same wallet across different pools sums once per pool', () => {
+  const d = dedupeWalletBalances([
+    { walletId: 'w1', poolId: 'a', balance: 5 },
+    { walletId: 'w1', poolId: 'b', balance: 3 }
+  ]);
+  assert.equal(d.total, 8);
 });
 
 test('accrual ledger dedupes record ids', () => {
