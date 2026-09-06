@@ -12,6 +12,7 @@ on:
       - 'shared/randomx-memory/**'
       - 'shared/auto-tune/**'
       - 'shared/reconnect/**'
+      - 'shared/wallet-address/**'
       - 'app/src/main/assets/pools.json'
       - 'desktop/src/generated-pool-configs.json'
       - 'desktop/src/main.js'
@@ -27,6 +28,7 @@ on:
       - 'shared/randomx-memory/**'
       - 'shared/auto-tune/**'
       - 'shared/reconnect/**'
+      - 'shared/wallet-address/**'
       - 'app/src/main/assets/pools.json'
       - 'desktop/src/generated-pool-configs.json'
       - 'desktop/src/main.js'
@@ -82,6 +84,10 @@ jobs:
       - name: Auto-tune contract tests (#34)
         working-directory: .
         run: node --test shared/auto-tune/test/*.test.js
+
+      - name: Wallet address validation tests (#53)
+        working-directory: .
+        run: node --test shared/wallet-address/test/*.test.js
 
       - name: Reconnect / failover contract tests (#43)
         working-directory: .

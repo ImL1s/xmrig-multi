@@ -13,6 +13,7 @@ import {
     saveDesktopStore,
     switchProfile
 } from './settings.js';
+import { parseAddressInput, validateWalletAddress } from '../../shared/wallet-address/js/validate.js';
 import generatedPools from './generated-pool-configs.json';
 
 const elements = {
@@ -400,13 +401,27 @@ function isCoinBlocked() {
 }
 
 async function startMining() {
-    const wallet = elements.wallet.value.trim();
+    const pasted = parseAddressInput(elements.wallet.value);
+    if (!pasted.ok) {
+        showWalletError(pasted.warnings[0] || 'Invalid wallet paste');
+        return;
+    }
+    if (pasted.address && pasted.address !== elements.wallet.value.trim()) {
+        elements.wallet.value = pasted.address;
+        for (const w of pasted.warnings) log(w, 'info');
+    }
+    const wallet = pasted.address || elements.wallet.value.trim();
     if (!wallet) {
         showWalletError('Enter the address your payouts should go to.');
         return;
     }
 
     const coin = elements.coinType.value;
+    const walletCheck = validateWalletAddress(wallet, coin);
+    if (!walletCheck.ok) {
+        showWalletError(walletCheck.message || 'Invalid wallet address');
+        return;
+    }
     if (coin === 'wownero') {
         log('Wownero start blocked until verified signer/daemon flow (#28)', 'error');
         return;
@@ -430,9 +445,8 @@ async function startMining() {
     const algo = poolOption?.dataset?.algo || 'rx/0';
 
     if (poolUrl.toLowerCase().includes('moneroocean')) {
-        const isXmr = (wallet.startsWith('4') || wallet.startsWith('8')) && wallet.length >= 95;
-        if (!isXmr) {
-            showWalletError('MoneroOcean pays out in XMR, so this must be a Monero address (#29).');
+        if (walletCheck.network !== 'mainnet' || walletCheck.coin !== 'monero') {
+            showWalletError('MoneroOcean pays out in XMR, so this must be a Monero mainnet address (#29).');
             return;
         }
     }
