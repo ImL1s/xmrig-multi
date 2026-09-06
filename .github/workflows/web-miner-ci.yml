@@ -11,6 +11,7 @@ on:
       - 'shared/hardware-capability/**'
       - 'shared/randomx-memory/**'
       - 'shared/auto-tune/**'
+      - 'shared/reconnect/**'
       - 'shared/wallet-address/**'
       - 'app/src/main/assets/pools.json'
       - 'desktop/src/generated-pool-configs.json'
@@ -26,6 +27,7 @@ on:
       - 'shared/hardware-capability/**'
       - 'shared/randomx-memory/**'
       - 'shared/auto-tune/**'
+      - 'shared/reconnect/**'
       - 'shared/wallet-address/**'
       - 'app/src/main/assets/pools.json'
       - 'desktop/src/generated-pool-configs.json'
@@ -86,6 +88,10 @@ jobs:
       - name: Wallet address validation tests (#53)
         working-directory: .
         run: node --test shared/wallet-address/test/*.test.js
+
+      - name: Reconnect / failover contract tests (#43)
+        working-directory: .
+        run: node --test shared/reconnect/test/*.test.js
 
       - name: Build for Production
         run: npm run build

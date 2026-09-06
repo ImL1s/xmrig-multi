@@ -8,6 +8,7 @@ import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.iml1s.xmrigminer.data.model.MiningConfig
+import com.iml1s.xmrigminer.data.network.ReconnectPolicy
 import com.iml1s.xmrigminer.data.repository.StatsRepository
 import com.iml1s.xmrigminer.util.CpuMonitor
 import com.iml1s.xmrigminer.util.NetworkMonitor
@@ -107,11 +108,12 @@ class MonitorWorker @AssistedInject constructor(
         val temp = getBatteryTemperature()
         val isCharging = isDeviceCharging()
         if (temp > MAX_TEMPERATURE) {
-            pauseMining("Temperature too high (${temp}°C)")
+            // #43: thermal is a policy pause — cancel retries, do not auto-restart.
+            pauseMining("Temperature too high (${temp}°C)", code = "thermal")
             return
         }
         if (level < MIN_BATTERY_LEVEL && !isCharging) {
-            pauseMining("Battery too low ($level%)")
+            pauseMining("Battery too low ($level%)", code = "battery")
             return
         }
         // Launch-time solo snapshot (#15 / Codex P2): do not re-read DataStore mid-run.
@@ -123,9 +125,29 @@ class MonitorWorker @AssistedInject constructor(
             networkMonitor.isConnected()
         }
         if (!networkOk) {
-            pauseMining(
-                if (soloDaemonAtLaunch) "Daemon unreachable" else "No network connection"
+            val reason = if (soloDaemonAtLaunch) "Daemon unreachable" else "No network connection"
+            val cfg = launchConfig
+            // #43: transient network loss with autoReconnect → leave MiningWorker alive
+            // so XMRig/native retries apply; only hard-stop when autoReconnect is off
+            // or classification says pause/fatal. Solo LAN probe failure stays a pause
+            // (daemon may be intentional offline) unless autoReconnect is on.
+            val classification = ReconnectPolicy.classify(
+                code = if (soloDaemonAtLaunch) "network" else "network",
+                message = reason
             )
+            val auto = cfg?.autoReconnect ?: true
+            if (!auto || classification.kind != ReconnectPolicy.Kind.RETRYABLE) {
+                pauseMining(reason, code = classification.code)
+            } else {
+                Timber.w(
+                    "Transient network loss (%s); autoReconnect=true — not stopping session (#43)",
+                    reason
+                )
+                com.iml1s.xmrigminer.util.NotificationHelper.showWarning(
+                    context,
+                    "$reason — reconnecting…"
+                )
+            }
         }
     }
 
@@ -184,8 +206,8 @@ class MonitorWorker @AssistedInject constructor(
         return temp / 10f
     }
 
-    private suspend fun pauseMining(reason: String) {
-        Timber.w("Pausing mining: $reason")
+    private suspend fun pauseMining(reason: String, code: String? = null) {
+        Timber.w("Pausing mining: $reason (code=%s)", code)
         // Notify before stop(): canceling this MonitorWorker can resume with
         // CancellationException and skip any code after miningController.stop().
         com.iml1s.xmrigminer.util.NotificationHelper.showWarning(context, reason)

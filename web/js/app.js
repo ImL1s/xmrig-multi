@@ -150,6 +150,16 @@ class App {
         this.miner.onLog = (msg) => this.log(msg);
         this.miner.onStatsUpdate = (stats) => this.updateUI(stats);
         this.miner.onProxyFailure = (detail) => {
+            const reconnect = detail.reconnect;
+            if (reconnect?.phase === 'reconnecting') {
+                const when = reconnect.nextRetryAt
+                    ? new Date(reconnect.nextRetryAt).toLocaleTimeString()
+                    : 'soon';
+                const msg = `${reconnect.reason || '連線中斷'} — 重試 ${reconnect.attempt}/${reconnect.maxAttempts} @ ${when}`;
+                this.setState('warn', '重連中', msg);
+                this.log(msg, 'warn');
+                return;
+            }
             const diag = diagnoseProxyFailure({
                 ...detail,
                 pageProtocol: window.location.protocol,
@@ -160,6 +170,14 @@ class App {
             this.setState('fault', '連線失敗', diag.userMessage);
             this.log(`代理診斷 [${diag.layer}]: ${diag.userMessage}`, 'error');
             this.setSetupEnabled(true);
+        };
+        this.miner.onReconnectStatus = (snap) => {
+            if (snap?.phase === 'reconnecting') {
+                const msg = `${snap.reason || '斷線'} — 下次重試 ${snap.attempt}/${snap.maxAttempts}`;
+                this.setState('warn', '重連中', msg);
+            } else if (snap?.phase === 'mining' && this.miner.isMining) {
+                this.setState('live', '挖礦中', '已重新連線');
+            }
         };
         this.miner.onRuntimeFailure = (detail) => {
             const hints = (detail.actionHints || []).join(' / ');
