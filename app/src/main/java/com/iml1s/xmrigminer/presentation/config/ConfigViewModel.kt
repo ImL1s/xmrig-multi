@@ -133,6 +133,26 @@ class ConfigViewModel @Inject constructor(
                 val state = _uiState.value as? ConfigUiState.Success ?: return
                 updateConfig(currentConfig.copy(dreamMayMine = event.enabled), state)
             }
+            is ConfigUiEvent.ManualWattsChanged -> {
+                val state = _uiState.value as? ConfigUiState.Success ?: return
+                val watts = event.watts.trim().takeIf { it.isNotEmpty() }?.toDoubleOrNull()
+                updateConfig(currentConfig.copy(manualWatts = watts), state)
+            }
+            is ConfigUiEvent.ElectricityRateChanged -> {
+                val state = _uiState.value as? ConfigUiState.Success ?: return
+                val rate = event.rate.trim().takeIf { it.isNotEmpty() }?.toDoubleOrNull()
+                updateConfig(currentConfig.copy(electricityRatePerKwh = rate), state)
+            }
+            is ConfigUiEvent.DailySpendCapChanged -> {
+                val state = _uiState.value as? ConfigUiState.Success ?: return
+                val cap = event.amount.trim().takeIf { it.isNotEmpty() }?.toDoubleOrNull()
+                updateConfig(currentConfig.copy(dailySpendCapFiat = cap), state)
+            }
+            is ConfigUiEvent.DailyKwhCapChanged -> {
+                val state = _uiState.value as? ConfigUiState.Success ?: return
+                val cap = event.kwh.trim().takeIf { it.isNotEmpty() }?.toDoubleOrNull()
+                updateConfig(currentConfig.copy(dailyKwhCap = cap), state)
+            }
             is ConfigUiEvent.ProbeDaemon -> handleProbeDaemon()
             is ConfigUiEvent.SaveConfig -> handleSaveConfig()
             is ConfigUiEvent.RequestResetToDefaults -> handleRequestReset()

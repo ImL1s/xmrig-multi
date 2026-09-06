@@ -2,6 +2,8 @@ package com.iml1s.xmrigminer.di
 
 import android.content.Context
 import androidx.work.WorkManager
+import com.iml1s.xmrigminer.data.energy.EnergyLedgerStore
+import com.iml1s.xmrigminer.data.energy.SqliteEnergyLedgerStore
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -18,4 +20,10 @@ object AppModule {
     fun provideWorkManager(
         @ApplicationContext context: Context
     ): WorkManager = WorkManager.getInstance(context)
+
+    @Provides
+    @Singleton
+    fun provideEnergyLedgerStore(
+        @ApplicationContext context: Context
+    ): EnergyLedgerStore = SqliteEnergyLedgerStore(context)
 }

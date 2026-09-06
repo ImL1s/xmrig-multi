@@ -93,6 +93,20 @@ private fun StatsContent(
             StatsRow("Temperature", if (stats.temperature > 0) "%.1f°C".format(stats.temperature) else "-")
             StatsRow("Battery", "${stats.batteryLevel}%${if (stats.isCharging) " charging" else ""}")
         }
+
+        StatsCard(title = "Energy today") {
+            StatsRow(
+                "kWh",
+                stats.energyKwhToday?.let { "%.4f".format(it) } ?: "unknown"
+            )
+            StatsRow(
+                "Cost",
+                stats.energyFiatToday?.let { "%.4f %s".format(it, stats.energyCurrency) }
+                    ?: "unknown"
+            )
+            StatsRow("Quality", stats.energyQuality)
+            StatsRow("Source", stats.energySourceLabel)
+        }
     }
 }
 

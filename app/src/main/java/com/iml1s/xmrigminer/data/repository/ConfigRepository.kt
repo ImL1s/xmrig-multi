@@ -49,6 +49,12 @@ class ConfigRepository @Inject constructor(
         val RESUME_BATTERY_PERCENT = intPreferencesKey("resume_battery_percent")
         val PAUSE_ON_NET_DISCHARGE = booleanPreferencesKey("pause_on_net_discharge")
         val DREAM_MAY_MINE = booleanPreferencesKey("dream_may_mine")
+        val MANUAL_WATTS = stringPreferencesKey("manual_watts")
+        val ELECTRICITY_RATE_PER_KWH = stringPreferencesKey("electricity_rate_per_kwh")
+        val ELECTRICITY_CURRENCY = stringPreferencesKey("electricity_currency")
+        val DAILY_SPEND_CAP_FIAT = stringPreferencesKey("daily_spend_cap_fiat")
+        val DAILY_KWH_CAP = stringPreferencesKey("daily_kwh_cap")
+        val MONTHLY_SPEND_CAP_FIAT = stringPreferencesKey("monthly_spend_cap_fiat")
     }
 
     fun getConfig(): Flow<MiningConfig> = context.dataStore.data.map { prefs ->
@@ -79,7 +85,13 @@ class ConfigRepository @Inject constructor(
             minBatteryPercent = prefs[Keys.MIN_BATTERY_PERCENT] ?: 20,
             resumeBatteryPercent = prefs[Keys.RESUME_BATTERY_PERCENT] ?: 30,
             pauseOnNetDischargeWhilePlugged = prefs[Keys.PAUSE_ON_NET_DISCHARGE] ?: false,
-            dreamMayMine = prefs[Keys.DREAM_MAY_MINE] ?: false
+            dreamMayMine = prefs[Keys.DREAM_MAY_MINE] ?: false,
+            manualWatts = prefs[Keys.MANUAL_WATTS]?.toDoubleOrNull(),
+            electricityRatePerKwh = prefs[Keys.ELECTRICITY_RATE_PER_KWH]?.toDoubleOrNull(),
+            electricityCurrency = prefs[Keys.ELECTRICITY_CURRENCY] ?: "TWD",
+            dailySpendCapFiat = prefs[Keys.DAILY_SPEND_CAP_FIAT]?.toDoubleOrNull(),
+            dailyKwhCap = prefs[Keys.DAILY_KWH_CAP]?.toDoubleOrNull(),
+            monthlySpendCapFiat = prefs[Keys.MONTHLY_SPEND_CAP_FIAT]?.toDoubleOrNull()
         )
     }
 
@@ -107,6 +119,32 @@ class ConfigRepository @Inject constructor(
             prefs[Keys.RESUME_BATTERY_PERCENT] = config.resumeBatteryPercent
             prefs[Keys.PAUSE_ON_NET_DISCHARGE] = config.pauseOnNetDischargeWhilePlugged
             prefs[Keys.DREAM_MAY_MINE] = config.dreamMayMine
+            if (config.manualWatts != null) {
+                prefs[Keys.MANUAL_WATTS] = config.manualWatts.toString()
+            } else {
+                prefs.remove(Keys.MANUAL_WATTS)
+            }
+            if (config.electricityRatePerKwh != null) {
+                prefs[Keys.ELECTRICITY_RATE_PER_KWH] = config.electricityRatePerKwh.toString()
+            } else {
+                prefs.remove(Keys.ELECTRICITY_RATE_PER_KWH)
+            }
+            prefs[Keys.ELECTRICITY_CURRENCY] = config.electricityCurrency
+            if (config.dailySpendCapFiat != null) {
+                prefs[Keys.DAILY_SPEND_CAP_FIAT] = config.dailySpendCapFiat.toString()
+            } else {
+                prefs.remove(Keys.DAILY_SPEND_CAP_FIAT)
+            }
+            if (config.dailyKwhCap != null) {
+                prefs[Keys.DAILY_KWH_CAP] = config.dailyKwhCap.toString()
+            } else {
+                prefs.remove(Keys.DAILY_KWH_CAP)
+            }
+            if (config.monthlySpendCapFiat != null) {
+                prefs[Keys.MONTHLY_SPEND_CAP_FIAT] = config.monthlySpendCapFiat.toString()
+            } else {
+                prefs.remove(Keys.MONTHLY_SPEND_CAP_FIAT)
+            }
         }
     }
 

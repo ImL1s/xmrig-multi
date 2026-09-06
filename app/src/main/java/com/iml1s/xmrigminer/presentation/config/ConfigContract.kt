@@ -46,6 +46,10 @@ sealed interface ConfigUiEvent {
     data class ChargeBeforeMineToggled(val enabled: Boolean) : ConfigUiEvent
     data class PauseOnNetDischargeToggled(val enabled: Boolean) : ConfigUiEvent
     data class DreamMayMineToggled(val enabled: Boolean) : ConfigUiEvent
+    data class ManualWattsChanged(val watts: String) : ConfigUiEvent
+    data class ElectricityRateChanged(val rate: String) : ConfigUiEvent
+    data class DailySpendCapChanged(val amount: String) : ConfigUiEvent
+    data class DailyKwhCapChanged(val kwh: String) : ConfigUiEvent
     /** Manual / save-time monerod RPC readiness check (#44). */
     data object ProbeDaemon : ConfigUiEvent
     data object SaveConfig : ConfigUiEvent

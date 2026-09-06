@@ -59,7 +59,19 @@ data class MiningConfig(
      * When true, [com.iml1s.xmrigminer.service.MiningDreamService] may request the shared
      * MiningController while dreaming. Clock-only screensaver when false (#127).
      */
-    val dreamMayMine: Boolean = false
+    val dreamMayMine: Boolean = false,
+    // --- Energy / budget (#130) — null watts/rate means unknown, never invent 0 ---
+    /** Manual wall/device watts for session metering (quality=manual). */
+    val manualWatts: Double? = null,
+    /** Fixed fiat per kWh; progressive/TOU presets stay unverified. */
+    val electricityRatePerKwh: Double? = null,
+    val electricityCurrency: String = "TWD",
+    /** Daily spend cap in [electricityCurrency]; null disables. */
+    val dailySpendCapFiat: Double? = null,
+    /** Daily energy cap in kWh; null disables. */
+    val dailyKwhCap: Double? = null,
+    /** Monthly spend cap; null disables. */
+    val monthlySpendCapFiat: Double? = null
 ) {
     fun getCoin(): CoinType = CoinType.fromString(coinType)
 

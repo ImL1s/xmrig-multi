@@ -12,7 +12,13 @@ data class MiningStats(
     val batteryLevel: Int = 100,
     val isCharging: Boolean = false,
     val uptime: Long = 0L,
-    val difficulty: Long = 0L
+    val difficulty: Long = 0L,
+    /** Today energy from session meter (#130); null = unknown (not free). */
+    val energyKwhToday: Double? = null,
+    val energyFiatToday: Double? = null,
+    val energyCurrency: String = "TWD",
+    val energyQuality: String = "unknown",
+    val energySourceLabel: String = "unset"
 ) {
     val successRate: Float
         get() = if (acceptedShares + rejectedShares > 0) {
