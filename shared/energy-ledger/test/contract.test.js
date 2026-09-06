@@ -21,7 +21,7 @@ test('unit conversions: Wh / kWh / mWh / nWh', () => {
   assert.equal(toWattHours(1, 'Wh'), 1);
   assert.equal(toWattHours(1, 'kWh'), 1000);
   assert.equal(toWattHours(1000, 'mWh'), 1);
-  assert.equal(toWattHours(1e6, 'nWh'), 1);
+  assert.equal(toWattHours(1e9, 'nWh'), 1);
   assert.equal(toWattHours(100, 'W'), null);
 });
 
@@ -236,4 +236,108 @@ test('mWh samples normalize correctly', () => {
   });
   assert.equal(n.ok, true);
   assert.equal(n.sample.wattHours, 2.5);
+});
+
+test('cumulative hourly poll does not double-count coverage', () => {
+  const ledger = new EnergyLedger({ maxGapMs: 15 * 60 * 1000 });
+  ledger.commitCumulative({
+    source: 'shelly',
+    scope: 'wall',
+    unit: 'Wh',
+    value: 100,
+    endMs: T0,
+    meterEpoch: 'e1'
+  });
+  ledger.commitCumulative({
+    source: 'shelly',
+    scope: 'wall',
+    unit: 'Wh',
+    value: 150,
+    endMs: T0 + HOUR,
+    meterEpoch: 'e1'
+  });
+  const snap = ledger.snapshot();
+  assert.equal(snap.deviceWh, 50);
+  assert.equal(snap.unknownCoverageMs, 0);
+  assert.equal(snap.knownCoverageMs, HOUR);
+});
+
+test('relaunch restores lastCumulative so next delta is not dropped', () => {
+  const ledger = new EnergyLedger();
+  ledger.commitCumulative({
+    source: 'm',
+    scope: 'wall',
+    unit: 'Wh',
+    value: 100,
+    endMs: T0,
+    meterEpoch: 'e'
+  });
+  ledger.commitCumulative({
+    source: 'm',
+    scope: 'wall',
+    unit: 'Wh',
+    value: 150,
+    endMs: T0 + HOUR,
+    meterEpoch: 'e'
+  });
+  const state = ledger.exportState();
+  const restored = EnergyLedger.fromState(state);
+  const next = restored.commitCumulative({
+    source: 'm',
+    scope: 'wall',
+    unit: 'Wh',
+    value: 200,
+    endMs: T0 + 2 * HOUR,
+    meterEpoch: 'e'
+  });
+  assert.equal(next.accepted, true);
+  assert.equal(next.entry.quality, 'measured');
+  assert.equal(next.entry.wattHours, 50);
+  assert.equal(restored.snapshot().deviceWh, 100);
+});
+
+test('overlapping same-scope intervals are rejected', () => {
+  const ledger = new EnergyLedger();
+  assert.equal(
+    ledger.commit({
+      sampleId: 'a',
+      source: 'manual',
+      scope: 'manual',
+      quality: 'manual',
+      unit: 'Wh',
+      value: 1,
+      wattHours: 1,
+      startMs: T0,
+      endMs: T0 + HOUR
+    }).accepted,
+    true
+  );
+  assert.equal(
+    ledger.commit({
+      sampleId: 'b',
+      source: 'manual',
+      scope: 'manual',
+      quality: 'manual',
+      unit: 'Wh',
+      value: 1,
+      wattHours: 1,
+      startMs: T0 + HOUR / 2,
+      endMs: T0 + 2 * HOUR
+    }).reason,
+    'overlapping-interval'
+  );
+});
+
+test('tdp source cannot stay measured', () => {
+  const n = normalizeSample({
+    source: 'tdp-estimate',
+    scope: 'cpu_package',
+    quality: 'measured',
+    unit: 'W',
+    value: 65,
+    startMs: T0,
+    endMs: T0 + HOUR
+  });
+  assert.equal(n.ok, true);
+  assert.equal(n.sample.quality, 'estimated');
 });

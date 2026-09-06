@@ -59,9 +59,12 @@ class EnergyRepository {
 
     fun exportRange(fromMs: Long, toMs: Long): List<EnergySample> = ledger.exportRange(fromMs, toMs)
 
-    /** Restore from persisted entries (dedupe-safe rebuild). */
-    fun replaceFromEntries(entries: List<EnergySample>) {
-        ledger = EnergyLedger.fromEntries(entries)
+    /** Restore from persisted entries + cumulative meter cursors. */
+    fun replaceFromEntries(
+        entries: List<EnergySample>,
+        lastCumulative: Map<String, Triple<Double, String, Long>> = emptyMap()
+    ) {
+        ledger = EnergyLedger.fromEntries(entries, lastCumulative = lastCumulative)
     }
 
     fun underlyingLedger(): EnergyLedger = ledger

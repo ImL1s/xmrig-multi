@@ -9,7 +9,7 @@ object EnergyUnits {
         "Wh" -> value
         "kWh" -> value * 1000.0
         "mWh" -> value / 1000.0
-        "nWh" -> value / 1_000_000.0
+        "nWh" -> value / 1_000_000_000.0
         "W" -> null
         else -> null
     }
@@ -73,6 +73,10 @@ data class EnergySample(
 data class NormalizeResult(val ok: Boolean, val sample: EnergySample? = null, val reason: String? = null)
 
 object EnergySampleNormalizer {
+    private val measuredDenylist = listOf(
+        "tdp", "cpu-percent", "cpu%", "charger-rated", "nameplate", "psu-rating"
+    )
+
     fun normalize(
         source: String = "unknown",
         scopeWire: String,
@@ -95,8 +99,13 @@ object EnergySampleNormalizer {
             ?: return NormalizeResult(false, reason = "invalid-scope")
         if (endMs < startMs) return NormalizeResult(false, reason = "invalid-interval")
         val id = sampleId ?: "$source:${scope.wire()}:$startMs:$endMs:$value:$unit"
+        var q = quality
+        val sourceKey = source.lowercase()
+        if (q == EnergyQuality.MEASURED && measuredDenylist.any { sourceKey.contains(it) }) {
+            q = EnergyQuality.ESTIMATED
+        }
 
-        if (quality == EnergyQuality.UNKNOWN) {
+        if (q == EnergyQuality.UNKNOWN) {
             return NormalizeResult(
                 true,
                 EnergySample(
@@ -136,7 +145,7 @@ object EnergySampleNormalizer {
                 sampleId = id,
                 source = source,
                 scope = scope,
-                quality = quality,
+                quality = q,
                 unit = unit,
                 value = value,
                 wattHours = wh,
@@ -283,9 +292,16 @@ class EnergyLedger(private val maxGapMs: Long = 15 * 60 * 1000L) {
     companion object {
         const val SCHEMA_VERSION = 1
 
-        fun fromEntries(entries: List<EnergySample>, maxGapMs: Long = 15 * 60 * 1000L): EnergyLedger {
+        fun fromEntries(
+            entries: List<EnergySample>,
+            maxGapMs: Long = 15 * 60 * 1000L,
+            lastCumulative: Map<String, Triple<Double, String, Long>> = emptyMap()
+        ): EnergyLedger {
             val ledger = EnergyLedger(maxGapMs)
             entries.forEach { ledger.commit(it) }
+            lastCumulative.forEach { (k, v) ->
+                ledger.lastCumulative[k] = v
+            }
             return ledger
         }
     }
@@ -293,14 +309,34 @@ class EnergyLedger(private val maxGapMs: Long = 15 * 60 * 1000L) {
     private val entries = LinkedHashMap<String, EnergySample>()
     private val lastCumulative = HashMap<String, Triple<Double, String, Long>>() // wh, epoch, endMs
     private val committedWhByScope = HashMap<String, Double>()
+    private val qualityByScope = HashMap<String, EnergyQuality>()
+    private val intervalsByScope = HashMap<String, MutableList<Pair<Long, Long>>>()
     var unknownCoverageMs: Long = 0L
         private set
     var knownCoverageMs: Long = 0L
         private set
 
+    private fun weaker(a: EnergyQuality?, b: EnergyQuality): EnergyQuality {
+        if (a == null) return b
+        val rank = mapOf(
+            EnergyQuality.MEASURED to 3,
+            EnergyQuality.MANUAL to 2,
+            EnergyQuality.ESTIMATED to 1,
+            EnergyQuality.UNKNOWN to 0
+        )
+        return if ((rank[a] ?: 0) <= (rank[b] ?: 0)) a else b
+    }
+
     fun commit(sample: EnergySample): CommitResult {
         if (entries.containsKey(sample.sampleId)) {
             return CommitResult(false, "duplicate", entries[sample.sampleId])
+        }
+        if (sample.quality != EnergyQuality.UNKNOWN && sample.wattHours != null) {
+            val spans = intervalsByScope.getOrPut(sample.scope.wire()) { mutableListOf() }
+            if (spans.any { sample.startMs < it.second && sample.endMs > it.first }) {
+                return CommitResult(false, "overlapping-interval")
+            }
+            spans.add(sample.startMs to sample.endMs)
         }
         val duration = (sample.endMs - sample.startMs).coerceAtLeast(0L)
         if (sample.quality == EnergyQuality.UNKNOWN || sample.wattHours == null) {
@@ -311,6 +347,7 @@ class EnergyLedger(private val maxGapMs: Long = 15 * 60 * 1000L) {
         knownCoverageMs += duration
         val key = sample.scope.wire()
         committedWhByScope[key] = (committedWhByScope[key] ?: 0.0) + sample.wattHours
+        qualityByScope[key] = weaker(qualityByScope[key], sample.quality)
         entries[sample.sampleId] = sample
         return CommitResult(true, entry = sample)
     }
@@ -383,10 +420,7 @@ class EnergyLedger(private val maxGapMs: Long = 15 * 60 * 1000L) {
             )
         }
         val startMs = prev!!.third
-        val gapMs = endMs - startMs
-        if (gapMs > maxGapMs) {
-            unknownCoverageMs += gapMs
-        }
+        // Continuous cumulative meters: delta is authoritative — do not also mark unknown coverage.
         return commit(
             EnergySample(
                 sampleId = sampleId ?: "cum:$meterKey:$startMs:$endMs",
@@ -406,13 +440,77 @@ class EnergyLedger(private val maxGapMs: Long = 15 * 60 * 1000L) {
         )
     }
 
+    data class WattPoint(
+        val watts: Double,
+        val atMs: Long,
+        val monotonicMs: Long = atMs,
+        val source: String = "series",
+        val scope: EnergyScope = EnergyScope.MANUAL,
+        val quality: EnergyQuality = EnergyQuality.ESTIMATED,
+        val sampleId: String? = null
+    )
+
+    fun commitWattSeries(points: List<WattPoint>, maxGapOverride: Long? = null): List<CommitResult> {
+        val maxGap = maxGapOverride ?: maxGapMs
+        val results = mutableListOf<CommitResult>()
+        var prev: WattPoint? = null
+        for (s in points) {
+            val p = prev
+            if (p != null) {
+                val dt = s.monotonicMs - p.monotonicMs
+                if (dt < 0) {
+                    results.add(CommitResult(false, "out-of-order"))
+                    continue
+                }
+                if (dt > maxGap) {
+                    results.add(
+                        commit(
+                            EnergySample(
+                                sampleId = "gap:${p.atMs}:${s.atMs}",
+                                source = s.source,
+                                scope = s.scope,
+                                quality = EnergyQuality.UNKNOWN,
+                                unit = "W",
+                                value = null,
+                                wattHours = null,
+                                startMs = p.atMs,
+                                endMs = s.atMs,
+                                utcMs = s.atMs,
+                                unknownReason = "missing-interval"
+                            )
+                        )
+                    )
+                    prev = s
+                    continue
+                }
+                val avg = (p.watts + s.watts) / 2.0
+                val energyDt = (s.atMs - p.atMs).coerceAtLeast(dt)
+                results.add(
+                    commitRaw(
+                        source = s.source,
+                        scopeWire = s.scope.wire(),
+                        quality = s.quality,
+                        unit = "W",
+                        value = avg,
+                        startMs = p.atMs,
+                        endMs = p.atMs + energyDt,
+                        sampleId = s.sampleId ?: "w:${p.atMs}:${s.atMs}"
+                    )
+                )
+            }
+            prev = s
+        }
+        return results
+    }
+
     fun deviceWattHours(
         prefer: List<EnergyScope> = listOf(EnergyScope.WALL, EnergyScope.USB, EnergyScope.MANUAL)
     ): Triple<Double?, String?, EnergyQuality> {
         for (scope in prefer) {
             val wh = committedWhByScope[scope.wire()]
             if (wh != null) {
-                val q = if (scope == EnergyScope.MANUAL) EnergyQuality.MANUAL else EnergyQuality.MEASURED
+                val q = qualityByScope[scope.wire()]
+                    ?: if (scope == EnergyScope.MANUAL) EnergyQuality.MANUAL else EnergyQuality.UNKNOWN
                 return Triple(wh, scope.wire(), q)
             }
         }
@@ -438,4 +536,6 @@ class EnergyLedger(private val maxGapMs: Long = 15 * 60 * 1000L) {
 
     fun exportRange(fromMs: Long, toMs: Long): List<EnergySample> =
         entries.values.filter { it.endMs >= fromMs && it.startMs <= toMs }
+
+    fun exportLastCumulative(): Map<String, Triple<Double, String, Long>> = lastCumulative.toMap()
 }

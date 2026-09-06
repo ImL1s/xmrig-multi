@@ -22,6 +22,29 @@ export const SCOPES = Object.freeze([
 
 export const QUALITIES = Object.freeze(['manual', 'measured', 'estimated', 'unknown']);
 
+/** Sources that must never be labeled measured (TDP / % / nameplate). */
+export const MEASURED_DENYLIST = Object.freeze([
+  'tdp',
+  'cpu-percent',
+  'cpu%',
+  'charger-rated',
+  'nameplate',
+  'psu-rating'
+]);
+
+const QUALITY_RANK = Object.freeze({
+  measured: 3,
+  manual: 2,
+  estimated: 1,
+  unknown: 0
+});
+
+function weakerQuality(a, b) {
+  if (QUALITY_RANK[a] == null) return b;
+  if (QUALITY_RANK[b] == null) return a;
+  return QUALITY_RANK[a] <= QUALITY_RANK[b] ? a : b;
+}
+
 /**
  * Convert a quantity to watt-hours.
  * @param {number} value
@@ -40,7 +63,7 @@ export function toWattHours(value, unit) {
     case 'mWh':
       return value / 1000;
     case 'nWh':
-      return value / 1e6;
+      return value / 1e9;
     default:
       return null;
   }
@@ -69,7 +92,11 @@ export function integrateWatts(watts, durationMs) {
 export function normalizeSample(raw = {}) {
   const source = String(raw.source || 'unknown');
   const scope = SCOPES.includes(raw.scope) ? raw.scope : null;
-  const quality = QUALITIES.includes(raw.quality) ? raw.quality : 'unknown';
+  const sourceKey = source.toLowerCase();
+  let quality = QUALITIES.includes(raw.quality) ? raw.quality : 'unknown';
+  if (quality === 'measured' && MEASURED_DENYLIST.some((d) => sourceKey.includes(d))) {
+    quality = 'estimated';
+  }
   const unit = raw.unit || null;
   const value = raw.value;
   const startMs = Number(raw.startMs);
@@ -193,6 +220,10 @@ export class EnergyLedger {
     /** @type {Map<string, {wh:number, epoch:string, endMs:number}>} */
     this.lastCumulative = new Map();
     this.committedWhByScope = Object.create(null);
+    /** @type {Record<string, string>} weakest quality seen per scope */
+    this.qualityByScope = Object.create(null);
+    /** @type {Map<string, {startMs:number,endMs:number}[]>} */
+    this.intervalsByScope = new Map();
     this.unknownCoverageMs = 0;
     this.knownCoverageMs = 0;
   }
@@ -214,6 +245,18 @@ export class EnergyLedger {
       return { accepted: false, reason: 'duplicate', entry: this.entries.get(s.sampleId) };
     }
 
+    // Reject overlapping known energy intervals on the same scope.
+    if (s.quality !== 'unknown' && s.wattHours != null) {
+      const spans = this.intervalsByScope.get(s.scope) || [];
+      for (const span of spans) {
+        if (s.startMs < span.endMs && s.endMs > span.startMs) {
+          return { accepted: false, reason: 'overlapping-interval' };
+        }
+      }
+      spans.push({ startMs: s.startMs, endMs: s.endMs });
+      this.intervalsByScope.set(s.scope, spans);
+    }
+
     const durationMs = Math.max(0, s.endMs - s.startMs);
     const entry = {
       ...s,
@@ -230,6 +273,7 @@ export class EnergyLedger {
     this.knownCoverageMs += durationMs;
     const key = s.scope;
     this.committedWhByScope[key] = (this.committedWhByScope[key] || 0) + s.wattHours;
+    this.qualityByScope[key] = weakerQuality(this.qualityByScope[key], s.quality);
     this.entries.set(s.sampleId, entry);
     return { accepted: true, entry };
   }
@@ -275,12 +319,8 @@ export class EnergyLedger {
     }
 
     const startMs = prev.endMs;
-    const gapMs = endMs - startMs;
-    if (gapMs > this.maxGapMs) {
-      // Large gap: do not extrapolate; mark unknown coverage for the hole, still record delta as measured if reading continuous
-      this.unknownCoverageMs += gapMs;
-    }
-
+    // Continuous cumulative meters: the Wh delta is authoritative for [start,end].
+    // Do not also mark the same window as unknownCoverage when poll interval > maxGapMs.
     return this.commit({
       sampleId: reading.sampleId || `cum:${meterKey}:${startMs}:${endMs}`,
       source,
@@ -310,7 +350,12 @@ export class EnergyLedger {
     let prev = null;
     for (const s of wattSamples) {
       if (prev) {
-        const dt = s.atMs - prev.atMs;
+        const wallDt = s.atMs - prev.atMs;
+        const monoPrev = prev.monotonicMs != null ? prev.monotonicMs : prev.atMs;
+        const monoNext = s.monotonicMs != null ? s.monotonicMs : s.atMs;
+        const monoDt = monoNext - monoPrev;
+        // Prefer monotonic for gap/OOO when both present (sleep / NTP safe).
+        const dt = Number.isFinite(monoDt) ? monoDt : wallDt;
         if (dt < 0) {
           results.push({ accepted: false, reason: 'out-of-order' });
           continue;
@@ -333,7 +378,8 @@ export class EnergyLedger {
           prev = s;
           continue;
         }
-        // Trapezoid: average power over interval
+        // Trapezoid: average power over interval (use wall duration for energy)
+        const energyDt = wallDt >= 0 ? wallDt : dt;
         const avgW = (prev.watts + s.watts) / 2;
         results.push(
           this.commit({
@@ -344,8 +390,9 @@ export class EnergyLedger {
             unit: 'W',
             value: avgW,
             startMs: prev.atMs,
-            endMs: s.atMs,
+            endMs: prev.atMs + energyDt,
             utcMs: s.atMs,
+            monotonicMs: monoNext,
             meterEpoch: s.meterEpoch,
             sessionId: s.sessionId,
             profileId: s.profileId,
@@ -369,7 +416,7 @@ export class EnergyLedger {
         return {
           wattHours: this.committedWhByScope[scope],
           scope,
-          quality: scope === 'manual' ? 'manual' : 'measured',
+          quality: this.qualityByScope[scope] || (scope === 'manual' ? 'manual' : 'unknown'),
           unknown: false
         };
       }
@@ -411,14 +458,42 @@ export class EnergyLedger {
   }
 
   /**
+   * Serialize durable meter cursors for relaunch.
+   */
+  exportState() {
+    return {
+      entries: [...this.entries.values()],
+      lastCumulative: Object.fromEntries(this.lastCumulative.entries()),
+      maxGapMs: this.maxGapMs
+    };
+  }
+
+  /**
    * Recompute totals from exported entries (dedupe by sampleId).
+   * @param {object[]} entries
+   * @param {object} [opts]
+   * @param {Record<string,{wh:number,epoch:string,endMs:number}>} [opts.lastCumulative]
    */
   static fromEntries(entries = [], opts = {}) {
     const ledger = new EnergyLedger(opts);
     for (const e of entries) {
       ledger.commit(e);
     }
+    if (opts.lastCumulative) {
+      for (const [k, v] of Object.entries(opts.lastCumulative)) {
+        if (v && Number.isFinite(v.wh) && v.epoch != null && Number.isFinite(v.endMs)) {
+          ledger.lastCumulative.set(k, { wh: v.wh, epoch: String(v.epoch), endMs: v.endMs });
+        }
+      }
+    }
     return ledger;
+  }
+
+  static fromState(state = {}) {
+    return EnergyLedger.fromEntries(state.entries || [], {
+      maxGapMs: state.maxGapMs,
+      lastCumulative: state.lastCumulative || {}
+    });
   }
 }
 
