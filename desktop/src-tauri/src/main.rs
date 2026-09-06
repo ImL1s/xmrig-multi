@@ -5,6 +5,7 @@
 
 mod hardware;
 mod miner;
+mod optimize;
 
 use miner::MinerState;
 use std::sync::Mutex;
@@ -64,6 +65,63 @@ fn export_hardware_report() -> hardware::SanitizedHardwareReport {
     hardware::sanitize_hardware_report(hardware::capture_hardware_snapshot())
 }
 
+#[tauri::command]
+fn get_optimize_matrix() -> optimize::OptimizeMatrix {
+    optimize::capability_matrix(std::env::consts::OS)
+}
+
+#[tauri::command]
+fn plan_desktop_optimize(req: OptimizeRequestDto) -> optimize::OptimizePlan {
+    optimize::plan_optimize(
+        std::env::consts::OS,
+        &optimize::OptimizeRequest {
+            huge_pages: req.huge_pages,
+            pages1g: req.pages1g,
+            numa: req.numa,
+            msr: req.msr,
+            msr_consent: req.msr_consent,
+            auto_tuner: req.auto_tuner,
+            yield_cpu: req.yield_cpu,
+            priority: req.priority,
+            huge_pages_available: req.huge_pages_available,
+            pages1g_available: req.pages1g_available,
+        },
+    )
+}
+
+#[derive(Debug, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct OptimizeRequestDto {
+    #[serde(default)]
+    huge_pages: bool,
+    #[serde(default)]
+    pages1g: bool,
+    #[serde(default)]
+    numa: bool,
+    #[serde(default)]
+    msr: bool,
+    #[serde(default)]
+    msr_consent: bool,
+    #[serde(default)]
+    auto_tuner: bool,
+    #[serde(default = "default_true")]
+    yield_cpu: bool,
+    #[serde(default = "default_normal")]
+    priority: String,
+    #[serde(default)]
+    huge_pages_available: bool,
+    #[serde(default)]
+    pages1g_available: bool,
+}
+
+fn default_true() -> bool {
+    true
+}
+
+fn default_normal() -> String {
+    "normal".into()
+}
+
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
@@ -81,6 +139,8 @@ fn main() {
             get_system_info,
             get_hardware_snapshot,
             export_hardware_report,
+            get_optimize_matrix,
+            plan_desktop_optimize,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -24,6 +24,14 @@ pub struct MiningConfig {
     /// Requested RandomX mode: auto|fast|light (#35). Defaults to auto.
     #[serde(default = "default_randomx_mode")]
     pub randomx_mode: String,
+    /// Desktop optimize flags (#37). Optional; defaults are safe/non-elevating.
+    #[serde(default)]
+    pub huge_pages: bool,
+    #[serde(default)]
+    pub numa: bool,
+    /// When false, pass --cpu-no-yield. Default true (yield).
+    #[serde(default = "default_true")]
+    pub yield_cpu: bool,
     /// Optional CPU affinity hex mask (≤64 logical). Empty / omitted = OS auto (#36).
     #[serde(default)]
     pub cpu_affinity: Option<String>,
@@ -34,6 +42,10 @@ pub struct MiningConfig {
 
 fn default_randomx_mode() -> String {
     "auto".to_string()
+}
+
+fn default_true() -> bool {
+    true
 }
 
 fn normalize_randomx_mode(mode: &str) -> &'static str {
@@ -297,8 +309,26 @@ impl MinerState {
                 normalize_randomx_mode(&config.randomx_mode)
             ))
             .arg("--donate-level=1")
-            .arg("--no-color")
-            .arg("--http-enabled")
+            .arg("--no-color");
+
+        let opt = crate::optimize::plan_optimize(
+            std::env::consts::OS,
+            &crate::optimize::OptimizeRequest {
+                huge_pages: config.huge_pages,
+                huge_pages_available: config.huge_pages,
+                numa: config.numa,
+                yield_cpu: config.yield_cpu,
+                ..Default::default()
+            },
+        );
+        for arg in &opt.argv {
+            cmd.arg(arg);
+        }
+        for w in &opt.warnings {
+            eprintln!("[optimize] {w}");
+        }
+
+        cmd.arg("--http-enabled")
             .arg("--http-host=127.0.0.1")
             .arg(format!("--http-port={}", http_port))
             .arg(format!("--http-access-token={}", access_token));
@@ -723,6 +753,9 @@ mod tests {
             coin_type: "XMR".to_string(),
             algorithm: "rx/0".to_string(),
             randomx_mode: "light".to_string(),
+            huge_pages: false,
+            numa: false,
+            yield_cpu: true,
             cpu_affinity: Some("0x15".into()),
             cpu_ids: Some(vec![0, 2, 4]),
         };
