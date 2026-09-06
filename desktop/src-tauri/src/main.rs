@@ -32,8 +32,15 @@ fn stop_mining(state: State<'_, AppState>) -> Result<String, String> {
 
 #[tauri::command]
 fn get_mining_stats(state: State<'_, AppState>) -> Result<miner::MiningStats, String> {
+    // Snapshot only — HTTP poller owns the live fetch (#49).
     let miner = state.miner.lock().map_err(|e| e.to_string())?;
     Ok(miner.get_stats())
+}
+
+#[tauri::command]
+fn get_session_api_info(state: State<'_, AppState>) -> Result<miner::SessionApiInfo, String> {
+    let miner = state.miner.lock().map_err(|e| e.to_string())?;
+    Ok(miner.session_api_info())
 }
 
 #[tauri::command]
@@ -69,6 +76,7 @@ fn main() {
             start_mining,
             stop_mining,
             get_mining_stats,
+            get_session_api_info,
             is_mining,
             get_system_info,
             get_hardware_snapshot,

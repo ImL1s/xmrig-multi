@@ -2,16 +2,16 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::io::{BufRead, BufReader, Read, Write};
-use std::net::TcpStream;
+use std::net::{TcpListener, TcpStream};
 use std::path::PathBuf;
 use std::process::{Child, Command, Stdio};
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU16, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
 
 const XMRIG_HTTP_HOST: &str = "127.0.0.1";
-const XMRIG_HTTP_PORT: u16 = 37420;
+const XMRIG_HTTP_PORT_BASE: u16 = 37420;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MiningConfig {
@@ -62,10 +62,24 @@ pub struct SystemInfo {
     pub arch: String,
 }
 
+/// Public session API metadata — never includes the access token (#49).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SessionApiInfo {
+    pub session_generation: u64,
+    pub http_host: String,
+    pub http_port: u16,
+    pub token_configured: bool,
+}
+
 pub struct MinerState {
     process: Arc<Mutex<Option<Child>>>,
     running: Arc<AtomicBool>,
     stats: Arc<Mutex<MiningStats>>,
+    /// Immutable session generation (#49). Stale poller/reaper must not mutate newer sessions.
+    session_gen: Arc<AtomicU64>,
+    http_port: Arc<AtomicU16>,
+    /// Access token kept out of logs / Display; only used for loopback HTTP.
+    http_token: Arc<Mutex<Option<String>>>,
 }
 
 impl MinerState {
@@ -74,6 +88,9 @@ impl MinerState {
             process: Arc::new(Mutex::new(None)),
             running: Arc::new(AtomicBool::new(false)),
             stats: Arc::new(Mutex::new(MiningStats::default())),
+            session_gen: Arc::new(AtomicU64::new(0)),
+            http_port: Arc::new(AtomicU16::new(XMRIG_HTTP_PORT_BASE)),
+            http_token: Arc::new(Mutex::new(None)),
         }
     }
 
@@ -118,6 +135,17 @@ impl MinerState {
             "XMRig binary not found. Run desktop/scripts/build-xmrig.sh and place it in src-tauri/binaries/".to_string()
         })?;
 
+        let gen = self.session_gen.fetch_add(1, Ordering::SeqCst) + 1;
+        let http_port = pick_loopback_port(XMRIG_HTTP_PORT_BASE)?;
+        let access_token = random_access_token();
+        self.http_port.store(http_port, Ordering::SeqCst);
+        if let Ok(mut slot) = self.http_token.lock() {
+            *slot = Some(access_token.clone());
+        }
+        if let Ok(mut stats) = self.stats.lock() {
+            *stats = MiningStats::default();
+        }
+
         let mut cmd = Command::new(&xmrig_path);
         cmd.arg("-o")
             .arg(&config.pool_url)
@@ -137,9 +165,13 @@ impl MinerState {
             .arg("--no-color")
             .arg("--http-enabled")
             .arg("--http-host=127.0.0.1")
-            .arg(format!("--http-port={}", XMRIG_HTTP_PORT))
+            .arg(format!("--http-port={}", http_port))
+            .arg(format!("--http-access-token={}", access_token))
             .stdout(Stdio::piped())
             .stderr(Stdio::piped());
+
+        // Drop local token copy; live copy stays in http_token mutex only.
+        drop(access_token);
 
         match cmd.spawn() {
             Ok(mut child) => {
@@ -148,12 +180,22 @@ impl MinerState {
                 if let Some(stdout) = child.stdout.take() {
                     let stats = Arc::clone(&self.stats);
                     let running = Arc::clone(&self.running);
-                    thread::spawn(move || parse_stdout(stdout, stats, running));
+                    let session_gen = Arc::clone(&self.session_gen);
+                    thread::spawn(move || parse_stdout(stdout, stats, running, session_gen, gen));
+                }
+                if let Some(stderr) = child.stderr.take() {
+                    let session_gen = Arc::clone(&self.session_gen);
+                    thread::spawn(move || drain_stderr(stderr, session_gen, gen));
                 }
 
                 let stats = Arc::clone(&self.stats);
                 let running = Arc::clone(&self.running);
-                thread::spawn(move || poll_http_stats(stats, running));
+                let session_gen = Arc::clone(&self.session_gen);
+                let http_port_atom = Arc::clone(&self.http_port);
+                let http_token = Arc::clone(&self.http_token);
+                thread::spawn(move || {
+                    poll_http_stats(stats, running, session_gen, gen, http_port_atom, http_token)
+                });
 
                 {
                     let mut slot = self
@@ -166,11 +208,20 @@ impl MinerState {
                 let process = Arc::clone(&self.process);
                 let running = Arc::clone(&self.running);
                 let stats = Arc::clone(&self.stats);
-                thread::spawn(move || reap_when_exited(process, running, stats));
+                let session_gen = Arc::clone(&self.session_gen);
+                thread::spawn(move || reap_when_exited(process, running, stats, session_gen, gen));
 
-                Ok("Mining started successfully".to_string())
+                // Never include token/port secrets beyond "started" message.
+                Ok(format!("Mining started successfully (session {gen})"))
             }
-            Err(e) => Err(format!("Failed to start XMRig: {}", e)),
+            Err(e) => {
+                self.session_gen.fetch_add(1, Ordering::SeqCst);
+                if let Ok(mut slot) = self.http_token.lock() {
+                    *slot = None;
+                }
+                self.running.store(false, Ordering::SeqCst);
+                Err(format!("Failed to start XMRig: {}", e))
+            }
         }
     }
 
@@ -179,40 +230,85 @@ impl MinerState {
             return Err("Miner is not running".to_string());
         }
 
+        // Invalidate in-flight pollers/reapers before kill (#49).
+        self.session_gen.fetch_add(1, Ordering::SeqCst);
+
         if let Ok(mut slot) = self.process.lock() {
             if let Some(mut process) = slot.take() {
                 let _ = process.kill();
                 let _ = process.wait();
             }
         }
+        if let Ok(mut slot) = self.http_token.lock() {
+            *slot = None;
+        }
         clear_session(&self.running, &self.stats);
         Ok("Mining stopped".to_string())
     }
 
+    /// UI reads the snapshot only — backend poller is the sole HTTP owner (#49).
     pub fn get_stats(&self) -> MiningStats {
-        if self.running.load(Ordering::SeqCst) {
-            if let Some(http_stats) = fetch_xmrig_summary() {
-                if let Ok(mut current) = self.stats.lock() {
-                    *current = http_stats.clone();
-                    return http_stats;
-                }
-            }
-        }
         self.stats.lock().map(|s| s.clone()).unwrap_or_default()
     }
 
     pub fn is_running(&self) -> bool {
         self.running.load(Ordering::SeqCst)
     }
+
+    pub fn session_generation(&self) -> u64 {
+        self.session_gen.load(Ordering::SeqCst)
+    }
+
+    /// Diagnostics-safe API info — token value is never exported (#49).
+    pub fn session_api_info(&self) -> SessionApiInfo {
+        let token_configured = self
+            .http_token
+            .lock()
+            .map(|g| g.is_some())
+            .unwrap_or(false);
+        SessionApiInfo {
+            session_generation: self.session_gen.load(Ordering::SeqCst),
+            http_host: XMRIG_HTTP_HOST.to_string(),
+            http_port: self.http_port.load(Ordering::SeqCst),
+            token_configured,
+        }
+    }
 }
 
-fn parse_stdout<R: Read>(stdout: R, stats: Arc<Mutex<MiningStats>>, running: Arc<AtomicBool>) {
+fn parse_stdout<R: Read>(
+    stdout: R,
+    stats: Arc<Mutex<MiningStats>>,
+    running: Arc<AtomicBool>,
+    session_gen: Arc<AtomicU64>,
+    gen: u64,
+) {
     let reader = BufReader::new(stdout);
     for line in reader.lines().map_while(Result::ok) {
-        if !running.load(Ordering::SeqCst) {
+        if session_gen.load(Ordering::SeqCst) != gen || !running.load(Ordering::SeqCst) {
             break;
         }
-        apply_log_line(&line, stats.clone());
+        apply_log_line(&line, &stats);
+    }
+}
+
+/// Bounded stderr drain so the child cannot block on a full pipe (#49).
+fn drain_stderr<R: Read>(stderr: R, session_gen: Arc<AtomicU64>, gen: u64) {
+    let mut reader = BufReader::new(stderr);
+    let mut buf = [0u8; 4096];
+    let mut total: u64 = 0;
+    const CAP: u64 = 2 * 1024 * 1024;
+    loop {
+        if session_gen.load(Ordering::SeqCst) != gen {
+            break;
+        }
+        match reader.read(&mut buf) {
+            Ok(0) => break,
+            Ok(n) => {
+                total = total.saturating_add(n as u64);
+                let _ = total > CAP;
+            }
+            Err(_) => break,
+        }
     }
 }
 
@@ -220,8 +316,13 @@ fn reap_when_exited(
     process: Arc<Mutex<Option<Child>>>,
     running: Arc<AtomicBool>,
     stats: Arc<Mutex<MiningStats>>,
+    session_gen: Arc<AtomicU64>,
+    gen: u64,
 ) {
     loop {
+        if session_gen.load(Ordering::SeqCst) != gen {
+            return;
+        }
         thread::sleep(Duration::from_millis(400));
         let mut slot = match process.lock() {
             Ok(guard) => guard,
@@ -234,7 +335,9 @@ fn reap_when_exited(
                 Ok(Some(_)) | Err(_) => {
                     *slot = None;
                     drop(slot);
-                    clear_session(&running, &stats);
+                    if session_gen.load(Ordering::SeqCst) == gen {
+                        clear_session(&running, &stats);
+                    }
                     return;
                 }
             },
@@ -249,7 +352,7 @@ fn clear_session(running: &Arc<AtomicBool>, stats: &Arc<Mutex<MiningStats>>) {
     }
 }
 
-fn apply_log_line(line: &str, stats: Arc<Mutex<MiningStats>>) {
+fn apply_log_line(line: &str, stats: &Arc<Mutex<MiningStats>>) {
     let Ok(mut stats) = stats.lock() else { return };
     let lower = line.to_lowercase();
     if lower.contains("accepted") {
@@ -290,10 +393,29 @@ fn parse_diff(line: &str) -> Option<u64> {
     line[idx + 5..].split_whitespace().next()?.parse().ok()
 }
 
-fn poll_http_stats(stats: Arc<Mutex<MiningStats>>, running: Arc<AtomicBool>) {
-    while running.load(Ordering::SeqCst) {
+fn poll_http_stats(
+    stats: Arc<Mutex<MiningStats>>,
+    running: Arc<AtomicBool>,
+    session_gen: Arc<AtomicU64>,
+    gen: u64,
+    http_port: Arc<AtomicU16>,
+    http_token: Arc<Mutex<Option<String>>>,
+) {
+    while running.load(Ordering::SeqCst) && session_gen.load(Ordering::SeqCst) == gen {
         thread::sleep(Duration::from_secs(2));
-        if let Some(summary) = fetch_xmrig_summary() {
+        if session_gen.load(Ordering::SeqCst) != gen {
+            break;
+        }
+        let port = http_port.load(Ordering::SeqCst);
+        let token = http_token
+            .lock()
+            .ok()
+            .and_then(|g| g.clone())
+            .unwrap_or_default();
+        if let Some(summary) = fetch_xmrig_summary(port, &token) {
+            if session_gen.load(Ordering::SeqCst) != gen {
+                break;
+            }
             if let Ok(mut current) = stats.lock() {
                 *current = summary;
             }
@@ -301,13 +423,18 @@ fn poll_http_stats(stats: Arc<Mutex<MiningStats>>, running: Arc<AtomicBool>) {
     }
 }
 
-fn fetch_xmrig_summary() -> Option<MiningStats> {
-    let mut stream = TcpStream::connect((XMRIG_HTTP_HOST, XMRIG_HTTP_PORT)).ok()?;
+fn fetch_xmrig_summary(port: u16, access_token: &str) -> Option<MiningStats> {
+    let mut stream = TcpStream::connect((XMRIG_HTTP_HOST, port)).ok()?;
     stream.set_read_timeout(Some(Duration::from_secs(2))).ok()?;
     stream.set_write_timeout(Some(Duration::from_secs(2))).ok()?;
+    let auth = if access_token.is_empty() {
+        String::new()
+    } else {
+        format!("Authorization: Bearer {}\r\n", access_token)
+    };
     let request = format!(
-        "GET /1/summary HTTP/1.1\r\nHost: {}:{}\r\nConnection: close\r\n\r\n",
-        XMRIG_HTTP_HOST, XMRIG_HTTP_PORT
+        "GET /1/summary HTTP/1.1\r\nHost: {}:{}\r\n{}Connection: close\r\n\r\n",
+        XMRIG_HTTP_HOST, port, auth
     );
     stream.write_all(request.as_bytes()).ok()?;
 
@@ -348,6 +475,30 @@ fn parse_summary_json(json: &Value) -> Option<MiningStats> {
     })
 }
 
+fn pick_loopback_port(preferred: u16) -> Result<u16, String> {
+    for offset in 0u16..32 {
+        let port = preferred.saturating_add(offset);
+        if TcpListener::bind((XMRIG_HTTP_HOST, port)).is_ok() {
+            return Ok(port);
+        }
+    }
+    Err("No free loopback port for XMRig HTTP API".to_string())
+}
+
+fn random_access_token() -> String {
+    use std::collections::hash_map::DefaultHasher;
+    use std::hash::{Hash, Hasher};
+    let mut hasher = DefaultHasher::new();
+    std::time::SystemTime::now().hash(&mut hasher);
+    std::process::id().hash(&mut hasher);
+    thread::current().id().hash(&mut hasher);
+    format!(
+        "{:016x}{:016x}",
+        hasher.finish(),
+        hasher.finish().rotate_left(13)
+    )
+}
+
 pub fn get_xmrig_path() -> Option<String> {
     let candidates = xmrig_candidates();
     candidates.into_iter().find(|p| PathBuf::from(p).is_file())
@@ -364,7 +515,12 @@ fn xmrig_candidates() -> Vec<String> {
     if let Ok(exe) = std::env::current_exe() {
         if let Some(dir) = exe.parent() {
             paths.push(dir.join(binary).to_string_lossy().to_string());
-            paths.push(dir.join("binaries").join(binary).to_string_lossy().to_string());
+            paths.push(
+                dir.join("binaries")
+                    .join(binary)
+                    .to_string_lossy()
+                    .to_string(),
+            );
         }
     }
 
@@ -384,9 +540,6 @@ fn xmrig_candidates() -> Vec<String> {
 }
 
 pub fn get_system_info() -> SystemInfo {
-    // Prefer HardwareSnapshot (#33). Legacy SystemInfo keeps 0 only as "unknown UI
-    // placeholder" when the snapshot field is null — callers should migrate to
-    // get_hardware_snapshot for confidence-aware values.
     let snap = crate::hardware::capture_hardware_snapshot();
     SystemInfo {
         cpu_name: snap
@@ -476,5 +629,26 @@ mod tests {
         assert_eq!(stats.shares_accepted, 4);
         assert_eq!(stats.shares_rejected, 1);
         assert_eq!(stats.uptime, 42);
+    }
+
+    #[test]
+    fn session_generation_bumps_on_lifecycle() {
+        let mut miner = MinerState::new();
+        assert_eq!(miner.session_generation(), 0);
+        assert!(miner.stop().is_err());
+        assert_eq!(miner.session_generation(), 0);
+    }
+
+    #[test]
+    fn pick_loopback_port_finds_free() {
+        let port = pick_loopback_port(XMRIG_HTTP_PORT_BASE).unwrap();
+        assert!(port >= XMRIG_HTTP_PORT_BASE);
+    }
+
+    #[test]
+    fn access_token_is_hex_and_nonempty() {
+        let t = random_access_token();
+        assert!(t.len() >= 16);
+        assert!(t.chars().all(|c| c.is_ascii_hexdigit()));
     }
 }

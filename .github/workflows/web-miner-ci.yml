@@ -13,6 +13,7 @@ on:
       - 'shared/auto-tune/**'
       - 'shared/reconnect/**'
       - 'shared/wallet-address/**'
+      - 'shared/session-runtime/**'
       - 'shared/daemon-endpoint/**'
       - 'app/src/main/assets/pools.json'
       - 'desktop/src/generated-pool-configs.json'
@@ -30,6 +31,7 @@ on:
       - 'shared/auto-tune/**'
       - 'shared/reconnect/**'
       - 'shared/wallet-address/**'
+      - 'shared/session-runtime/**'
       - 'shared/daemon-endpoint/**'
       - 'app/src/main/assets/pools.json'
       - 'desktop/src/generated-pool-configs.json'
@@ -98,6 +100,10 @@ jobs:
       - name: Daemon endpoint parse/probe tests (#44)
         working-directory: .
         run: node --test shared/daemon-endpoint/test/*.test.js
+
+      - name: Session runtime ownership / nonce tests (#49)
+        working-directory: .
+        run: node --test shared/session-runtime/test/*.test.js
 
       - name: Build for Production
         run: npm run build
