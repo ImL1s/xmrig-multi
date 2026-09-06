@@ -1,12 +1,14 @@
+import ActivityKit
+import AppIntents
 import SwiftUI
 import WidgetKit
-import AppIntents
 
 @main
 struct XMRigMinerWidgets: WidgetBundle {
     var body: some Widget {
         MiningGlanceWidget()
         MiningStandByWidget()
+        MiningLiveActivity()
     }
 }
 
@@ -40,8 +42,7 @@ struct GlanceTimelineProvider: TimelineProvider {
     func getTimeline(in context: Context, completion: @escaping (Timeline<GlanceEntry>) -> Void) {
         let snap = GlanceSnapshotStore.load()
         let entry = GlanceEntry(date: Date(), snapshot: snap)
-        // Minute-aligned — never per-second hashrate polling (#78).
-        let next = Calendar.current.date(byAdding: .minute, value: 1, to: Date()) ?? Date().addingTimeInterval(60)
+        let next = GlanceSnapshotStore.nextMinuteAlignedDate()
         completion(Timeline(entries: [entry], policy: .after(next)))
     }
 }
@@ -53,6 +54,7 @@ struct MiningGlanceWidget: Widget {
         StaticConfiguration(kind: kind, provider: GlanceTimelineProvider()) { entry in
             GlanceWidgetView(entry: entry)
                 .containerBackground(.fill.tertiary, for: .widget)
+                .widgetURL(URL(string: "xmrigmulti://glance"))
         }
         .configurationDisplayName("XMRig Multi glance")
         .description("Snapshot of mining status — not a live miner or background CPU host.")
@@ -60,7 +62,6 @@ struct MiningGlanceWidget: Widget {
     }
 }
 
-/// Lock Screen / StandBy accessory families (iPhone iOS 17+ StandBy when charging).
 struct MiningStandByWidget: Widget {
     let kind = "MiningStandByWidget"
 
@@ -68,11 +69,78 @@ struct MiningStandByWidget: Widget {
         StaticConfiguration(kind: kind, provider: GlanceTimelineProvider()) { entry in
             StandByGlanceView(entry: entry)
                 .containerBackground(.fill.tertiary, for: .widget)
+                .widgetURL(URL(string: "xmrigmulti://glance"))
         }
         .configurationDisplayName("XMRig StandBy glance")
         .description("StandBy / Lock Screen snapshot. Does not keep the screen on or mine in the widget.")
         .supportedFamilies([.accessoryRectangular, .accessoryInline, .accessoryCircular])
     }
+}
+
+struct MiningLiveActivity: Widget {
+    var body: some WidgetConfiguration {
+        ActivityConfiguration(for: MiningGlanceAttributes.self) { context in
+            LiveActivityBanner(state: context.state)
+                .padding()
+        } dynamicIsland: { context in
+            DynamicIsland {
+                DynamicIslandExpandedRegion(.leading) {
+                    Text(liveTitle(context.state))
+                }
+                DynamicIslandExpandedRegion(.trailing) {
+                    Text(hashrateLabel(context.state) ?? "—")
+                        .monospacedDigit()
+                }
+                DynamicIslandExpandedRegion(.bottom) {
+                    Text(context.state.syncQuality.uppercased())
+                        .font(.caption2)
+                }
+            } compactLeading: {
+                Image(systemName: context.state.syncQuality == "live" ? "bolt.fill" : "bolt.slash")
+            } compactTrailing: {
+                Text(String(format: "%.0f", context.state.hashrateHs))
+                    .monospacedDigit()
+            } minimal: {
+                Image(systemName: context.state.syncQuality == "live" ? "bolt.fill" : "bolt.slash")
+            }
+        }
+    }
+}
+
+struct LiveActivityBanner: View {
+    let state: MiningGlanceAttributes.ContentState
+
+    var body: some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(liveTitle(state)).font(.headline)
+                if let hs = hashrateLabel(state) {
+                    Text(hs).font(.title3.monospacedDigit())
+                }
+                Text(state.syncQuality.uppercased())
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+            Spacer()
+        }
+    }
+}
+
+private func liveTitle(_ state: MiningGlanceAttributes.ContentState) -> String {
+    let base: String
+    switch state.status {
+    case "mining": base = "Mining"
+    case "paused": base = "Paused"
+    case "waiting": base = "Waiting"
+    default: base = "Stopped"
+    }
+    return state.syncQuality == "live" ? base : "\(base) · snapshot"
+}
+
+private func hashrateLabel(_ state: MiningGlanceAttributes.ContentState) -> String? {
+    if state.syncQuality == "offline" { return nil }
+    let value = String(format: "%.1f H/s", state.hashrateHs)
+    return state.syncQuality == "live" ? value : "\(value) (not live)"
 }
 
 struct GlanceWidgetView: View {
@@ -95,6 +163,10 @@ struct GlanceWidgetView: View {
                     .font(.caption2)
                     .foregroundStyle(.orange)
             }
+            Button(intent: OpenMinerIntent()) {
+                Text("Open app")
+                    .font(.caption2)
+            }
         }
         .padding(4)
     }
@@ -114,8 +186,13 @@ struct StandByGlanceView: View {
                 AccessoryWidgetBackground()
                 VStack(spacing: 1) {
                     Image(systemName: present.live ? "bolt.fill" : "bolt.slash")
-                    Text(String(format: "%.0f", entry.snapshot.hashrateHs))
-                        .font(.caption2.monospacedDigit())
+                    if present.live {
+                        Text(String(format: "%.0f", entry.snapshot.hashrateHs))
+                            .font(.caption2.monospacedDigit())
+                    } else {
+                        Text("—")
+                            .font(.caption2)
+                    }
                 }
             }
         default:
@@ -133,7 +210,10 @@ struct StandByGlanceView: View {
 /// Opens the main app into an authorized flow — does not start mining from the widget.
 struct OpenMinerIntent: AppIntent {
     static var title: LocalizedStringResource = "Open XMRig Multi"
-    static var description = IntentDescription("Opens the miner app. Does not bypass Stop or start mining.")
+    static var description = IntentDescription(
+        "Opens the miner app glance screen. Does not bypass Stop or start mining."
+    )
+    static var openAppWhenRun: Bool = true
 
     func perform() async throws -> some IntentResult {
         .result()

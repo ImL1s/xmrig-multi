@@ -14,7 +14,7 @@ cd ios && xcodegen generate
 | Home Widget | iOS 16+ | Timeline minute refresh — not continuous mining |
 | Lock Screen accessory | iOS 16+ | Snapshot only |
 | StandBy | iPhone iOS 17+, charging + landscape | Not claimed on iPad; screen may sleep |
-| Live Activity | iOS 16.1+ | Display host only; no pool polling inside Activity |
+| Live Activity | iOS 16+ (Dynamic Island 16.1+) | Display host only; no pool polling inside Activity |
 
 ## Privacy
 

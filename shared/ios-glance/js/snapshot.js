@@ -5,7 +5,7 @@
 import { classifySync } from '../../companion-sync/js/protocol.js';
 
 export const APP_GROUP_SUITE = 'group.com.iml1s.xmrigminer';
-export const DEFAULT_STALE_AFTER_MS = 90_000;
+export const DEFAULT_STALE_AFTER_MS = 45_000;
 
 const FORBIDDEN = [
   'wallet',

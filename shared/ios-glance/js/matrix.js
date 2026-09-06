@@ -16,7 +16,7 @@ export function glanceSupportMatrix(input = {}) {
 
   const widgetKit = {
     state: iosMajor >= 14 ? 'available' : 'unsupported',
-    families: ['systemSmall', 'systemMedium', 'accessoryRectangular', 'accessoryInline'],
+    families: ['systemSmall', 'systemMedium', 'accessoryRectangular', 'accessoryInline', 'accessoryCircular'],
     reasons: [
       'WidgetKit timeline updates — not a continuous CPU miner',
       'Accessory families need Lock Screen / StandBy capable devices'

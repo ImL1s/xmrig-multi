@@ -22,5 +22,16 @@
 	<string>23</string>
 	<key>NSSupportsLiveActivities</key>
 	<true/>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>com.iml1s.xmrigminer.glance</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>xmrigmulti</string>
+			</array>
+		</dict>
+	</array>
 </dict>
 </plist>

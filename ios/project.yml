@@ -90,6 +90,7 @@ targets:
       - sdk: SwiftUI.framework
       - sdk: WidgetKit.framework
       - sdk: AppIntents.framework
+      - sdk: ActivityKit.framework
 
 schemes:
   XMRigMiner:
