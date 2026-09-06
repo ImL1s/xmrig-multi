@@ -131,6 +131,59 @@ class XmrigNativeCapabilitiesTest {
     }
 
     @Test
+    fun `assertTlsPin fails without pin when useTls`() {
+        XmrigNativeCapabilities.installSnapshotForTests(
+            XmrigNativeCapabilities.Snapshot(
+                binarySha256 = "x",
+                tlsDeclared = true,
+                httpApiDeclared = true,
+                benchmarkDeclared = true,
+                daemonDeclared = true,
+                hashMatched = true,
+                restrictedMode = false
+            )
+        )
+        val noPin = MiningConfig(
+            poolUrl = "pool.supportxmr.com:443",
+            walletAddress = "4" + "A".repeat(94),
+            useTls = true,
+            tlsFingerprint = ""
+        )
+        val err = XmrigNativeCapabilities.assertTlsPin(noPin)
+        assertNotNull(err)
+        assertTrue(err!!.contains("#134"))
+        assertTrue(err.contains("fingerprint") || err.contains("SHA-256"))
+    }
+
+    @Test
+    fun `assertTlsPin passes with valid 64-hex fingerprint`() {
+        XmrigNativeCapabilities.installSnapshotForTests(
+            XmrigNativeCapabilities.Snapshot(
+                binarySha256 = "x",
+                tlsDeclared = true,
+                httpApiDeclared = true,
+                benchmarkDeclared = true,
+                daemonDeclared = true,
+                hashMatched = true,
+                restrictedMode = false
+            )
+        )
+        val ok = MiningConfig(
+            poolUrl = "pool.supportxmr.com:443",
+            walletAddress = "4" + "A".repeat(94),
+            useTls = true,
+            tlsFingerprint = "ab".repeat(32)
+        )
+        assertNull(XmrigNativeCapabilities.assertTlsPin(ok))
+        assertNull(
+            XmrigNativeCapabilities.assertTlsPin(
+                ok.copy(useTls = false, tlsFingerprint = "")
+            )
+        )
+        assertTrue(XmrigNativeCapabilities.tlsTrustSummary().contains("fingerprint"))
+    }
+
+    @Test
     fun `Monero start is allowed`() {
         assertNull(XmrigNativeCapabilities.assertStartAllowed(CoinType.MONERO))
     }

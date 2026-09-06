@@ -34,6 +34,7 @@ class ConfigRepository @Inject constructor(
         val MAX_CPU_USAGE = intPreferencesKey("max_cpu_usage")
         val THREADS_AUTO = booleanPreferencesKey("threads_auto")
         val USE_TLS = booleanPreferencesKey("use_tls")
+        val TLS_FINGERPRINT = stringPreferencesKey("tls_fingerprint")
         val AUTO_RECONNECT = booleanPreferencesKey("auto_reconnect")
         val COIN_TYPE = stringPreferencesKey("coin_type")
         val DONATE_LEVEL = intPreferencesKey("donate_level")
@@ -68,6 +69,7 @@ class ConfigRepository @Inject constructor(
             maxCpuUsage = prefs[Keys.MAX_CPU_USAGE] ?: 75,
             threadsAuto = prefs[Keys.THREADS_AUTO] ?: false,
             useTls = prefs[Keys.USE_TLS] ?: ConfigRepositoryDefaults.USE_TLS,
+            tlsFingerprint = prefs[Keys.TLS_FINGERPRINT] ?: "",
             autoReconnect = prefs[Keys.AUTO_RECONNECT] ?: true,
             donateLevel = prefs[Keys.DONATE_LEVEL] ?: 1,
             customArgs = prefs[Keys.CUSTOM_ARGS] ?: "",
@@ -104,6 +106,7 @@ class ConfigRepository @Inject constructor(
             prefs[Keys.MAX_CPU_USAGE] = config.maxCpuUsage
             prefs[Keys.THREADS_AUTO] = config.threadsAuto
             prefs[Keys.USE_TLS] = config.useTls
+            prefs[Keys.TLS_FINGERPRINT] = config.tlsFingerprint
             prefs[Keys.AUTO_RECONNECT] = config.autoReconnect
             prefs[Keys.COIN_TYPE] = config.coinType
             prefs[Keys.DONATE_LEVEL] = config.donateLevel

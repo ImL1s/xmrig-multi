@@ -39,6 +39,7 @@ sealed interface ConfigUiEvent {
     data class ThreadsAutoToggled(val enabled: Boolean) : ConfigUiEvent
     data class MaxCpuUsageChanged(val usage: Int) : ConfigUiEvent
     data class TlsToggled(val enabled: Boolean) : ConfigUiEvent
+    data class TlsFingerprintChanged(val fingerprint: String) : ConfigUiEvent
     data class CustomPoolUrlChanged(val url: String) : ConfigUiEvent
     data class SoloDaemonToggled(val enabled: Boolean) : ConfigUiEvent
     data class RequireExternalPowerToggled(val enabled: Boolean) : ConfigUiEvent

@@ -162,6 +162,7 @@ private fun ConfigContent(
             selectedPool = state.selectedPool,
             currentPoolUrl = state.config.poolUrl,
             useTls = state.config.useTls,
+            tlsFingerprint = state.config.tlsFingerprint,
             soloDaemon = state.config.soloDaemon,
             coinType = state.selectedCoinType,
             daemonProbeStage = state.daemonProbeStage,
@@ -172,6 +173,7 @@ private fun ConfigContent(
             onPoolSelected = { onEvent(ConfigUiEvent.PoolSelected(it)) },
             onCustomUrlChanged = { onEvent(ConfigUiEvent.CustomPoolUrlChanged(it)) },
             onTlsToggled = { onEvent(ConfigUiEvent.TlsToggled(it)) },
+            onTlsFingerprintChanged = { onEvent(ConfigUiEvent.TlsFingerprintChanged(it)) },
             onSoloDaemonToggled = { onEvent(ConfigUiEvent.SoloDaemonToggled(it)) },
             onProbeDaemon = { onEvent(ConfigUiEvent.ProbeDaemon) }
         )
@@ -351,6 +353,7 @@ private fun PoolSelectionCard(
     selectedPool: Pool?,
     currentPoolUrl: String,
     useTls: Boolean,
+    tlsFingerprint: String,
     soloDaemon: Boolean,
     coinType: CoinType,
     daemonProbeStage: String?,
@@ -361,6 +364,7 @@ private fun PoolSelectionCard(
     onPoolSelected: (Pool) -> Unit,
     onCustomUrlChanged: (String) -> Unit,
     onTlsToggled: (Boolean) -> Unit,
+    onTlsFingerprintChanged: (String) -> Unit,
     onSoloDaemonToggled: (Boolean) -> Unit,
     onProbeDaemon: () -> Unit
 ) {
@@ -566,6 +570,21 @@ private fun PoolSelectionCard(
                         checked = useTls,
                         enabled = XmrigNativeCapabilities.TLS_ENABLED || useTls,
                         onCheckedChange = onTlsToggled
+                    )
+                }
+
+                if (useTls && XmrigNativeCapabilities.TLS_ENABLED) {
+                    OutlinedTextField(
+                        value = tlsFingerprint,
+                        onValueChange = onTlsFingerprintChanged,
+                        label = { Text("TLS certificate fingerprint") },
+                        placeholder = { Text("SHA-256 hex, optional colons") },
+                        leadingIcon = { Icon(Icons.Default.Security, null) },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                        supportingText = {
+                            Text("Required before start — XMRig pools[].fingerprint pin (#134)")
+                        }
                     )
                 }
 

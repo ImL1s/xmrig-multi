@@ -29,6 +29,8 @@ data class MiningConfig(
      */
     val threadsAuto: Boolean = false,
     val useTls: Boolean = false,
+    /** SHA-256 cert fingerprint for XMRig `pools[].fingerprint` when [useTls] (#134). */
+    val tlsFingerprint: String = "",
     val autoReconnect: Boolean = true,
     val donateLevel: Int = 1,
     val customArgs: String = "",
@@ -136,6 +138,7 @@ data class MiningConfig(
         processLimitBytes: Long? = null,
         appliedRandomxMode: String? = null,
         httpApi: XmrigHttpApiSession? = null,
+        /** When null, use [MiningConfig.tlsFingerprint]. Callers must validate before TLS start. */
         tlsFingerprint: String? = null
     ): String {
         val coin = getCoin()
@@ -149,6 +152,7 @@ data class MiningConfig(
             ?: throw IllegalStateException(
                 "Memory gate blocked RandomX mode — refuse config launch (#129)"
             )
+        val pin = (tlsFingerprint ?: this.tlsFingerprint).trim()
         val pool = buildJsonObject {
             when {
                 solo -> put("coin", "monero")
@@ -164,8 +168,8 @@ data class MiningConfig(
             put("pass", if (solo) "x" else workerName)
             put("keepalive", !solo)
             put("tls", if (solo) false else useTls)
-            if (!solo && useTls && !tlsFingerprint.isNullOrBlank()) {
-                put("fingerprint", tlsFingerprint)
+            if (!solo && useTls && pin.isNotEmpty()) {
+                put("fingerprint", normalizeTlsFingerprint(pin))
             }
             if (solo) {
                 put("daemon", true)
@@ -233,6 +237,16 @@ data class MiningConfig(
 
     companion object {
         const val DEFAULT_SOLO_DAEMON_URL = "127.0.0.1:18081"
+
+        /** Strip colons/spaces and lowercase for XMRig fingerprint pin (#134). */
+        fun normalizeTlsFingerprint(raw: String): String =
+            raw.filter { it != ':' && !it.isWhitespace() }.lowercase()
+
+        /** True when [raw] normalizes to exactly 64 hex chars (SHA-256 cert fingerprint). */
+        fun isValidTlsFingerprint(raw: String): Boolean {
+            val pin = normalizeTlsFingerprint(raw)
+            return pin.length == 64 && pin.all { it in '0'..'9' || it in 'a'..'f' }
+        }
 
         fun normalizeRandomxMode(mode: String): String =
             when (mode.lowercase()) {

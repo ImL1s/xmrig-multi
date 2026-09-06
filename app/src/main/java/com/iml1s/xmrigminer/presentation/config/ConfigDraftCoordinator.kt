@@ -16,6 +16,7 @@ data class CoinModeDraft(
     val poolUrl: String = "",
     val workerName: String = "android",
     val useTls: Boolean = false,
+    val tlsFingerprint: String = "",
     val soloDaemon: Boolean = false,
     val selectedPoolId: String? = null
 ) {
@@ -26,6 +27,7 @@ data class CoinModeDraft(
                 poolUrl = config.poolUrl,
                 workerName = config.workerName,
                 useTls = config.useTls,
+                tlsFingerprint = config.tlsFingerprint,
                 soloDaemon = config.soloDaemon,
                 selectedPoolId = selectedPool?.id ?: selectedPool?.name
             )
@@ -77,6 +79,7 @@ class ConfigDraftCoordinator(
                 workerName = restored.workerName,
                 poolUrl = poolUrl,
                 useTls = if (wantSolo) false else restored.useTls,
+                tlsFingerprint = restored.tlsFingerprint,
                 soloDaemon = wantSolo
             ) to if (wantSolo) null else pool
         }
@@ -135,6 +138,7 @@ class ConfigDraftCoordinator(
             return current.copy(
                 soloDaemon = false,
                 useTls = restored.useTls,
+                tlsFingerprint = restored.tlsFingerprint,
                 poolUrl = poolUrl,
                 walletAddress = restored.walletAddress.ifBlank { current.walletAddress },
                 workerName = restored.workerName

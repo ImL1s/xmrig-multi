@@ -117,6 +117,19 @@ object XmrigNativeCapabilities {
     }
 
     /**
+     * TLS start requires a SHA-256 cert fingerprint pin in config (#134).
+     * Without `pools[].fingerprint`, XMRig accepts any certificate.
+     */
+    fun assertTlsPin(config: MiningConfig): String? {
+        if (!config.useTls || config.soloDaemon) return null
+        if (!TLS_ENABLED) return TLS_UNSUPPORTED_MESSAGE
+        if (!MiningConfig.isValidTlsFingerprint(config.tlsFingerprint)) {
+            return "TLS 需要 SHA-256 憑證 fingerprint（64 位 hex，可含冒號）後才能啟動 (#134)"
+        }
+        return null
+    }
+
+    /**
      * Refuse start when required ARMv8 crypto features are missing (SIGILL policy).
      * @param cpuInfoFeatures optional Features= line from /proc/cpuinfo for tests
      */
@@ -140,7 +153,7 @@ object XmrigNativeCapabilities {
         val model = snapshot?.tlsTrustModel ?: "fingerprint"
         return when (model) {
             "fingerprint" ->
-                "Pool TLS 使用憑證 fingerprint 驗證（非完整 CA/hostname 身分驗證）(#134)"
+                "TLS 需要憑證 fingerprint pin（非 CA/hostname 驗證）；啟動前必須填入 SHA-256 (#134)"
             else ->
                 "TLS trust model: $model"
         }

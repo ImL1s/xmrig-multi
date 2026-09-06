@@ -325,16 +325,38 @@ class MiningConfigTest {
 
     @Test
     fun `toJson puts TLS fingerprint on pool when useTls and fingerprint set`() {
+        val pin = "ab" + "cd".repeat(31) // 64 hex
         val config = MiningConfig(
             poolUrl = "pool.supportxmr.com:443",
             walletAddress = "4AdUndXHHZ6cfufTMvppY6JwXNouMBzSkbLYfpAV5Usx3skxNgYeYTRj5UzqtReoS44qo9mtmXCqY45DJ852K5Jv2684Rge",
-            useTls = true
+            useTls = true,
+            tlsFingerprint = "AB:CD:" + "CD:".repeat(30).trimEnd(':')
         )
-        val pool = Json.parseToJsonElement(
-            config.toJson(tlsFingerprint = "DEADBEEF")
+        // Prefer config field when param null
+        val poolFromField = Json.parseToJsonElement(config.toJson())
+            .jsonObject["pools"]!!.jsonArray[0].jsonObject
+        assertTrue(poolFromField["tls"]!!.jsonPrimitive.boolean)
+        assertEquals(pin, poolFromField["fingerprint"]!!.jsonPrimitive.content)
+
+        val override = "11".repeat(32)
+        val poolOverride = Json.parseToJsonElement(
+            config.toJson(tlsFingerprint = override)
         ).jsonObject["pools"]!!.jsonArray[0].jsonObject
-        assertTrue(pool["tls"]!!.jsonPrimitive.boolean)
-        assertEquals("DEADBEEF", pool["fingerprint"]!!.jsonPrimitive.content)
+        assertEquals(override, poolOverride["fingerprint"]!!.jsonPrimitive.content)
+    }
+
+    @Test
+    fun `isValidTlsFingerprint rejects short or non-hex`() {
+        assertFalse(MiningConfig.isValidTlsFingerprint(""))
+        assertFalse(MiningConfig.isValidTlsFingerprint("DEADBEEF"))
+        assertFalse(MiningConfig.isValidTlsFingerprint("g".repeat(64)))
+        assertTrue(MiningConfig.isValidTlsFingerprint("a".repeat(64)))
+        assertTrue(
+            MiningConfig.isValidTlsFingerprint(
+                (0 until 32).joinToString(":") { "ab" }
+            )
+        )
+        assertEquals("a".repeat(64), MiningConfig.normalizeTlsFingerprint("A ".repeat(64).trim()))
     }
 
     @Test

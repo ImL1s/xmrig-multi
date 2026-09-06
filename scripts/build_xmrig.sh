@@ -169,23 +169,25 @@ file "$BINARY" || true
 ls -lh "$BINARY"
 
 # --- String selftests (structural; not deviceVerified) ---
+# NOTE: do not `echo "$huge" | grep -q` under pipefail — grep -q closes early → SIGPIPE.
 ST_HTTP="pending"
 ST_TLS="pending"
 ST_BENCH="pending"
 ST_DAEMON="pending"
 if command -v strings >/dev/null 2>&1; then
-  STRINGS_OUT="$(strings "$BINARY" || true)"
-  if echo "$STRINGS_OUT" | grep -qE '/2/summary|Httpd|httpd|GET /1/'; then
+  STRINGS_FILE="$WORK_DIR/xmrig.strings"
+  strings "$BINARY" > "$STRINGS_FILE" || true
+  if grep -qE '/2/summary|Httpd|httpd|GET /1/' "$STRINGS_FILE"; then
     ST_HTTP="pass"
   else
     ST_HTTP="fail"
   fi
-  if echo "$STRINGS_OUT" | grep -qE 'SSL_connect|OpenSSL|TLS'; then
+  if grep -qE 'SSL_connect|OpenSSL|TLS' "$STRINGS_FILE"; then
     ST_TLS="pass"
   else
     ST_TLS="fail"
   fi
-  if echo "$STRINGS_OUT" | grep -qiE 'benchmark'; then
+  if grep -qiE 'benchmark' "$STRINGS_FILE"; then
     ST_BENCH="pass"
   else
     ST_BENCH="fail"

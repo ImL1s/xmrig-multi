@@ -110,6 +110,9 @@ class MiningWorker @AssistedInject constructor(
         if (config.useTls && !XmrigNativeCapabilities.TLS_ENABLED) {
             throw IllegalStateException(XmrigNativeCapabilities.TLS_UNSUPPORTED_MESSAGE)
         }
+        XmrigNativeCapabilities.assertTlsPin(config)?.let {
+            throw IllegalStateException(it)
+        }
         XmrigNativeCapabilities.assertSoloDaemonAllowed(config)?.let {
             throw IllegalStateException(it)
         }
@@ -158,7 +161,8 @@ class MiningWorker @AssistedInject constructor(
                 totalMemoryBytes = memory.totalBytes,
                 processLimitBytes = memory.processLimitBytes,
                 appliedRandomxMode = memoryVerdict?.appliedMode,
-                httpApi = httpApi
+                httpApi = httpApi,
+                tlsFingerprint = config.tlsFingerprint
             )
         )
 
