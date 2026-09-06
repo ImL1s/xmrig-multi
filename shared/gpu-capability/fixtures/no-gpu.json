@@ -1,0 +1,6 @@
+{
+  "platform": "desktop",
+  "packagedBackends": { "opencl": false, "cuda": false, "metal": false, "webgpu": false },
+  "cpuMiningAvailable": true,
+  "devices": []
+}

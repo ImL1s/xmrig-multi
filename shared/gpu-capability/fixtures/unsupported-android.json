@@ -1,0 +1,8 @@
+{
+  "platform": "android",
+  "packagedBackends": { "opencl": false, "cuda": false, "metal": false, "webgpu": false },
+  "cpuMiningAvailable": true,
+  "devices": [
+    { "id": "adreno", "name": "Adreno", "kind": "integrated", "backends": ["opencl"], "status": "supported" }
+  ]
+}

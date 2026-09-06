@@ -1,0 +1,8 @@
+{
+  "platform": "web",
+  "packagedBackends": { "opencl": false, "cuda": false, "metal": false, "webgpu": false },
+  "cpuMiningAvailable": true,
+  "devices": [
+    { "id": "webgpu0", "name": "Browser GPU", "kind": "unknown", "backends": ["webgpu"], "status": "supported" }
+  ]
+}

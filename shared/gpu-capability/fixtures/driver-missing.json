@@ -1,0 +1,9 @@
+{
+  "platform": "desktop",
+  "driverMissing": true,
+  "packagedBackends": { "opencl": false, "cuda": false, "metal": false, "webgpu": false },
+  "cpuMiningAvailable": true,
+  "devices": [
+    { "id": "gpu0", "name": "Unknown GPU", "kind": "unknown", "backends": ["unknown"], "status": "unverified" }
+  ]
+}
