@@ -115,7 +115,8 @@ object QuickCommandProtocol {
                 effective = cmd
                 continue
             }
-            if (cur.type == "stop_mining" && cmd.type == "start_profile" && cmd.issuedAtMs <= cur.issuedAtMs) {
+            // Never let Start replace an effective Stop (re-arm must clear latch first).
+            if (cur.type == "stop_mining") {
                 continue
             }
             if (cmd.issuedAtMs >= cur.issuedAtMs) {

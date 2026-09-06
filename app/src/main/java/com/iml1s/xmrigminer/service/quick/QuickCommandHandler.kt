@@ -2,18 +2,24 @@ package com.iml1s.xmrigminer.service.quick
 
 import android.content.Context
 import android.content.Intent
+import androidx.work.WorkInfo
+import androidx.work.WorkManager
+import com.iml1s.xmrigminer.native.XmrigProcessController
 import com.iml1s.xmrigminer.presentation.MainActivity
 import com.iml1s.xmrigminer.service.MiningSessionLatch
+import com.iml1s.xmrigminer.service.MiningWorker
+import com.iml1s.xmrigminer.service.MonitorWorker
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 
 /**
  * Single command dispatcher for Tile / Widget / notification (#79).
- * Does not init RandomX here — only latch/state + open UI / enqueue intents.
+ * Does not init RandomX here — stop via WorkManager cancel + process sweep.
  */
 object QuickCommandHandler {
     private const val TTL_MS = 60_000L
-    private val seenIds = ConcurrentHashMap.newKeySet<String>()
+    private val seenIds: MutableSet<String> =
+        java.util.Collections.newSetFromMap(ConcurrentHashMap())
 
     @Volatile
     var pauseUntilMs: Long = 0L
@@ -31,9 +37,22 @@ object QuickCommandHandler {
     var lastAck: QuickAck = QuickAck("completed", "idle", false)
         private set
 
-    fun snapshot(mining: Boolean, profileId: String?, waitingReason: String?): QuickSnapshot {
+    fun isMiningActive(context: Context): Boolean {
+        return try {
+            val infos = WorkManager.getInstance(context)
+                .getWorkInfosForUniqueWork(MiningWorker.WORK_NAME)
+                .get()
+            infos.any {
+                it.state == WorkInfo.State.RUNNING || it.state == WorkInfo.State.ENQUEUED
+            }
+        } catch (_: Exception) {
+            false
+        }
+    }
+
+    fun snapshot(context: Context, profileId: String?, waitingReason: String?): QuickSnapshot {
         return QuickSnapshot(
-            mining = mining,
+            mining = isMiningActive(context),
             automationArmed = automationArmed,
             waitingReason = waitingReason,
             profileId = profileId,
@@ -52,11 +71,18 @@ object QuickCommandHandler {
         authorized: Boolean = true,
         osStartAllowed: Boolean = true,
         missingProfile: Boolean = false,
-        sessionId: String? = null
+        sessionId: String? = null,
+        commandId: String? = null
     ): QuickAck {
         val now = System.currentTimeMillis()
+        val id = commandId?.takeIf { it.isNotBlank() } ?: UUID.randomUUID().toString()
+        if (!seenIds.add(id)) {
+            return QuickAck("completed", "duplicate commandId", false).also { lastAck = it }
+        }
+        if (seenIds.size > 256) seenIds.clear()
+
         val cmd = QuickCommand(
-            commandId = UUID.randomUUID().toString(),
+            commandId = id,
             type = type,
             profileId = profileId,
             sessionId = sessionId,
@@ -65,11 +91,6 @@ object QuickCommandHandler {
             pauseForMs = pauseForMs,
             source = source
         )
-        if (!seenIds.add(cmd.commandId)) {
-            return QuickAck("completed", "duplicate commandId", false).also { lastAck = it }
-        }
-        // Bound memory
-        if (seenIds.size > 256) seenIds.clear()
 
         val decision = QuickCommandProtocol.receive(
             command = cmd,
@@ -89,8 +110,8 @@ object QuickCommandHandler {
             "stop_mining" -> {
                 MiningSessionLatch.latchUserStop()
                 pauseUntilMs = 0L
-                // Production: MiningController.stop() via WorkManager cancel — not RandomX here.
-                lastAck = QuickAck("accepted", "Stop latched", true)
+                stopMiningProcesses(context)
+                lastAck = QuickAck("accepted", "Stop latched and mining cancelled", true)
             }
             "disable_automation" -> {
                 automationArmed = false
@@ -99,6 +120,7 @@ object QuickCommandHandler {
             "pause_for" -> {
                 stopRevisionAtPause = MiningSessionLatch.userStopRevision
                 pauseUntilMs = now + (cmd.pauseForMs ?: 0L)
+                stopMiningProcesses(context)
                 lastAck = QuickAck("accepted", "Paused until $pauseUntilMs", true)
             }
             "start_profile" -> {
@@ -110,14 +132,17 @@ object QuickCommandHandler {
                     lastAck = QuickAck("rejected", "Automation disabled — enable in app", false)
                     return lastAck
                 }
+                if (pauseUntilMs > now) {
+                    lastAck = QuickAck("rejected", "Still in pause window", false)
+                    return lastAck
+                }
                 MiningSessionLatch.armSession()
-                // Open app to complete authorized start (FGS rules).
                 openApp(context, "start")
-                lastAck = QuickAck("queued", "Start queued — complete in app if required", true)
+                lastAck = QuickAck("queued", "Open app to complete authorized start", true)
             }
             "open_clock" -> {
                 openApp(context, "clock")
-                lastAck = QuickAck("accepted", "Opening clock", true)
+                lastAck = QuickAck("accepted", "Opening app", true)
             }
             else -> lastAck = QuickAck("rejected", "Unknown", false)
         }
@@ -142,9 +167,17 @@ object QuickCommandHandler {
         )
     }
 
+    /** Same stop path as UI without RandomX init in the caller. */
+    fun stopMiningProcesses(context: Context) {
+        val wm = WorkManager.getInstance(context.applicationContext)
+        wm.cancelUniqueWork(MiningWorker.WORK_NAME)
+        wm.cancelUniqueWork(MonitorWorker.WORK_NAME)
+        XmrigProcessController.killLeftoverMiners()
+    }
+
     private fun openApp(context: Context, action: String) {
         val intent = Intent(context, MainActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
             putExtra("quick_action", action)
         }
         context.startActivity(intent)

@@ -36,7 +36,7 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="Start profile"
+            android:text="@string/widget_start_profile"
             android:textSize="11sp" />
 
         <Button
@@ -44,7 +44,7 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="Stop mining"
+            android:text="@string/notif_action_stop_mining"
             android:textSize="11sp" />
     </LinearLayout>
 </LinearLayout>

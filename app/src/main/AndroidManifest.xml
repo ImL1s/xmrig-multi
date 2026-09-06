@@ -78,13 +78,14 @@
                 android:resource="@xml/mining_dream" />
         </service>
 
-        <!-- Quick Settings tile (#79); BIND_QUICK_SETTINGS_TILE -->
+        <!-- Quick Settings tile (#79); API 24+ (TileService) -->
         <service
             android:name=".service.quick.MiningQuickTileService"
             android:exported="true"
             android:icon="@drawable/ic_mining"
             android:label="@string/tile_mining_label"
-            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE"
+            tools:targetApi="24">
             <intent-filter>
                 <action android:name="android.service.quicksettings.action.QS_TILE" />
             </intent-filter>

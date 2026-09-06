@@ -16,7 +16,8 @@ class QuickCommandReceiver : BroadcastReceiver() {
             type = type,
             pauseForMs = pauseFor,
             source = intent.getStringExtra(EXTRA_SOURCE) ?: "notification",
-            authorized = true
+            authorized = true,
+            commandId = intent.getStringExtra(EXTRA_COMMAND_ID)
         )
     }
 
@@ -26,13 +27,22 @@ class QuickCommandReceiver : BroadcastReceiver() {
         const val EXTRA_PAUSE_MS = "pause_for_ms"
         const val EXTRA_SOURCE = "source"
 
-        fun intent(context: Context, type: String, pauseForMs: Long? = null, source: String): Intent {
+        fun intent(
+            context: Context,
+            type: String,
+            pauseForMs: Long? = null,
+            source: String,
+            commandId: String? = null
+        ): Intent {
             return Intent(context, QuickCommandReceiver::class.java).apply {
                 action = ACTION
                 putExtra(EXTRA_TYPE, type)
                 putExtra(EXTRA_SOURCE, source)
                 if (pauseForMs != null) putExtra(EXTRA_PAUSE_MS, pauseForMs)
+                if (commandId != null) putExtra(EXTRA_COMMAND_ID, commandId)
             }
         }
+
+        const val EXTRA_COMMAND_ID = "command_id"
     }
 }

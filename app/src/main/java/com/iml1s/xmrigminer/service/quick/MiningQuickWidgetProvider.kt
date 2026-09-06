@@ -28,7 +28,7 @@ class MiningQuickWidgetProvider : AppWidgetProvider() {
         fun updateAppWidget(context: Context, manager: AppWidgetManager, appWidgetId: Int) {
             val views = RemoteViews(context.packageName, R.layout.widget_mining_quick)
             val snap = QuickCommandHandler.snapshot(
-                mining = false,
+                context = context,
                 profileId = null,
                 waitingReason = if (MiningSessionLatch.isUserStopped()) "Stop latched" else null
             )
@@ -37,6 +37,7 @@ class MiningQuickWidgetProvider : AppWidgetProvider() {
                 when {
                     snap.userStopLatched -> "Stopped"
                     snap.pauseUntilMs != null -> "Paused"
+                    snap.mining -> "Mining"
                     snap.automationArmed -> "Ready"
                     else -> "Automation off"
                 }

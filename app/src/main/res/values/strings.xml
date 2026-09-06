@@ -1,11 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">XMRig Multi</string>
-    <string name="widget_mining_quick_description">Start selected profile or stop mining — does not init RandomX in the widget.</string>
+    <string name="widget_mining_quick_description">啟動已選設定檔或停止挖礦 — Widget 內不會初始化 RandomX。</string>
     <string name="tile_mining_label">XMRig Multi</string>
-    <string name="notif_action_stop_mining">Stop mining</string>
-    <string name="notif_action_disable_automation">Disable automation</string>
-    <string name="notif_action_pause_15">Pause 15 min</string>
+    <string name="notif_action_stop_mining">停止挖礦</string>
+    <string name="notif_action_disable_automation">關閉自動化</string>
+    <string name="notif_action_pause_15">暫停 15 分鐘</string>
+    <string name="widget_start_profile">啟動設定檔</string>
 
     <!-- Mining Screen / session phases (#59) -->
     <string name="mining_title">挖礦管理</string>
