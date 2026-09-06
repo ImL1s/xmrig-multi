@@ -1,0 +1,7 @@
+{
+  "description": "Duplicate ids normalize",
+  "snapshotFixture": "single-core.json",
+  "input": "0,0,0",
+  "expectOk": true,
+  "expectIds": [0]
+}
