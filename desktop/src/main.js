@@ -1,9 +1,17 @@
 // XMRig Multi Desktop - Frontend
 import { invoke } from '@tauri-apps/api/core';
 import {
+    applyImport,
+    createProfile,
+    deleteProfile,
+    duplicateProfile,
+    exportDesktopStore,
     getActiveProfile,
     loadDesktopStore,
-    saveDesktopStore
+    previewImport,
+    renameProfile,
+    saveDesktopStore,
+    switchProfile
 } from './settings.js';
 import generatedPools from './generated-pool-configs.json';
 
@@ -18,6 +26,11 @@ const elements = {
     shares: document.getElementById('shares'),
     difficulty: document.getElementById('difficulty'),
     uptime: document.getElementById('uptime'),
+    profileSelect: document.getElementById('profile-select'),
+    profileNewBtn: document.getElementById('profile-new-btn'),
+    profileDupBtn: document.getElementById('profile-dup-btn'),
+    profileRenameBtn: document.getElementById('profile-rename-btn'),
+    profileDeleteBtn: document.getElementById('profile-delete-btn'),
     coinType: document.getElementById('coin-type'),
     poolUrl: document.getElementById('pool-url'),
     customPoolGroup: document.getElementById('custom-pool-group'),
@@ -29,6 +42,10 @@ const elements = {
     startBtn: document.getElementById('start-btn'),
     stopBtn: document.getElementById('stop-btn'),
     saveBtn: document.getElementById('save-settings-btn'),
+    exportBtn: document.getElementById('export-settings-btn'),
+    importBtn: document.getElementById('import-settings-btn'),
+    importFile: document.getElementById('import-file'),
+    importPreview: document.getElementById('import-preview'),
     saveStatus: document.getElementById('save-status'),
     logOutput: document.getElementById('log-output'),
 };
@@ -79,8 +96,24 @@ function restoreSettings() {
         setSaveStatus('Saved profile restored');
     }
 
+    refreshProfileSelect();
     const profile = getActiveProfile(settingsStore);
     applyProfileToUi(profile);
+}
+
+function refreshProfileSelect() {
+    if (!elements.profileSelect || !settingsStore) return;
+    elements.profileSelect.innerHTML = settingsStore.profiles
+        .map((p) => `<option value="${p.id}">${escapeHtml(p.name)}</option>`)
+        .join('');
+    elements.profileSelect.value = settingsStore.activeProfileId;
+}
+
+function escapeHtml(s) {
+    return String(s)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/"/g, '&quot;');
 }
 
 function applyProfileToUi(profile) {
@@ -111,9 +144,10 @@ function applyProfileToUi(profile) {
 function collectProfileFromUi() {
     const useCustom = elements.poolUrl.value === '__custom__';
     const poolOption = elements.poolUrl.selectedOptions[0];
+    const active = getActiveProfile(settingsStore || { profiles: [{ id: 'default', name: 'Default' }] });
     return {
         id: settingsStore?.activeProfileId || 'default',
-        name: getActiveProfile(settingsStore || { profiles: [{ id: 'default', name: 'Default' }] }).name || 'Default',
+        name: active.name || 'Default',
         coin_type: elements.coinType.value,
         pool_url: useCustom ? (elements.customPoolUrl.value.trim() || '') : elements.poolUrl.value,
         custom_pool_url: elements.customPoolUrl.value.trim(),
@@ -121,7 +155,9 @@ function collectProfileFromUi() {
         wallet_address: elements.wallet.value.trim(),
         worker_name: elements.worker.value.trim() || 'desktop',
         threads: parseInt(elements.threads.value, 10),
-        algorithm: poolOption?.dataset?.algo || 'rx/0'
+        algorithm: poolOption?.dataset?.algo || 'rx/0',
+        locks: active.locks || [],
+        localOverrides: { ...(active.localOverrides || {}), threads: true }
     };
 }
 
@@ -142,6 +178,7 @@ function persistSettings() {
     if (result.ok) {
         dirty = false;
         setSaveStatus('Saved');
+        refreshProfileSelect();
         log('Settings saved');
     } else {
         setSaveStatus(`Save failed: ${result.error}`, true);
@@ -159,6 +196,54 @@ function setSaveStatus(text, isError = false) {
 function markDirty() {
     dirty = true;
     setSaveStatus('Unsaved changes');
+}
+
+function syncActiveFromUiThen(mutator) {
+    if (!settingsStore) return;
+    const current = collectProfileFromUi();
+    settingsStore = {
+        ...settingsStore,
+        profiles: settingsStore.profiles.map((p) => (p.id === current.id ? current : p))
+    };
+    const next = mutator(settingsStore);
+    settingsStore = next.store || next;
+    refreshProfileSelect();
+    applyProfileToUi(getActiveProfile(settingsStore));
+    persistSettings();
+}
+
+async function onProfileSwitch(profileId) {
+    if (!settingsStore || profileId === settingsStore.activeProfileId) return;
+    if (isMining) {
+        const ok = window.confirm('Switching profiles stops mining. Continue?');
+        if (!ok) {
+            refreshProfileSelect();
+            return;
+        }
+        await stopMining();
+    } else if (dirty) {
+        const ok = window.confirm('Discard unsaved changes and switch profile?');
+        if (!ok) {
+            refreshProfileSelect();
+            return;
+        }
+    } else {
+        // Keep current edits before leaving profile.
+        const current = collectProfileFromUi();
+        settingsStore = {
+            ...settingsStore,
+            profiles: settingsStore.profiles.map((p) => (p.id === current.id ? current : p))
+        };
+    }
+    const switched = switchProfile(settingsStore, profileId);
+    if (!switched.ok) {
+        setSaveStatus(switched.error, true);
+        return;
+    }
+    settingsStore = switched.store;
+    applyProfileToUi(getActiveProfile(settingsStore));
+    persistSettings();
+    setSaveStatus(`Switched to ${getActiveProfile(settingsStore).name}`);
 }
 
 function setupEventListeners() {
@@ -181,6 +266,94 @@ function setupEventListeners() {
     elements.startBtn.addEventListener('click', startMining);
     elements.stopBtn.addEventListener('click', stopMining);
     elements.saveBtn?.addEventListener('click', () => persistSettings());
+    elements.profileSelect?.addEventListener('change', () => onProfileSwitch(elements.profileSelect.value));
+    elements.profileNewBtn?.addEventListener('click', () => {
+        const name = window.prompt('New profile name', 'New profile');
+        if (name == null) return;
+        syncActiveFromUiThen((store) => createProfile(store, cpuThreadCount, name.trim() || 'New profile'));
+        setSaveStatus('Profile created');
+    });
+    elements.profileDupBtn?.addEventListener('click', () => {
+        syncActiveFromUiThen((store) => duplicateProfile(store, store.activeProfileId, cpuThreadCount));
+        setSaveStatus('Profile duplicated');
+    });
+    elements.profileRenameBtn?.addEventListener('click', () => {
+        const active = getActiveProfile(settingsStore);
+        const name = window.prompt('Rename profile', active.name);
+        if (name == null) return;
+        syncActiveFromUiThen((store) => ({ store: renameProfile(store, store.activeProfileId, name) }));
+        setSaveStatus('Profile renamed');
+    });
+    elements.profileDeleteBtn?.addEventListener('click', () => {
+        const active = getActiveProfile(settingsStore);
+        if (!window.confirm(`Delete profile "${active.name}"?`)) return;
+        if (isMining) {
+            window.alert('Stop mining before deleting the active profile.');
+            return;
+        }
+        const result = deleteProfile(settingsStore, active.id);
+        if (!result.ok) {
+            setSaveStatus(result.error, true);
+            return;
+        }
+        settingsStore = result.store;
+        refreshProfileSelect();
+        applyProfileToUi(getActiveProfile(settingsStore));
+        persistSettings();
+        setSaveStatus('Profile deleted');
+    });
+    elements.exportBtn?.addEventListener('click', () => {
+        persistSettings();
+        const payload = exportDesktopStore(settingsStore, { sourceCpuThreads: cpuThreadCount });
+        const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'xmrig-desktop-settings.json';
+        a.click();
+        URL.revokeObjectURL(url);
+        setSaveStatus('Exported (secrets excluded)');
+    });
+    elements.importBtn?.addEventListener('click', () => elements.importFile?.click());
+    elements.importFile?.addEventListener('change', async () => {
+        const file = elements.importFile.files?.[0];
+        if (!file) return;
+        try {
+            const raw = JSON.parse(await file.text());
+            const preview = previewImport(raw, cpuThreadCount);
+            if (!preview.ok) {
+                setSaveStatus(`Import failed: ${preview.error}`, true);
+                return;
+            }
+            const reresolve = preview.preview.needsReresolve;
+            let msg = `Import ${preview.preview.profileCount} profile(s)? Import never auto-starts mining.`;
+            if (reresolve.length) {
+                msg += `\n\nNeeds re-resolve on this host:\n` + reresolve
+                    .map((r) => `- ${r.name}: ${r.items.map((i) => i.field).join(', ')}`)
+                    .join('\n');
+            }
+            if (elements.importPreview) {
+                elements.importPreview.hidden = false;
+                elements.importPreview.textContent = msg;
+            }
+            if (!window.confirm(msg)) return;
+            if (isMining) await stopMining();
+            const applied = applyImport(preview.preview, localStorage);
+            if (!applied.ok) {
+                setSaveStatus(`Import save failed: ${applied.error}`, true);
+                return;
+            }
+            settingsStore = applied.store;
+            refreshProfileSelect();
+            applyProfileToUi(getActiveProfile(settingsStore));
+            setSaveStatus('Imported — review re-resolve items before mining');
+            log('Settings imported (auto-start disabled)');
+        } catch (e) {
+            setSaveStatus(`Import failed: ${e.message || e}`, true);
+        } finally {
+            elements.importFile.value = '';
+        }
+    });
 }
 
 function updatePoolOptions() {
@@ -285,6 +458,12 @@ function setMiningState(mining) {
     elements.wallet.disabled = mining;
     elements.worker.disabled = mining;
     elements.threads.disabled = mining;
+    if (elements.profileSelect) elements.profileSelect.disabled = mining;
+    if (elements.profileNewBtn) elements.profileNewBtn.disabled = mining;
+    if (elements.profileDupBtn) elements.profileDupBtn.disabled = mining;
+    if (elements.profileRenameBtn) elements.profileRenameBtn.disabled = mining;
+    if (elements.profileDeleteBtn) elements.profileDeleteBtn.disabled = mining;
+    if (elements.importBtn) elements.importBtn.disabled = mining;
 }
 
 function startStatsPolling() {
