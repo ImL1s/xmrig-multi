@@ -310,6 +310,8 @@ pub struct IdleEvalInput {
     pub system_sleeping: bool,
     pub keep_awake_consent: bool,
     pub respect_sleep: bool,
+    /// When true, XMRig native pause-on-active owns active detection (single coordinator).
+    pub engine_pause_on_active_armed: bool,
 }
 
 impl Default for IdleEvalInput {
@@ -326,6 +328,7 @@ impl Default for IdleEvalInput {
             system_sleeping: false,
             keep_awake_consent: false,
             respect_sleep: true,
+            engine_pause_on_active_armed: false,
         }
     }
 }
@@ -379,27 +382,38 @@ pub fn evaluate_idle(os: &str, input: &IdleEvalInput) -> IdleVerdict {
         }
     }
     if input.pause_when_active {
+        let native_active = matrix.pause_on_active.state == "available"
+            && input.engine_pause_on_active_armed;
+        if native_active {
+            // Single coordinator: engine owns active↔idle; app does not second-guess.
+            return IdleVerdict {
+                kind: "Mining".into(),
+                reasons: vec![
+                    "Active detection delegated to XMRig pause-on-active (single coordinator)"
+                        .into(),
+                ],
+                tray_status: "Mining".into(),
+                bill_energy: true,
+            };
+        }
+
         let idle_cap_ok = matches!(
             matrix.idle_timer.state.as_str(),
             "available" | "app-layer"
         );
-        if !input.idle_reliable || input.idle_ms.is_none() || !idle_cap_ok {
-            // When OS marks idle as needs-permission/unsupported and caller did not
-            // assert reliability, refuse to assume idle.
-            if !input.idle_reliable || input.idle_ms.is_none() {
-                return IdleVerdict {
-                    kind: "Unavailable".into(),
-                    reasons: vec![
-                        "Idle detection unsupported or unreliable — manual pause; not assuming idle"
-                            .into(),
-                    ],
-                    tray_status: "Waiting".into(),
-                    bill_energy: false,
-                };
-            }
+        if !idle_cap_ok || !input.idle_reliable || input.idle_ms.is_none() {
+            return IdleVerdict {
+                kind: "Unavailable".into(),
+                reasons: vec![
+                    "Idle detection unsupported or unreliable — manual pause; not assuming idle"
+                        .into(),
+                ],
+                tray_status: "Waiting".into(),
+                bill_energy: false,
+            };
         }
         if let Some(idle_ms) = input.idle_ms {
-            if input.idle_reliable && idle_ms < input.idle_mine_after_ms {
+            if idle_ms < input.idle_mine_after_ms {
                 return IdleVerdict {
                     kind: "Paused".into(),
                     reasons: vec![format!(

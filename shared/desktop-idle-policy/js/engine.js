@@ -33,9 +33,9 @@ export function planEngineFlags(os, prefs = {}) {
   }
 
   const poa = prefs.pauseOnActive;
-  if (poa === true || (typeof poa === 'number' && poa > 0)) {
+  if (poa === true || poa === 0 || (typeof poa === 'number' && poa >= 0)) {
     if (matrix.pauseOnActive.state === 'available') {
-      if (poa === true) {
+      if (poa === true || poa === 0) {
         argv.push('--pause-on-active=true');
       } else {
         const sec = Math.max(1, Math.floor(Number(poa)));

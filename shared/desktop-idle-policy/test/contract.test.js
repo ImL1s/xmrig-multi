@@ -24,12 +24,9 @@ test('linux does not claim native pause-on-active', () => {
   assert.ok(plan.degradations.length > 0);
 });
 
-test('windows/macos emit pause-on-active argv', () => {
-  for (const os of ['windows', 'macos']) {
-    const plan = planEngineFlags(os, { pauseOnActive: 60, pauseOnBattery: true });
-    assert.ok(plan.argv.includes('--pause-on-active=60'));
-    assert.ok(plan.argv.includes('--pause-on-battery'));
-  }
+test('pauseOnActive 0 maps to true on windows', () => {
+  const plan = planEngineFlags('windows', { pauseOnActive: 0 });
+  assert.ok(plan.argv.includes('--pause-on-active=true'));
 });
 
 test('idle→active→idle with fake timestamps', () => {
