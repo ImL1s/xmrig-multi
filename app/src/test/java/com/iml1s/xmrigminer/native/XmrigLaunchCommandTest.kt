@@ -1,6 +1,7 @@
 package com.iml1s.xmrigminer.native
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.File
@@ -18,6 +19,13 @@ class XmrigLaunchCommandTest {
         assertEquals("-t", args[3])
         assertEquals("4", args[4])
         assertTrue(args.contains("--no-color"))
+    }
+
+    @Test
+    fun `auto mode omits -t so max-threads-hint can apply`() {
+        val args = XmrigLaunchCommand.build("/bin/xmrig", File("config.json"), null)
+        assertFalse(args.contains("-t"))
+        assertTrue(args.contains("-c"))
     }
 
     @Test(expected = IllegalArgumentException::class)

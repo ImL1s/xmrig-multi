@@ -105,12 +105,17 @@ struct PoolConfig: Codable {
 /// Complete mining configuration
 struct MiningConfig: Codable {
     var pool: PoolConfig
+    /// 0 = Auto (max-threads-hint only). >0 = requested thread count.
     var threads: Int
+    /// XMRig cpu.priority (0–5). Values outside range are clamped on serialize.
     var cpuPriority: Int
     var donateLevel: Int
 
+    /// Soft cap for iOS memory/thermal budget; users may request less.
+    static let iosMaxRecommendedThreads = 2
+
     init(pool: PoolConfig = PoolConfig(),
-         threads: Int = 0,
+         threads: Int = 1,
          cpuPriority: Int = 2,
          donateLevel: Int = 1) {
         self.pool = pool
@@ -119,8 +124,15 @@ struct MiningConfig: Codable {
         self.donateLevel = donateLevel
     }
 
+    /// Effective threads written to JSON after platform budget.
+    var resolvedThreads: Int {
+        if threads <= 0 { return 0 } // Auto
+        return min(threads, MiningConfig.iosMaxRecommendedThreads)
+    }
+
+    var usesAutoThreads: Bool { threads <= 0 }
+
     /// Convert to XMRig JSON config format
-    /// Supports Monero (rx/0), Wownero (rx/wow), DERO (astrobwt/v3)
     func toJSON() -> String? {
         var poolConfig: [String: Any] = [
             "url": pool.url,
@@ -130,34 +142,27 @@ struct MiningConfig: Codable {
             "keepalive": true
         ]
 
-        // Add coin-specific configuration
         if let coin = pool.coin.xmrigCoin {
             poolConfig["coin"] = coin
         }
 
-        // For non-Monero coins, explicitly set the algorithm
         if pool.coin != .monero {
             poolConfig["algo"] = pool.coin.algorithm
         }
 
+        let priority = max(0, min(5, cpuPriority))
         let config: [String: Any] = [
-            "autosave": false,  // Disable autosave to prevent config reload during initialization
-            "watch": false,     // Disable config file watching
-            "cpu": [
-                "enabled": true,
-                "max-threads-hint": 5,  // Use only 1 thread on iOS to minimize memory
-                "huge-pages": false,
-                "hw-aes": true,
-                "yield": true
-            ],
+            "autosave": false,
+            "watch": false,
+            "cpu": buildCpuConfig(priority: priority),
             "randomx": [
-                "mode": "light",  // Use light mode (256MB) instead of full mode (2GB) for iOS
+                "mode": "light",
                 "1gb-pages": false,
                 "rdmsr": false,
                 "wrmsr": false,
                 "cache_qos": false,
                 "numa": false,
-                "jit": true,    // Enable JIT - requires debug mode or JIT entitlement
+                "jit": true,
                 "scratchpad_prefetch_mode": 1
             ],
             "donate-level": donateLevel,
@@ -170,6 +175,28 @@ struct MiningConfig: Codable {
         }
 
         return jsonString
+    }
+
+    private func buildCpuConfig(priority: Int) -> [String: Any] {
+        var cpu: [String: Any] = [
+            "enabled": true,
+            "priority": priority,
+            "huge-pages": false,
+            "hw-aes": true,
+            "yield": true
+        ]
+        if usesAutoThreads {
+            // Conservative auto hint for iOS light mode.
+            cpu["max-threads-hint"] = 5
+        } else {
+            let cores = max(1, ProcessInfo.processInfo.activeProcessorCount)
+            let resolved = resolvedThreads
+            let hint = max(1, min(100, Int((Double(resolved) / Double(cores) * 100.0).rounded())))
+            cpu["max-threads-hint"] = hint
+            // Explicit thread affinity list (-1 = any core); length = effective threads.
+            cpu["rx/0"] = Array(repeating: -1, count: resolved)
+        }
+        return cpu
     }
 }
 
