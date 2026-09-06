@@ -7,6 +7,8 @@ import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkInfo
 import androidx.work.WorkManager
+import com.iml1s.xmrigminer.data.daemon.DaemonEndpointParser
+import com.iml1s.xmrigminer.data.daemon.DaemonRpcProbe
 import com.iml1s.xmrigminer.data.model.CoinType
 import com.iml1s.xmrigminer.data.model.MiningConfig
 import com.iml1s.xmrigminer.data.repository.ConfigRepository
@@ -40,7 +42,7 @@ class MiningController @Inject constructor(
     }
 
     suspend fun start(): MiningStartResult {
-        val config = configRepository.getConfig().first()
+        var config = configRepository.getConfig().first()
         if (config.useTls && !XmrigNativeCapabilities.TLS_ENABLED) {
             return MiningStartResult.InvalidConfig(XmrigNativeCapabilities.TLS_UNSUPPORTED_MESSAGE)
         }
@@ -64,6 +66,30 @@ class MiningController @Inject constructor(
                 else -> "配置無效，請檢查設置"
             }
             return MiningStartResult.InvalidConfig(message)
+        }
+
+        if (config.soloDaemon) {
+            val parsed = DaemonEndpointParser.parse(config.poolUrl, allowHttps = false)
+            if (!parsed.ok || parsed.endpoint == null) {
+                return MiningStartResult.InvalidConfig(parsed.message)
+            }
+            // Normalize to engine URL (no userinfo / scheme) before launch (#44).
+            config = config.copy(poolUrl = parsed.endpoint.engineUrl)
+            val probe = DaemonRpcProbe.probe(config.poolUrl)
+            if (!probe.readyToMine) {
+                val detail = buildString {
+                    append(probe.message)
+                    append(" [stage=").append(probe.stage).append(']')
+                    probe.remediation?.let { append(" — ").append(it) }
+                }
+                return MiningStartResult.InvalidConfig(detail)
+            }
+            Timber.i(
+                "Solo daemon ready (stage=%s height=%s url=%s)",
+                probe.stage,
+                probe.height,
+                probe.engineUrl
+            )
         }
 
         stop(resetStats = false)

@@ -85,7 +85,7 @@ class ConfigDraftCoordinatorTest {
         val (solo, soloPool) = c.toggleSolo(start, moneroOcean, enabled = true)
         assertTrue(solo.soloDaemon)
         assertEquals(null, soloPool)
-        assertTrue(solo.poolUrl.contains("18081"))
+        assertEquals(MiningConfig.DEFAULT_SOLO_DAEMON_URL, solo.poolUrl)
 
         val soloEdited = solo.copy(poolUrl = "10.0.0.5:18081")
         val (poolAgain, restoredPool) = c.toggleSolo(soloEdited, null, enabled = false)
@@ -96,6 +96,21 @@ class ConfigDraftCoordinatorTest {
         assertEquals(moneroOcean.id, restoredPool?.id)
         // Must not silently fall back to SupportXMR (first in list).
         assertTrue(restoredPool?.id != supportXmr.id)
+    }
+
+    @Test
+    fun `toggle solo does not keep pool URL that contains 18081`() {
+        val c = coordinator()
+        val sneakyPool = MiningConfig(
+            coinType = "MONERO",
+            walletAddress = xmrWallet,
+            poolUrl = "stratum.example:18081",
+            soloDaemon = false
+        )
+        val (solo, _) = c.toggleSolo(sneakyPool, null, enabled = true)
+        assertTrue(solo.soloDaemon)
+        assertEquals(MiningConfig.DEFAULT_SOLO_DAEMON_URL, solo.poolUrl)
+        assertTrue(solo.poolUrl != sneakyPool.poolUrl)
     }
 
     @Test

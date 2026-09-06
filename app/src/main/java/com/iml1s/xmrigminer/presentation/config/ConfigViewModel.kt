@@ -2,6 +2,8 @@ package com.iml1s.xmrigminer.presentation.config
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.iml1s.xmrigminer.data.daemon.DaemonEndpointParser
+import com.iml1s.xmrigminer.data.daemon.DaemonRpcProbe
 import com.iml1s.xmrigminer.data.model.CoinType
 import com.iml1s.xmrigminer.data.model.MiningConfig
 import com.iml1s.xmrigminer.data.model.Pool
@@ -106,6 +108,7 @@ class ConfigViewModel @Inject constructor(
             is ConfigUiEvent.TlsToggled -> handleTlsToggled(event.enabled)
             is ConfigUiEvent.CustomPoolUrlChanged -> handleCustomPoolUrlChanged(event.url)
             is ConfigUiEvent.SoloDaemonToggled -> handleSoloDaemonToggled(event.enabled)
+            is ConfigUiEvent.ProbeDaemon -> handleProbeDaemon()
             is ConfigUiEvent.SaveConfig -> handleSaveConfig()
             is ConfigUiEvent.RequestResetToDefaults -> handleRequestReset()
             is ConfigUiEvent.ConfirmResetToDefaults -> handleConfirmReset()
@@ -226,7 +229,16 @@ class ConfigViewModel @Inject constructor(
 
     private fun handleCustomPoolUrlChanged(url: String) {
         val state = _uiState.value as? ConfigUiState.Success ?: return
-        updateConfig(currentConfig.copy(poolUrl = url), state.copy(selectedPool = null))
+        updateConfig(
+            currentConfig.copy(poolUrl = url),
+            state.copy(
+                selectedPool = null,
+                daemonProbeStage = null,
+                daemonProbeMessage = null,
+                daemonProbeReady = false,
+                daemonProbeCheckedAtEpochMs = null
+            )
+        )
     }
 
     private fun handleSoloDaemonToggled(enabled: Boolean) {
@@ -240,34 +252,100 @@ class ConfigViewModel @Inject constructor(
             return
         }
         val (newConfig, selectedPool) = drafts.toggleSolo(currentConfig, state.selectedPool, enabled)
-        updateConfig(newConfig, state.copy(selectedPool = selectedPool))
+        updateConfig(
+            newConfig,
+            state.copy(
+                selectedPool = selectedPool,
+                daemonProbeStage = null,
+                daemonProbeMessage = null,
+                daemonProbeReady = false,
+                daemonProbeCheckedAtEpochMs = null
+            )
+        )
+    }
+
+    private fun handleProbeDaemon() {
+        val state = _uiState.value as? ConfigUiState.Success ?: return
+        if (!currentConfig.soloDaemon) return
+        viewModelScope.launch {
+            _uiState.value = state.copy(isProbingDaemon = true)
+            val probe = DaemonRpcProbe.probe(currentConfig.poolUrl)
+            val latest = _uiState.value as? ConfigUiState.Success ?: return@launch
+            _uiState.value = latest.copy(
+                isProbingDaemon = false,
+                daemonProbeStage = probe.stage,
+                daemonProbeMessage = buildString {
+                    append(probe.message)
+                    probe.remediation?.let { append(" — ").append(it) }
+                },
+                daemonProbeReady = probe.readyToMine,
+                daemonProbeCheckedAtEpochMs = probe.checkedAtEpochMs
+            )
+            if (!probe.ok) {
+                _uiEffect.send(ConfigUiEffect.ShowError(probe.message))
+            }
+        }
     }
 
     private fun handleSaveConfig() {
         val state = _uiState.value as? ConfigUiState.Success ?: return
-        val blocked = saveBlockedReason(currentConfig, state.validationError)
+        val normalized = normalizeSoloEndpoint(currentConfig)
+        val blocked = saveBlockedReason(normalized, state.validationError)
         if (blocked != null) {
             viewModelScope.launch {
                 _uiEffect.send(ConfigUiEffect.ShowError(blocked))
             }
-            _uiState.value = state.copy(saveBlockedReason = blocked)
+            _uiState.value = state.copy(saveBlockedReason = blocked, config = normalized)
+            currentConfig = normalized
             return
         }
 
         viewModelScope.launch {
             try {
-                _uiState.value = state.copy(isValidating = true)
+                _uiState.value = state.copy(isValidating = true, config = normalized)
+                currentConfig = normalized
+                var probeStage: String? = state.daemonProbeStage
+                var probeMessage: String? = state.daemonProbeMessage
+                var probeReady = state.daemonProbeReady
+                var probeAt = state.daemonProbeCheckedAtEpochMs
+                if (normalized.soloDaemon) {
+                    val probe = DaemonRpcProbe.probe(normalized.poolUrl)
+                    probeStage = probe.stage
+                    probeMessage = buildString {
+                        append(probe.message)
+                        probe.remediation?.let { append(" — ").append(it) }
+                    }
+                    probeReady = probe.readyToMine
+                    probeAt = probe.checkedAtEpochMs
+                    // Save is allowed after parse OK; start still requires readyToMine (#44).
+                    if (probe.stage == "parse") {
+                        _uiState.value = state.copy(
+                            isValidating = false,
+                            saveBlockedReason = probe.message,
+                            daemonProbeStage = probeStage,
+                            daemonProbeMessage = probeMessage,
+                            daemonProbeReady = false,
+                            daemonProbeCheckedAtEpochMs = probeAt
+                        )
+                        _uiEffect.send(ConfigUiEffect.ShowError(probe.message))
+                        return@launch
+                    }
+                }
                 applyingRemote = true
-                configRepository.saveConfig(currentConfig)
-                savedConfig = currentConfig
+                configRepository.saveConfig(normalized)
+                savedConfig = normalized
                 drafts.clear()
-                drafts.stashFrom(currentConfig, state.selectedPool)
+                drafts.stashFrom(normalized, state.selectedPool)
                 _uiEffect.send(ConfigUiEffect.ConfigSaved)
                 _uiState.value = state.copy(
                     isValidating = false,
                     isDirty = false,
                     saveBlockedReason = null,
-                    config = currentConfig
+                    config = normalized,
+                    daemonProbeStage = probeStage,
+                    daemonProbeMessage = probeMessage,
+                    daemonProbeReady = probeReady,
+                    daemonProbeCheckedAtEpochMs = probeAt
                 )
             } catch (e: Exception) {
                 _uiState.value = state.copy(isValidating = false)
@@ -276,6 +354,14 @@ class ConfigViewModel @Inject constructor(
                 applyingRemote = false
             }
         }
+    }
+
+    /** Canonical engine URL for solo; rejects https without rewriting (#44). */
+    internal fun normalizeSoloEndpoint(config: MiningConfig): MiningConfig {
+        if (!config.soloDaemon) return config
+        val parsed = DaemonEndpointParser.parse(config.poolUrl, allowHttps = false)
+        if (!parsed.ok || parsed.endpoint == null) return config
+        return config.copy(poolUrl = parsed.endpoint.engineUrl)
     }
 
     private fun handleRequestReset() {
@@ -345,6 +431,10 @@ class ConfigViewModel @Inject constructor(
         if (config.maxCpuUsage !in 10..100) return "Thread hint must be between 10 and 100"
         if (config.soloDaemon && config.getCoin() != CoinType.MONERO) {
             return "Solo / daemon mining is Monero-only in this release"
+        }
+        if (config.soloDaemon) {
+            val parsed = DaemonEndpointParser.parse(config.poolUrl, allowHttps = false)
+            if (!parsed.ok) return parsed.message
         }
         XmrigNativeCapabilities.assertStartAllowed(config.getCoin())?.let { return it }
         return null

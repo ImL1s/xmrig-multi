@@ -163,10 +163,16 @@ private fun ConfigContent(
             useTls = state.config.useTls,
             soloDaemon = state.config.soloDaemon,
             coinType = state.selectedCoinType,
+            daemonProbeStage = state.daemonProbeStage,
+            daemonProbeMessage = state.daemonProbeMessage,
+            daemonProbeReady = state.daemonProbeReady,
+            daemonProbeCheckedAtEpochMs = state.daemonProbeCheckedAtEpochMs,
+            isProbingDaemon = state.isProbingDaemon,
             onPoolSelected = { onEvent(ConfigUiEvent.PoolSelected(it)) },
             onCustomUrlChanged = { onEvent(ConfigUiEvent.CustomPoolUrlChanged(it)) },
             onTlsToggled = { onEvent(ConfigUiEvent.TlsToggled(it)) },
-            onSoloDaemonToggled = { onEvent(ConfigUiEvent.SoloDaemonToggled(it)) }
+            onSoloDaemonToggled = { onEvent(ConfigUiEvent.SoloDaemonToggled(it)) },
+            onProbeDaemon = { onEvent(ConfigUiEvent.ProbeDaemon) }
         )
 
         // Wallet Configuration
@@ -316,10 +322,16 @@ private fun PoolSelectionCard(
     useTls: Boolean,
     soloDaemon: Boolean,
     coinType: CoinType,
+    daemonProbeStage: String?,
+    daemonProbeMessage: String?,
+    daemonProbeReady: Boolean,
+    daemonProbeCheckedAtEpochMs: Long?,
+    isProbingDaemon: Boolean,
     onPoolSelected: (Pool) -> Unit,
     onCustomUrlChanged: (String) -> Unit,
     onTlsToggled: (Boolean) -> Unit,
-    onSoloDaemonToggled: (Boolean) -> Unit
+    onSoloDaemonToggled: (Boolean) -> Unit,
+    onProbeDaemon: () -> Unit
 ) {
     var expanded by remember { mutableStateOf(false) }
     var showCustomUrl by remember { mutableStateOf(selectedPool == null || soloDaemon) }
@@ -368,9 +380,58 @@ private fun PoolSelectionCard(
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
                     supportingText = {
-                        Text("Use the PC/LAN IP running monerod, not 127.0.0.1 on the phone unless the node is on-device.")
+                        Text("Use the PC/LAN IP running monerod, not 127.0.0.1 on the phone unless the node is on-device. http://host:port and [IPv6]:port supported; https is rejected.")
                     }
                 )
+                OutlinedButton(
+                    onClick = onProbeDaemon,
+                    enabled = !isProbingDaemon && currentPoolUrl.isNotBlank(),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    if (isProbingDaemon) {
+                        CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                        Spacer(modifier = Modifier.width(8.dp))
+                    }
+                    Text(if (isProbingDaemon) "Checking daemon…" else "Check daemon RPC")
+                }
+                if (daemonProbeStage != null) {
+                    val statusColor = if (daemonProbeReady) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        MaterialTheme.colorScheme.error
+                    }
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        color = MaterialTheme.colorScheme.surfaceVariant,
+                        shape = MaterialTheme.shapes.small
+                    ) {
+                        Column(modifier = Modifier.padding(12.dp)) {
+                            Text(
+                                text = if (daemonProbeReady) {
+                                    "Ready to mine · stage $daemonProbeStage"
+                                } else {
+                                    "Not ready · stage $daemonProbeStage (TCP≠ready)"
+                                },
+                                style = MaterialTheme.typography.labelLarge,
+                                color = statusColor
+                            )
+                            daemonProbeMessage?.let {
+                                Text(
+                                    text = it,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            daemonProbeCheckedAtEpochMs?.let { ts ->
+                                Text(
+                                    text = "Last check: ${java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.getDefault()).format(java.util.Date(ts))}",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.outline
+                                )
+                            }
+                        }
+                    }
+                }
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
                     color = MaterialTheme.colorScheme.secondaryContainer,
